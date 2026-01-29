@@ -1,7 +1,7 @@
 # Oberon-07 compiler tools
 
 This repo contains the Oberon-2 sources of [ORP, ORTool](https://people.inf.ethz.ch/wirth/ProjectOberon/index.html) from N.Wirth.
-And the Oberon-2 sources of [ORL, ORX](https://github.com/andreaspirklbauer/Oberon-building-tools/tree/master/Sources/FPGAOberon2013) from A.Pirklbauer.
+and [ORL, ORX](https://github.com/andreaspirklbauer/Oberon-building-tools/tree/master/Sources/FPGAOberon2013) from A.Pirklbauer.
 
 You can compile the sources with [O2C](https://github.com/pahihu/o2c/tree/feature-64bit-port), at least on macOS ARM64, Rocky Linux 8 i686/x86_64 or MinGW32.
 
