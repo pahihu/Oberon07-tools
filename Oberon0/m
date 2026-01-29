@@ -1,0 +1,10 @@
+rm -f OSP ORTool0 Oberon.Log *.rsc
+rm -f sym/* obj/*
+###
+if [ $# -ne 0 ];
+then
+  echo "clean"
+  exit 0
+fi
+o2c -M OSP | o2ef
+o2c -M ORTool0 | o2ef
