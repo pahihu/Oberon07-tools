@@ -14,6 +14,7 @@ The directories:
 - `Oberon0/` contains the source code from [Compiler Construction](https://people.inf.ethz.ch/wirth/CompilerConstruction/index.html).
 - `Oberon07/` contains ORP, ORTool, ORL, ORX.
 - `EO/` contains the inner core of Embedded Oberon.
+- `PO2013/` contains the inner core of Project Oberon 2013.
 
 Setup O2C and include the `lib/` `obj/` and `sym/` directories into `~/.o2c.red`.
 
