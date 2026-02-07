@@ -3,12 +3,11 @@ Astrobe:
 - .smb symbol files with number compression, size aligned to 4byte boundaries
 
 ORL
-- at least on 32bit platforms it works, but only with "--nogc"
-- GC confuses when sees the Module RECORD casts
+- ORL32.Mod is the original sources, works only on 32bit platforms
+- ORL.Mod works on both 32bit/64bit platforms.
 
-The ORX port has an interesting pattern, how to process command line
-arguments. Rewrite ORP.Compile and ORTool.DecSym, DecObj similarly. DONE
-
+POSystem
+- This is the file tools section from Project Oberon 2013 System.Mod
 
 Quick start with Oberon building tools
 ======================================
