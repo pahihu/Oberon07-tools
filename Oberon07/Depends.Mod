@@ -25,10 +25,6 @@ MODULE Depends; (* Phu 7.2.2026 *)
   BEGIN RETURN (S.class = Texts.Char) & (S.c = 0FFX)
   END Eof;
 
-  PROCEDURE WriteBool(x: BOOLEAN);
-  BEGIN IF x THEN Texts.Write(W, "Y") ELSE Texts.Write(W, "N") END
-  END WriteBool;
-
   PROCEDURE Talk(VAR S: Texts.Scanner);
   BEGIN
     IF verbose THEN
@@ -69,7 +65,11 @@ MODULE Depends; (* Phu 7.2.2026 *)
           Texts.Scan(S); INC(nest);
         ELSIF (S.c = "*") & (S.nextCh = ")") THEN
           Texts.Scan(S); DEC(nest);
-        ELSIF (nest = 0) & savimp & (S.c = ";") THEN done := TRUE END
+        ELSIF (nest = 0) & savimp THEN
+          IF (S.c = "=") & (n > 0) THEN DEC(n)
+          ELSIF S.c = ";" THEN done := TRUE
+          END
+        END
       END;
       Texts.Scan(S)
     END;
@@ -126,7 +126,7 @@ END Depends.
 (* History
  * =======
  *
- * 260207 verbose option, skip comments (Graphics.Mod.txt)
+ * 260207 verbose option, skip comments (Graphics.Mod.txt), skip aliases
  * 260204 initial revision
  *
  *)
