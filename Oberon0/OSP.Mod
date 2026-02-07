@@ -1,5 +1,5 @@
 MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
-  IMPORT Texts, Oberon, OSS, OSG, Args, Sys := System;
+  IMPORT Texts, Oberon, OSS, OSG, Sys := System;
 
   CONST WordSize = 4;
   VAR sym, level: Sys.Integer;
@@ -473,22 +473,26 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     END
   END Module;
 
-  PROCEDURE Option(s: ARRAY OF CHAR);
-  BEGIN IF s = "/d" THEN doDecode := TRUE END
+  PROCEDURE Option(VAR S: Texts.Scanner);
+  BEGIN doDecode := FALSE;
+    IF S.nextCh = "/" THEN
+      Texts.Scan(S); Texts.Scan(S); 
+      IF (S.class = Texts.Name) & (S.s[0] = "d") THEN doDecode := TRUE END
+    END
   END Option;
   
   PROCEDURE Compile*;
     VAR T: Texts.Text;
-        s: ARRAY 32 OF CHAR;
-  BEGIN doDecode := FALSE;
-    IF Args.argc > 1 THEN Args.GetArg(2, s);
-      NEW(T); Texts.Open(T, s);
-      IF T.len > 0 THEN
-        IF Args.argc > 2 THEN Args.GetArg(3, s); Option(s); END;
-        OSS.Init(T, 0); OSS.Get(sym); Module
-      ELSE Texts.WriteString(W, " cannot open "); Texts.WriteString(W, s);
-        Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+        S: Texts.Scanner;
+  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+    IF S.class = Texts.Name THEN
+      NEW(T); Texts.Open(T, S.s);
+      IF T.len > 0 THEN Option(S); OSS.Init(T, 0); OSS.Get(sym); Module
+      ELSE Texts.WriteString(W, " cannot open "); Texts.WriteString(W, S.s);
+        Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
       END
+    ELSE Texts.WriteString(W, "usage: OSP.Compile module [/d]");
+      Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
     END
   END Compile;
 
@@ -498,6 +502,11 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     obj.class := cl; obj.val := n; COPY(name, obj.name); obj.type := type; obj.dsc := NIL;
     obj.next := topScope.next; topScope.next := obj
   END enter;
+
+  PROCEDURE Help*;
+  BEGIN Texts.WriteString(W, "usage: OSP Compile module[/d]");
+    Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+  END Help;
   
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Oberon-0 Compiler OSP  9.5.2017");
   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
@@ -517,13 +526,7 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Oberon-0 Compiler OSP  9.5.2017
   enter("INTEGER", OSG.Typ, 1, OSG.intType);
   universe := topScope;
 
-  IF Args.argc = 0 THEN
-    Texts.WriteString(W, "usage: OSP Compile module [/d]");
-    Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
-  ELSE
-    Args.GetArg(1, cmd);
-    IF cmd = "Compile" THEN Compile END
-  END
+  Oberon.Run
 END OSP.
 
 (* vim:set ts=2 sw=2 et: *)

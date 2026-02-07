@@ -1,0 +1,21 @@
+64-bit exe files supplement for RISCW32
+---------------------------------------
+paulreed@paddedcell.com, 14.2.2020
+
+riscw.exe is a 64-bit Windows MSYS2 compilation of oberon-risc-emu
+risc.exe is a 64-bit Windows console MSYS2 compilation of oberon-risc-emu
+SDL2.dll is a 64-bit version of the Simple DirectMedia Layer library.
+
+If you wish to use these with RISCW32, you may wish to create a 32-bit 
+sub-folder and save the old 32-bit risc.exe and SDL2.dll in it.
+
+Use risc.exe if you are not running under MSYS2 and you wish to see console 
+output, such as usage, LEDs, asserts etc.
+
+Use riscw.exe if you are launching the emulator from an icon/shortcut and
+you do not wish to create a console window.
+
+The following file offsets contain RGB DWORDs for editing the screen colours:
+   0x9FE0 (WHITE), default 0xfdf6e3
+   0x9FE4 (BLACK), default 0x657b83
+

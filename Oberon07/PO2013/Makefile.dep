@@ -1,0 +1,43 @@
+Blink.rsc Blink.smb: Blink.Mod.txt Oberon.smb
+BootLoad.rsc BootLoad.smb: BootLoad.Mod.txt
+Checkers.rsc Checkers.smb: Checkers.Mod.txt Display.smb Viewers.smb Oberon.smb MenuViewers.smb TextFrames.smb
+Curves.rsc Curves.smb: Curves.Mod.txt Display.smb Files.smb Oberon.smb Graphics.smb GraphicFrames.smb
+Display.rsc Display.smb: Display.Mod.txt
+Draw.rsc Draw.smb: Draw.Mod.txt Files.smb Fonts.smb Viewers.smb Texts.smb Oberon.smb TextFrames.smb MenuViewers.smb Graphics.smb GraphicFrames.smb
+EBNF.rsc EBNF.smb: EBNF.Mod.txt Texts.smb Oberon.smb
+Edit.rsc Edit.smb: Edit.Mod.txt Files.smb Fonts.smb Texts.smb Display.smb Viewers.smb Oberon.smb MenuViewers.smb TextFrames.smb
+FileDir.rsc FileDir.smb: FileDir.Mod.txt Kernel.smb
+Files.rsc Files.smb: Files.Mod.txt Kernel.smb FileDir.smb
+Fonts.rsc Fonts.smb: Fonts.Mod.txt Files.smb
+GraphTool.rsc GraphTool.smb: GraphTool.Mod.txt Files.smb Texts.smb Oberon.smb
+GraphicFrames.rsc GraphicFrames.smb: GraphicFrames.Mod.txt Display.smb Viewers.smb Input.smb Fonts.smb Texts.smb Graphics.smb Oberon.smb MenuViewers.smb
+Graphics.rsc Graphics.smb: Graphics.Mod.txt Files.smb Modules.smb Fonts.smb Texts.smb Oberon.smb
+Hilbert.rsc Hilbert.smb: Hilbert.Mod.txt Display.smb Viewers.smb Texts.smb Oberon.smb MenuViewers.smb TextFrames.smb
+Input.rsc Input.smb: Input.Mod.txt
+Kernel.rsc Kernel.smb: Kernel.Mod.txt
+MacroTool.rsc MacroTool.smb: MacroTool.Mod.txt Texts.smb Oberon.smb Graphics.smb GraphicFrames.smb
+Math.rsc Math.smb: Math.Mod.txt
+MenuViewers.rsc MenuViewers.smb: MenuViewers.Mod.txt Input.smb Display.smb Viewers.smb Oberon.smb
+Modules.rsc Modules.smb: Modules.Mod.txt Files.smb
+Net.rsc Net.smb: Net.Mod.txt SCC.smb Files.smb Viewers.smb Texts.smb TextFrames.smb MenuViewers.smb Oberon.smb
+ORB.rsc ORB.smb: ORB.Mod.txt Files.smb ORS.smb
+ORC.rsc ORC.smb: ORC.Mod.txt Files.smb Texts.smb Oberon.smb V24.smb
+ORG.rsc ORG.smb: ORG.Mod.txt Files.smb ORS.smb ORB.smb
+ORP.rsc ORP.smb: ORP.Mod.txt Texts.smb Oberon.smb ORS.smb ORB.smb ORG.smb
+ORS.rsc ORS.smb: ORS.Mod.txt Texts.smb Oberon.smb
+ORTool.rsc ORTool.smb: ORTool.Mod.txt Files.smb Texts.smb Oberon.smb ORB.smb
+Oberon.rsc Oberon.smb: Oberon.Mod.txt Kernel.smb Files.smb Modules.smb Input.smb Display.smb Viewers.smb Fonts.smb Texts.smb
+PCLink1.rsc PCLink1.smb: PCLink1.Mod.txt Files.smb Texts.smb Oberon.smb
+PIO.rsc PIO.smb: PIO.Mod.txt
+RISC.rsc RISC.smb: RISC.Mod.txt Texts.smb Oberon.smb
+RS232.rsc RS232.smb: RS232.Mod.txt
+Rectangles.rsc Rectangles.smb: Rectangles.Mod.txt Display.smb Files.smb Input.smb Texts.smb Oberon.smb Graphics.smb GraphicFrames.smb
+SCC.rsc SCC.smb: SCC.Mod.txt Kernel.smb
+Sierpinski.rsc Sierpinski.smb: Sierpinski.Mod.txt Display.smb Viewers.smb Oberon.smb MenuViewers.smb TextFrames.smb
+Blink.rsc Blink.smb: Blink.Mod.txt Oberon.smb
+Stars.rsc Stars.smb: Stars.Mod.txt Display.smb Viewers.smb Texts.smb Oberon.smb MenuViewers.smb TextFrames.smb
+System.rsc System.smb: System.Mod.txt Kernel.smb FileDir.smb Files.smb Modules.smb Input.smb Display.smb Viewers.smb Fonts.smb Texts.smb Oberon.smb MenuViewers.smb TextFrames.smb
+TextFrames.rsc TextFrames.smb: TextFrames.Mod.txt Modules.smb Input.smb Display.smb Viewers.smb Fonts.smb Texts.smb Oberon.smb MenuViewers.smb
+Texts.rsc Texts.smb: Texts.Mod.txt Files.smb Fonts.smb
+Tools.rsc Tools.smb: Tools.Mod.txt Kernel.smb Files.smb Modules.smb Input.smb Texts.smb Viewers.smb MenuViewers.smb TextFrames.smb Oberon.smb
+Viewers.rsc Viewers.smb: Viewers.Mod.txt Display.smb

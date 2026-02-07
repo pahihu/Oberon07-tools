@@ -49,10 +49,18 @@ MODULE Files07;
     IF x > 127 THEN x := x - 256 END
   END ReadByte;
 
+  PROCEDURE ReadBytes* (VAR R: Rider; VAR x: ARRAY OF SYSTEM.BYTE; n: LONGINT);
+  BEGIN Files.ReadBytes(R, x, n)
+  END ReadBytes;
+
   PROCEDURE ReadInt* (VAR R: Rider; VAR x: Sys.Integer);
     VAR i: INTEGER;
   BEGIN Sys.ReadInt(R, x);
   END ReadInt;
+
+  PROCEDURE ReadLInt* (VAR R: Rider; VAR x: LONGINT);
+  BEGIN Files.ReadLInt(R, x)
+  END ReadLInt;
 
   PROCEDURE ReadNum* (VAR R: Rider; VAR x: Sys.Integer);
   BEGIN IF doCompress THEN Sys.ReadNum(R, x) ELSE ReadInt(R, x) END
@@ -79,6 +87,10 @@ MODULE Files07;
   PROCEDURE WriteInt* (VAR R: Rider; x: Sys.Integer);
   BEGIN Sys.WriteInt(R, x)
   END WriteInt;
+
+  PROCEDURE WriteLInt* (VAR R: Rider; x: LONGINT);
+  BEGIN Files.WriteLInt(R, x)
+  END WriteLInt;
 
   PROCEDURE WriteNum* (VAR R: Rider; x: Sys.Integer);
   BEGIN IF doCompress THEN Files.WriteNum(R, x) ELSE WriteInt(R, x) END

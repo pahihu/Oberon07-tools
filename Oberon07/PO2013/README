@@ -1,0 +1,7 @@
+- prom.mem does NOT match the prom.mem in RISC5Verilog.zip@projectoberon.net
+
+- Printer is commented out, needs Depends fix
+MacroTool	Printer Graphics
+
+- V24 is missing
+ORC		V24

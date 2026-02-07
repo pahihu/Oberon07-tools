@@ -23,7 +23,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
     Type* = POINTER TO TypeDesc;
 
     ObjDesc*= RECORD
-      class*, exno*: SHORTINT; (* SYSTEM.BYTE; *)
+      class*, exno*: Sys.Byte; (* SYSTEM.BYTE; *)
       expo*, rdo*: BOOLEAN;   (*exported / read-only*)
       lev*: Sys.Integer;
       next*, dsc*: Object;
@@ -76,7 +76,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   BEGIN x := topScope;
     WHILE (x.next # NIL) & (x.next.name # id) DO x := x.next END ;
     IF x.next = NIL THEN
-      NEW(new); new.name := id; new.class := BIF07.Byte(class); new.next := NIL; new.rdo := FALSE; new.dsc := NIL;
+      NEW(new); new.name := id; new.class := SHORT(class); new.next := NIL; new.rdo := FALSE; new.dsc := NIL;
       x.next := new; obj := new
     ELSE obj := x.next; ORS.Mark("mult def")
     END 
@@ -182,7 +182,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
         Files.ReadNum(R, t.size);
         Read(R, class); last := NIL;
         WHILE class # 0 DO  (*fields*)
-          NEW(fld); fld.class := BIF07.Byte(class); Files.ReadString(R, fld.name);
+          NEW(fld); fld.class := SHORT(class); Files.ReadString(R, fld.name);
           IF last = NIL THEN t.dsc := fld ELSE last.next := fld END ;
           last := fld;
           IF fld.name[0] # 0X THEN fld.expo := TRUE; InType(R, thismod, fld.type) ELSE fld.expo := FALSE; fld.type := nilType END ;
@@ -193,7 +193,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
         InType(R, thismod, t.base);
         obj := NIL; np := 0; Read(R, class);
         WHILE class # 0 DO  (*parameters*)
-          NEW(par); par.class := BIF07.Byte(class); Read(R, readonly); par.rdo := readonly = 1; 
+          NEW(par); par.class := SHORT(class); Read(R, readonly); par.rdo := readonly = 1; 
           InType(R, thismod, par.type); par.next := obj; obj := par; INC(np); Read(R, class)
         END ;
         t.dsc := obj; t.nofpar := np; t.size := 4
@@ -236,7 +236,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
         IF class # versionkey THEN ORS.Mark("wrong version") END ;
         Read(R, class);
         WHILE class # 0 DO
-          NEW(obj); obj.class := BIF07.Byte(class); Files.ReadString(R, obj.name);
+          NEW(obj); obj.class := SHORT(class); Files.ReadString(R, obj.name);
           InType(R, thismod, obj.type); obj.lev := -thismod.lev;
           IF class = Typ THEN
             t := obj.type; t.typobj := obj; Read(R, k);  (*fixup bases of previously declared pointer types*)
@@ -382,7 +382,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
 
   PROCEDURE enter(name: ARRAY OF CHAR; cl: Sys.Integer; type: Type; n: Sys.Integer);
     VAR obj: Object;
-  BEGIN NEW(obj); COPY(name, obj.name); obj.class := BIF07.Byte(cl); obj.type := type; obj.val := n; obj.dsc := NIL;
+  BEGIN NEW(obj); COPY(name, obj.name); obj.class := SHORT(cl); obj.type := type; obj.val := n; obj.dsc := NIL;
     IF cl = Typ THEN type.typobj := obj END ;
     obj.next := system; system := obj
   END enter;

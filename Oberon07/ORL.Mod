@@ -1,5 +1,5 @@
 MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
-  IMPORT SYSTEM, Files, Texts, Oberon, Args, Sys := System;
+  IMPORT SYSTEM, Files, Texts, Oberon, Args, Kernel := POKernel, Sys := System;
   CONST versionkey = 1X; versionkey0 = 0X; MT = 12; DescSize = 80; MnLength = 32; BootSec = 2; BootSize = 64; FPrint = 12345678H;
     noerr* = 0; nofile* = 1; badversion* = 2; badkey* = 3; badfile* = 4; nospace* = 5;
     DestAdr = 8; MemAdr = 12; AllocAdr = 16; RootAdr = 20; StackAdr = 24; FPrintAdr = 28; MTAdr = 32; ModAdr = 256;
@@ -254,15 +254,15 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
   PROCEDURE Link*;  (*link multiple object files together and create a single boot file M.bin from them*)
     VAR i, x: Sys.Integer;
       F: Files.File; R: Files.Rider;
-      S: ARRAY 32 OF CHAR;
+      S: Texts.Scanner;
       M, p: Module;
       name: ModuleName;
       pos: INTEGER;
-  BEGIN res := -1; pos := 2;
-    IF Args.argc > 1 THEN
+  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
+    IF S.class = Texts.Name THEN
       root := NIL; Start := 0; MTOrg := Start + MTAdr; AllocPtr :=  Start + ModAdr; i := Start;
       WHILE i < AllocPtr DO Put4(i, 0); INC(i, 4) END ;
-      REPEAT Args.GetArg(pos, S); LinkOne(S, M); INC(pos) UNTIL (pos > Args.argc) OR (res # noerr);
+      REPEAT LinkOne(S.s, M); Texts.Scan(S) UNTIL (S.class # Texts.Name) OR (res # noerr);
       IF res = noerr THEN p := root; Texts.WriteString(W, "  linking");
         WHILE p # NIL DO (*fixup*) Texts.Write(W, " "); Texts.WriteString(W, p.name);
           M := p; p := AbsPtr(p.next);
@@ -285,7 +285,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
         Put4(Start + RootAdr, RelPtr(root) - Start);  (*current root of the links of loaded modules*)
         Put4(Start + StackAdr, 0);  (*current limit of the module area, typically overwritten by the boot loader*)
         Put4(Start + FPrintAdr, FPrint);  (*fingerprint*)
-        MakeFileName(name, S, ".bin"); F := Files.New(name); Files.Set(R, F, 0); i := Start;
+        MakeFileName(name, S.s, ".bin"); F := Files.New(name); Files.Set(R, F, 0); i := Start;
         WHILE i < AllocPtr DO Get4(i, x); Sys.WriteInt(R, x); INC(i, 4) END ;
         Texts.WriteInt(W, AllocPtr - Start, 7); Files.Register(F)
       ELSE
@@ -304,43 +304,34 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
   END Link;
 
   PROCEDURE Load*;  (*load prelinked boot file M.bin onto the boot area of the local disk*)      
-    CONST SectorLength = 1024;
-          FSoffset = 80000H; (*256MB in 512-byte blocks*)
-    TYPE
-      Sector = ARRAY SectorLength OF SYSTEM.BYTE;
-
     VAR i, secno: Sys.Integer; b: CHAR (*SYSTEM.BYTE*);
-      F, SD: Files.File; R, SDR: Files.Rider;
-      S: ARRAY 32 OF CHAR;
-      buf: Sector;
-      
-    PROCEDURE PutSector(dst: Sys.Integer; VAR src: Sector);
-    BEGIN dst := dst DIV 29;
-      dst := dst * 2 + FSoffset;
-      Files.Set(SDR, SD, dst * SectorLength);
-      Files.WriteBytes(SDR, src, SectorLength)
-    END PutSector;
-    
-  BEGIN res := -1;
-    IF Args.argc > 2 THEN Args.GetArg(2, S);
-      Texts.WriteString(W, "  loading "); Texts.WriteString(W, S); F := Files.Old(S);
+      F: Files.File; R: Files.Rider;
+      S: Texts.Scanner;
+      buf: Kernel.Sector;
+  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
+    IF S.class = Texts.Name THEN
+      Texts.WriteString(W, "  loading "); Texts.WriteString(W, S.s); F := Files.Old(S.s);
       IF F # NIL THEN Texts.WriteString(W, " onto boot area"); Texts.WriteInt(W, Files.Length(F), 7);
-        Args.GetArg(3, S);
-        Texts.WriteString(W, "  image "); Texts.WriteString(W, S); SD := Files.Old(S);
-        IF SD # NIL THEN Files.Set(SDR, SD, 0);        
-          secno := BootSec; i := 0; Files.Set(R, F, 0); Files.Read(R, b); res := noerr;
-          WHILE ~R.eof DO buf[i] := b; INC(i);
-            IF i = SectorLength THEN PutSector(secno*29, buf); INC(secno); i := 0 END ;
-            Files.Read(R, b)
-          END ;
-          IF i > 0 THEN
-            WHILE i < SectorLength DO buf[i] := 0; INC(i) END ;
-            PutSector(secno*29, buf); INC(secno)
-          END ;
-          FOR i := 0 TO SectorLength-1 DO buf[i] := 0 END ;
-          WHILE secno < BootSize DO PutSector(secno*29, buf); INC(secno) END;
-        ELSE Texts.WriteString(W, " not found")
-        END
+        Texts.Scan(S);
+        IF S.class = Texts.Name THEN
+          Texts.WriteString(W, "  image "); Texts.WriteString(W, S.s); Kernel.OpenImage(S.s);
+          IF Kernel.res = Kernel.done THEN
+            secno := BootSec; i := 0; Files.Set(R, F, 0); Files.Read(R, b); res := noerr;
+            WHILE ~R.eof DO buf[i] := b; INC(i);
+              IF i = Kernel.SectorLength THEN Kernel.PutSector(secno*29, buf); INC(secno); i := 0 END ;
+              Files.Read(R, b)
+            END ;
+            IF i > 0 THEN
+              WHILE i < Kernel.SectorLength DO buf[i] := 0; INC(i) END ;
+              Kernel.PutSector(secno*29, buf); INC(secno)
+            END ;
+            FOR i := 0 TO Kernel.SectorLength-1 DO buf[i] := 0 END ;
+            WHILE secno < BootSize DO Kernel.PutSector(secno*29, buf); INC(secno) END;
+            Kernel.CloseImage;
+          ELSE Texts.WriteString(W, " not found")
+          END
+        ELSE Texts.WriteString(W, "Usage: ORL.Load M.bin SD.img")
+        END;
       ELSE Texts.WriteString(W, " not found")
       END
     ELSE Texts.WriteString(W, "Usage: ORL.Load M.bin SD.img")
@@ -348,17 +339,16 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
     EndLine
   END Load;
 
-BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Boot linker/loader  AP 1.5.23"); EndLine;
-
-  NEW(Mem); MemBase := SYSTEM.VAL(Sys.Address, Mem); limit := MemSize;
-
-  IF Args.argc = 0 THEN
-    Texts.WriteString(W, "usage: ORL Link [module ...] topmodule | Load M.bin SD.img");
+  PROCEDURE Help*;
+    VAR W: Texts.Writer;
+  BEGIN Texts.OpenWriter(W);
+    Texts.WriteString(W, "ORL Link [module ...] topmodule | Load M.bin SD.img");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
-  ELSE
-    Args.GetArg(1, cmd);
-    IF cmd = "Link" THEN Link
-    ELSIF cmd = "Load" THEN Load
-    END
-  END
+  END Help;
+
+BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Boot linker/loader  AP 1.5.23"); EndLine;
+  NEW(Mem); MemBase := SYSTEM.VAL(Sys.Address, Mem); limit := MemSize;
+  Oberon.Run
 END ORL.
+
+(* vim:set ts=2 sw=2 et: *)

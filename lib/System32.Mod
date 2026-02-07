@@ -4,7 +4,11 @@ MODULE System;
   TYPE
     Integer* = LONGINT;
     Address* = LONGINT;
-    
+    INT8* = SHORTINT;
+    INT16* = INTEGER;
+    INT32* = LONGINT;
+    Byte* = INT16; (*[0,255]*)
+
   PROCEDURE AddrToInt*(x: Address): Integer;
   BEGIN RETURN x
   END AddrToInt;

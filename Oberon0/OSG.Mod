@@ -508,7 +508,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
           Texts.WriteInt(W, c, 8)
         END
       ELSIF ~ODD(w DIV 40000000H) THEN  (*load/store*)
-        IF ODD(w DIV 20000000H) THEN Texts.WriteString(W, "STW ") ELSE Texts.WriteString(W, "LDW") END ;
+        IF ODD(w DIV 20000000H) THEN Texts.WriteString(W, "STW") ELSE Texts.WriteString(W, "LDW") END ;
         WriteReg(a); WriteReg(b); Texts.WriteInt(W, w MOD 100000H, 8)
       ELSE  (*Branch instr*)
         Texts.Write(W, "B");

@@ -1,0 +1,14 @@
+BIF07.OSym: BIF07.Mod
+Depends.OSym: Depends.Mod
+ORB.OSym: ORB.Mod ORS.OSym BIF07.OSym
+ORG.OSym: ORG.Mod ORS.OSym ORB.OSym BIF07.OSym
+ORL.OSym: ORL.Mod POKernel.OSym
+ORL32.OSym: ORL32.Mod POKernel.OSym
+ORP.OSym: ORP.Mod ORS.OSym ORB.OSym ORG.OSym BIF07.OSym
+ORS.OSym: ORS.Mod BIF07.OSym
+ORTool.OSym: ORTool.Mod ORB.OSym
+ORX.OSym: ORX.Mod
+POFileDir.OSym: POFileDir.Mod POKernel.OSym
+POFiles.OSym: POFiles.Mod BIF07.OSym POKernel.OSym POFileDir.OSym
+POKernel.OSym: POKernel.Mod
+POSystem.OSym: POSystem.Mod POKernel.OSym POFileDir.OSym POFiles.OSym

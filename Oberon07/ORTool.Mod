@@ -1,5 +1,5 @@
 MODULE ORTool;  (*NW 18.2.2013*)
-  IMPORT SYSTEM, Files := Files07, Texts, Oberon, ORB, Args, Sys := System;
+  IMPORT SYSTEM, Files := Files07, Texts, Oberon, ORB, Sys := System;
   VAR W: Texts.Writer;
     Form: Sys.Integer;  (*result of ReadType*)
     mnemo0, mnemo1: ARRAY 16, 4 OF CHAR;  (*mnemonics*)
@@ -61,12 +61,12 @@ MODULE ORTool;  (*NW 18.2.2013*)
     VAR class, typno, k: Sys.Integer;
       name: ARRAY 32 OF CHAR;
       F: Files.File; R: Files.Rider;
-      s: ARRAY 32 OF CHAR;
-  BEGIN 
-    IF Args.argc > 1 THEN Args.GetArg(2, s);
-      Texts.WriteString(W, "OR-decode "); Texts.WriteString(W, s);
+      S: Texts.Scanner;
+  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+    IF S.class = Texts.Name THEN
+      Texts.WriteString(W, "OR-decode "); Texts.WriteString(W, S.s);
       Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
-      F := Files.Old(s);
+      F := Files.Old(S.s);
       IF F # NIL THEN
         Files.Set(R, F, 0); Files.ReadInt(R, k); Files.ReadInt(R, k);
         Files.ReadString(R, name); Texts.WriteString(W, name); Texts.WriteHex(W, k);
@@ -157,10 +157,12 @@ MODULE ORTool;  (*NW 18.2.2013*)
       ch: CHAR;
       name: ARRAY 32 OF CHAR;
       F: Files.File; R: Files.Rider;
-      s: ARRAY 32 OF CHAR;
+      S: Texts.Scanner;
   BEGIN Files.doCompress := FALSE;
-    IF Args.argc > 1 THEN Args.GetArg(2, s);
-      Texts.WriteString(W, "decode "); Texts.WriteString(W, s); F := Files.Old(s);
+    Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+    IF S.class = Texts.Name THEN
+      Texts.WriteString(W, "decode "); Texts.WriteString(W, S.s); F := Files.Old(S.s);
+
       IF F # NIL THEN
         Files.Set(R, F, 0); Files.ReadString(R, name); Texts.WriteLn(W); Texts.WriteString(W, name);
         Files.ReadInt(R, key); Texts.WriteHex(W, key); Read(R, class); Texts.WriteInt(W, class, 4); (*version*)
@@ -220,6 +222,11 @@ MODULE ORTool;  (*NW 18.2.2013*)
     END
   END DecObj;
 
+  PROCEDURE Help*;
+  BEGIN Texts.WriteString(W, "usage: ORTool DecSym <file> | DecObj <file>");
+    Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+  END Help;
+
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "ORTool 18.2.2013");
   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   mnemo0[0] := "MOV";
@@ -250,15 +257,7 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "ORTool 18.2.2013");
   mnemo1[14] := "GT ";
   mnemo1[15] := "NO ";
 
-  IF Args.argc = 0 THEN
-    Texts.WriteString(W, "usage: ORTool DecSym|DecObj <file>");
-    Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
-  ELSE
-    Args.GetArg(1, cmd);
-    IF cmd = "DecSym" THEN DecSym;
-    ELSIF cmd = "DecObj" THEN DecObj
-    END
-  END
+  Oberon.Run
 END ORTool.
 
 (* vim:set ts=2 sw=2 et: *)

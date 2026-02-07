@@ -12,19 +12,30 @@ The original sources depend on the assumption, that `SIZE(INTEGER) = 4`. Hence I
 
 The directories:
 - `Oberon0/` contains the source code from [Compiler Construction](https://people.inf.ethz.ch/wirth/CompilerConstruction/index.html).
-- `Oberon07/` contains ORP, ORTool, ORL, ORX.
-- `EO/` contains the inner core of Embedded Oberon.
-- `PO2013/` contains the inner core of Project Oberon 2013.
+- `Oberon07/` contains ORP, ORTool, ORL, ORX, Depends.
+- `Oberon07/EO/` contains the inner core of Embedded Oberon.
+- `Oberon07/PO2013/` contains the sources of Project Oberon 2013.
+- `Oberon07/riscw/` contains the Windows 64bit binary of Peter De Wachter's [oberon-risc-emu](https://github.com/pdewacht/oberon-risc-emu).
+- `Lola2/EO/` contains the Lola-2 compiler.
+- `Lola2/risc5/` Lola-2 sources of RISC5.
+- `Misc/` contains classic Hello World, Fibonacci series, Oberon-2 type sizes programs.
+- `Misc/Benchmark/` contains the Pow! benchmark program.
+- `Misc/RayTest/` contains [Paul Graham's Common Lisp ray-tracer](https://paulgraham.com/acl.html) ported to Oberon-2.
+- `cedt/` contains Oberon-2 and Lola-2 syntax definitions for Crimson Editor.
+
+You can rebuild the Project Oberon 2013 sources and install it in an SD card image with these tools.
+See `Oberon07/PO2013/buildimg.sh`.
 
 Setup O2C and include the `lib/` `obj/` and `sym/` directories into `~/.o2c.red`.
 
 Example run:
 
-    ./m 64
+    make m64
     cd Oberon07
-    ./m
-    cd ../EO
-    ./m
+    make
+    cd PO2013
+    make
+    ./mk.sh build
 
 ***
 

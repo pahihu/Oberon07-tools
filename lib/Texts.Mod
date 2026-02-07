@@ -1,5 +1,5 @@
 MODULE Texts;
-  IMPORT SYSTEM, Files, RealStr, Out;
+  IMPORT SYSTEM, Files, RealStr, Out, ConvTypes, Sys := System;
 
   CONST (*scanner symbol classes*)
     Inval* = 0;         (*invalid symbol*)
@@ -17,7 +17,10 @@ MODULE Texts;
     replace* = 0; insert* = 1; delete* = 2; unmark* = 3;  (*op-codes*)
 
     dos = FALSE;
+    int64Precision = 19;
+    int32Precision = 10;
 
+  (*------------------------------------------------------------------*)
   TYPE
     Text* = POINTER TO TextDesc;
     TextDesc* = RECORD
@@ -53,17 +56,30 @@ MODULE Texts;
 
     Writer* = RECORD
       buf*: Buffer;
-      rider: Files.Rider
+      rider-: Files.Rider
     END;
     
   (*------------------------------------------------------------------*)
+  VAR
+    LIntPrecision: INTEGER;
+    HexDigits: INTEGER;
 
-  PROCEDURE Open* (VAR T: Text; s: ARRAY OF CHAR);
-  BEGIN T.len := 0; T.base := Files.Old (s);
+  (*------------------------------------------------------------------*)
+
+  PROCEDURE OpenFile (VAR T: Text; F: Files.File);
+  BEGIN T.len := 0; T.base := F;
     IF T.base # NIL THEN
       T.len := Files.Length (T.base);
       Files.Set (T.rider, T.base, 0)
     END
+  END OpenFile;
+
+  PROCEDURE OpenRider* (VAR T: Text; R: Files.Rider);
+  BEGIN OpenFile(T, Files.Base(R))
+  END OpenRider;
+
+  PROCEDURE Open* (VAR T: Text; s: ARRAY OF CHAR);
+  BEGIN OpenFile(T, Files.Old(s))
   END Open;
 
   PROCEDURE Close* (VAR T: Text);
@@ -77,9 +93,12 @@ MODULE Texts;
   END OpenReader;
   
   PROCEDURE Read* (VAR R: Reader; VAR ch: CHAR);
-  BEGIN Files.Read (R.rider, ch);
-    WHILE ~R.rider.eof & (ch = LF) DO Files.Read (R.rider, ch) END;
-    R.eot := R.rider.eof
+  BEGIN
+    IF R.eot THEN ch := 0FFX
+    ELSE Files.Read (R.rider, ch);
+      WHILE ~R.rider.eof & (ch = LF) DO Files.Read (R.rider, ch) END;
+      R.eot := R.rider.eof
+    END
   END Read;
   
   PROCEDURE Pos* (VAR R: Reader): LONGINT;
@@ -185,8 +204,8 @@ MODULE Texts;
   
   PROCEDURE WriteInt* (VAR W: Writer; x, n: LONGINT);
     VAR i: INTEGER; x0: LONGINT;
-      a: ARRAY 10 OF CHAR;
-  BEGIN
+      a: POINTER TO ARRAY OF CHAR;
+  BEGIN NEW(a, LIntPrecision+1);
     IF SYSTEM.ROT(x, -31) = 1 THEN WriteString(W, " -2147483648")
     ELSE i := 0;
       IF x < 0 THEN DEC(n); x0 := -x ELSE x0 := x END;
@@ -201,14 +220,44 @@ MODULE Texts;
   
   PROCEDURE WriteHex* (VAR W: Writer; x: LONGINT);
     VAR i: INTEGER; y: LONGINT;
-        a: ARRAY 10 OF CHAR;
-  BEGIN i := 0; Write(W, " ");
+        a: POINTER TO ARRAY OF CHAR;
+  BEGIN NEW(a, HexDigits+1); i := 0; Write(W, " ");
     REPEAT y := x MOD 10H;
       IF y < 10 THEN a[i] := CHR(y + 30H) ELSE a[i] := CHR(y + 37H) END;
       x := x DIV 10H; INC(i)
-    UNTIL i = 8;
+    UNTIL i = HexDigits;
     REPEAT DEC(i); Write(W, a[i]) UNTIL i = 0
   END WriteHex;
+
+  PROCEDURE WritePair(VAR W: Writer; ch: CHAR; x: LONGINT);
+  BEGIN Write(W, ch);
+    Write(W, CHR(x DIV 10 + 30H)); Write(W, CHR(x MOD 10 + 30H))
+  END WritePair;
+
+  PROCEDURE WriteDate* (VAR W: Writer; t, d: LONGINT);
+    VAR yr, mo, dy, hh, mm, ss: LONGINT;
+  BEGIN 
+    hh := t DIV 4096; mm := t DIV 64 MOD 64; ss := t MOD 64;
+    yr := (d DIV 512) MOD 100; mo := d DIV 32 MOD 16; dy := d MOD 32;
+    WritePair(W, " ", dy); WritePair(W, ".", mo); WritePair(W, ".", yr);
+    WritePair(W, " ", hh); WritePair(W, ":", mm); WritePair(W, ":", ss)
+  END WriteDate;
+
+  (* PO2013 version *)
+  PROCEDURE WriteClock* (VAR W: Writer; d: LONGINT);
+  BEGIN
+    WritePair(W, " ", d DIV 20000H MOD 20H);   (*day*)
+    WritePair(W, ".", d DIV 400000H MOD 10H); (*month*)
+    WritePair(W, ".", d DIV 4000000H MOD 40H);   (*year*)
+    WritePair(W, " ", d DIV 1000H MOD 20H);   (*hour*)
+    WritePair(W, ":", d DIV 40H MOD 40H);  (*min*)
+    WritePair(W, ":", d MOD 40H)  (*sec*)
+  END WriteClock;
+
+  PROCEDURE WriteReal* (VAR W: Writer; x: LONGREAL; n: LONGINT);
+    VAR s: ARRAY 32 OF CHAR;
+  BEGIN RealStr.GiveFloat(s, x, 7, 0, ConvTypes.right); WriteString(W, s)
+  END WriteReal;
 
   PROCEDURE OutChar (T: Text; ch: CHAR);
   BEGIN Files.Write (T.rider, ch); Out.Char (ch)
@@ -231,7 +280,19 @@ MODULE Texts;
     B.len := 0
   END Append;
 
-BEGIN
+  (** set print precision *)
+  PROCEDURE SetPrecision*(sizeLInt: INTEGER);
+  BEGIN
+    IF 8 = sizeLInt THEN
+      LIntPrecision := int64Precision;
+      HexDigits := 16
+    ELSE
+      LIntPrecision := int32Precision;
+      HexDigits := 8
+    END
+  END SetPrecision;
+
+BEGIN SetPrecision(4);
 END Texts.
 
 (* vim:set ts=2 sw=2 et: *)

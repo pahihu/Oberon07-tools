@@ -1,0 +1,9 @@
+MODULE Counter0 (IN CLK50M: BIT; OUT d: [4] BIT);
+REG (CLK50M) R: [4] BIT;
+BEGIN
+R := {R.3 ^ R.3 & R.2 & R.1 & R.0, (*R.3*)
+R.2 ^ R.2 & R.1 & R.0, (*R.2*)
+R.1 ^ R.1 & R.0, (*R.1*)
+~R.0}; (*R.0*)
+d := R
+END Counter0.
