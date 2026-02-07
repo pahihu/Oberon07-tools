@@ -31,6 +31,7 @@ Setup O2C and include the `lib/` `obj/` and `sym/` directories into `~/.o2c.red`
 Example run:
 
     make m64
+    source .env
     cd Oberon07
     make
     cd PO2013
