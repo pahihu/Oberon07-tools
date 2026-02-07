@@ -18,29 +18,33 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
       Pointer* = 7; NilTyp* = 8; NoTyp* = 9; Proc* = 10;
       String* = 11; Array* = 12; Record* = 13;
       
-  TYPE Object* = POINTER TO ObjDesc;
+  TYPE
+    LONGINT = Sys.Integer;
+    INTEGER = Sys.Integer;
+    
+    Object* = POINTER TO ObjDesc;
     Module* = POINTER TO ModDesc;
     Type* = POINTER TO TypeDesc;
 
     ObjDesc*= RECORD
       class*, exno*: Sys.Byte; (* SYSTEM.BYTE; *)
       expo*, rdo*: BOOLEAN;   (*exported / read-only*)
-      lev*: Sys.Integer;
+      lev*: INTEGER;
       next*, dsc*: Object;
       type*: Type;
       name*: ORS.Ident;
-      val*: Sys.Integer
+      val*: LONGINT
     END ;
 
     ModDesc* = RECORD (ObjDesc) orgname*: ORS.Ident END ;
 
     TypeDesc* = RECORD
-      form*, ref*, mno*: Sys.Integer;  (*ref is only used for import/export*)
-      nofpar*: Sys.Integer;  (*for procedures, extension level for records*)
-      len*: Sys.Integer;  (*for arrays, len < 0 => open array; for records: adr of descriptor*)
+      form*, ref*, mno*: INTEGER;  (*ref is only used for import/export*)
+      nofpar*: INTEGER;  (*for procedures, extension level for records*)
+      len*: LONGINT;  (*for arrays, len < 0 => open array; for records: adr of descriptor*)
       dsc*, typobj*: Object;
       base*: Type;  (*for arrays, records, pointers*)
-      size*: Sys.Integer;  (*in bytes; always multiple of 4, except for Byte, Bool and Char*)
+      size*: LONGINT;  (*in bytes; always multiple of 4, except for Byte, Bool and Char*)
     END ;
 
   (* Object classes and the meaning of "val":
@@ -66,7 +70,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   VAR topScope*, universe, system*: Object;
     byteType*, boolType*, charType*: Type;
     intType*, realType*, setType*, nilType*, noType*, strType*: Type;
-    nofmod, Ref: Sys.Integer;
+    nofmod, Ref: INTEGER;
     typtab: ARRAY maxTypTab OF Type;
 
     W: Texts.Writer;
@@ -125,14 +129,14 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   (*------------------------------- Import ---------------------------------*)
 
   PROCEDURE MakeFileName*(VAR FName: ORS.Ident; name, ext: ARRAY OF CHAR);
-    VAR i, j: Sys.Integer;
+    VAR i, j: INTEGER;
   BEGIN i := 0; j := 0;  (*assume name suffix less than 4 characters*)
     WHILE (i < ORS.IdLen-5) & (name[i] > 0X) DO FName[i] := name[i]; INC(i) END ;
     REPEAT FName[i]:= ext[j]; INC(i); INC(j) UNTIL ext[j] = 0X;
     FName[i] := 0X
   END MakeFileName;
   
-  PROCEDURE ThisModule(name, orgname: ORS.Ident; decl: BOOLEAN; key: Sys.Integer): Object;
+  PROCEDURE ThisModule(name, orgname: ORS.Ident; decl: BOOLEAN; key: LONGINT): Object;
     VAR mod: Module; obj, obj1: Object;
   BEGIN obj1 := topScope; obj := obj1.next;  (*search for module*)
     WHILE (obj # NIL) & (obj(Module).orgname # orgname) DO obj1 := obj; obj := obj1.next END ;
@@ -162,8 +166,8 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   END Read;
   
   PROCEDURE InType(VAR R: Files.Rider; thismod: Object; VAR T: Type);
-    VAR key: Sys.Integer;
-      ref, class, form, np, readonly: Sys.Integer;
+    VAR key: LONGINT;
+      ref, class, form, np, readonly: INTEGER;
       fld, par, obj, mod, last: Object;
       t: Type;
       name, modname: ORS.Ident;
@@ -215,7 +219,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   END InType;
   
   PROCEDURE Import*(VAR modid, modid1: ORS.Ident);
-    VAR key: Sys.Integer; class, k: Sys.Integer;
+    VAR key: LONGINT; class, k: INTEGER;
       obj: Object;  t: Type;
       thismod: Object;
       modname, fname: ORS.Ident;
@@ -256,15 +260,15 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   
   (*-------------------------------- Export ---------------------------------*)
 
-  PROCEDURE Write(VAR R: Files.Rider; x: Sys.Integer);
+  PROCEDURE Write(VAR R: Files.Rider; x: INTEGER);
   BEGIN Files.WriteByte(R, x)
   END Write;
 
   PROCEDURE OutType(VAR R: Files.Rider; t: Type);
     VAR obj, mod, fld, bot: Object;
 
-    PROCEDURE OutPar(VAR R: Files.Rider; par: Object; n: Sys.Integer);
-      VAR cl: Sys.Integer;
+    PROCEDURE OutPar(VAR R: Files.Rider; par: Object; n: INTEGER);
+      VAR cl: INTEGER;
     BEGIN
       IF n > 0 THEN
         OutPar(R, par.next, n-1); cl := par.class;
@@ -274,8 +278,8 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
       END
     END OutPar;
 
-    PROCEDURE FindHiddenPointers(VAR R: Files.Rider; typ: Type; offset: Sys.Integer);
-      VAR fld: Object; i, n: Sys.Integer;
+    PROCEDURE FindHiddenPointers(VAR R: Files.Rider; typ: Type; offset: LONGINT);
+      VAR fld: Object; i, n: LONGINT;
     BEGIN
       IF (typ.form = Pointer) OR (typ.form = NilTyp) THEN Write(R, Fld); Write(R, 0); Files.WriteNum(R, offset)
       ELSIF typ.form = Record THEN fld := typ.dsc;
@@ -318,8 +322,8 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
     END
   END OutType;
 
-  PROCEDURE Export*(VAR modid: ORS.Ident; VAR newSF: BOOLEAN; VAR key: Sys.Integer);
-    VAR x, sum, oldkey: Sys.Integer;
+  PROCEDURE Export*(VAR modid: ORS.Ident; VAR newSF: BOOLEAN; VAR key: LONGINT);
+    VAR x, sum, oldkey: LONGINT;
       obj, obj0: Object;
       filename: ORS.Ident;
       F, F1: Files.File; R, R1: Files.Rider;
@@ -374,13 +378,13 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   BEGIN topScope := universe; nofmod := 1
   END Init;
   
-  PROCEDURE type(ref, form: Sys.Integer; size: Sys.Integer): Type;
+  PROCEDURE type(ref, form: INTEGER; size: LONGINT): Type;
     VAR tp: Type;
   BEGIN NEW(tp); tp.form := form; tp.size := size; tp.ref := ref; tp.base := NIL;
     typtab[ref] := tp; RETURN tp
   END type;
 
-  PROCEDURE enter(name: ARRAY OF CHAR; cl: Sys.Integer; type: Type; n: Sys.Integer);
+  PROCEDURE enter(name: ARRAY OF CHAR; cl: INTEGER; type: Type; n: LONGINT);
     VAR obj: Object;
   BEGIN NEW(obj); COPY(name, obj.name); obj.class := SHORT(cl); obj.type := type; obj.val := n; obj.dsc := NIL;
     IF cl = Typ THEN type.typobj := obj END ;

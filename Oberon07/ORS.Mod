@@ -33,21 +33,23 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     verbose* = FALSE;
 
   TYPE Ident* = ARRAY IdLen OF CHAR;
+       LONGINT = Sys.Integer;
+       INTEGER = Sys.Integer;
 
-  VAR ival*, slen*: Sys.Integer;  (*results of Get*)
+  VAR ival*, slen*: LONGINT;  (*results of Get*)
     rval*: REAL;
     id*: Ident;  (*for identifiers*)
     str*: ARRAY stringBufSize OF CHAR;
-    errcnt*: Sys.Integer;
+    errcnt*: INTEGER;
 
     ch: CHAR;  (*last character read*)
-    errpos: Sys.Integer;
+    errpos: LONGINT;
     R: Texts.Reader;
     W: Texts.Writer;
-    k: Sys.Integer;
-    KWX: ARRAY 10 OF Sys.Integer;
+    k: INTEGER;
+    KWX: ARRAY 10 OF INTEGER;
     keyTab: ARRAY NKW OF
-        RECORD sym: Sys.Integer; id: ARRAY 12 OF CHAR END;
+        RECORD sym: INTEGER; id: ARRAY 12 OF CHAR END;
   
   PROCEDURE CopyId*(VAR ident: Ident);
   BEGIN ident := id
@@ -58,7 +60,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   END Pos;
 
   PROCEDURE Mark*(msg: ARRAY OF CHAR);
-    VAR p: Sys.Integer;
+    VAR p: LONGINT;
   BEGIN p := Pos();
     IF (p > errpos) & (errcnt < 25) THEN
       Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1); Texts.Write(W, " ");
@@ -67,8 +69,8 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     INC(errcnt); errpos := p + 4
   END Mark;
 
-  PROCEDURE Identifier(VAR sym: Sys.Integer);
-    VAR i, k: Sys.Integer;
+  PROCEDURE Identifier(VAR sym: INTEGER);
+    VAR i, k: INTEGER;
   BEGIN i := 0;
     REPEAT
       IF i < IdLen-1 THEN id[i] := ch; INC(i) END ;
@@ -83,7 +85,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   END Identifier;
 
   PROCEDURE String;
-    VAR i: Sys.Integer;
+    VAR i: INTEGER;
   BEGIN i := 0; Texts.Read(R, ch);
     WHILE ~R.eot & (ch # 22X) DO
       IF ch >= " " THEN
@@ -95,7 +97,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   END String;
 
   PROCEDURE HexString;
-    VAR i, m, n: Sys.Integer;
+    VAR i, m, n: INTEGER;
   BEGIN i := 0; Texts.Read(R, ch);
     WHILE ~R.eot & (ch # "$") DO
       WHILE ~R.eot  & (ch <= " ") DO Texts.Read(R, ch) END ;  (*skip*)
@@ -114,7 +116,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     Texts.Read(R, ch); slen := i  (*no 0X appended!*)
   END HexString;
 
-  PROCEDURE Ten(e: Sys.Integer): REAL;
+  PROCEDURE Ten(e: LONGINT): REAL;
     VAR x, t: REAL;
   BEGIN x := 1.0; t := 10.0;
     WHILE e > 0 DO
@@ -124,10 +126,10 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     RETURN x
   END Ten;
 
-  PROCEDURE Number(VAR sym: Sys.Integer);
+  PROCEDURE Number(VAR sym: INTEGER);
     CONST max = 2147483647 (*2^31 - 1*);
-    VAR i, k, e, n, s, h: Sys.Integer; x: REAL;
-      d: ARRAY 16 OF Sys.Integer;
+    VAR i, k, e, n, s, h: LONGINT; x: REAL;
+      d: ARRAY 16 OF INTEGER;
       negE: BOOLEAN;
   BEGIN ival := 0; i := 0; n := 0; k := 0;
     REPEAT
@@ -207,7 +209,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     IF ~R.eot THEN Texts.Read(R, ch) ELSE Mark("unterminated comment") END
   END comment;
 
-  PROCEDURE Get*(VAR sym: Sys.Integer);
+  PROCEDURE Get*(VAR sym: INTEGER);
   BEGIN
     REPEAT
       WHILE ~R.eot & (ch <= " ") DO Texts.Read(R, ch) END;
@@ -262,11 +264,11 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     UNTIL sym # null
   END Get;
 
-  PROCEDURE Init*(T: Texts.Text; pos: Sys.Integer);
+  PROCEDURE Init*(T: Texts.Text; pos: LONGINT);
   BEGIN errpos := pos; errcnt := 0; Texts.OpenReader(R, T, pos); Texts.Read(R, ch)
   END Init;
 
-  PROCEDURE EnterKW(sym: Sys.Integer; name: ARRAY OF CHAR);
+  PROCEDURE EnterKW(sym: INTEGER; name: ARRAY OF CHAR);
   BEGIN COPY(name, keyTab[k].id); keyTab[k].sym := sym; INC(k)
   END EnterKW;
 

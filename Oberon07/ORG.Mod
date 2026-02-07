@@ -19,12 +19,16 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     BR = 0; BLR = 1; BC = 2; BL = 3;
     MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
 
-    TYPE Item* = RECORD
-      mode*: Sys.Integer;
-      type*: ORB.Type;
-      a*, b*, r: Sys.Integer;
-      rdo*: BOOLEAN  (*read only*)
-    END ;
+    TYPE
+      LONGINT = Sys.Integer;
+      INTEGER = Sys.Integer;
+      
+      Item* = RECORD
+        mode*: INTEGER;
+        type*: ORB.Type;
+        a*, b*, r: LONGINT;
+        rdo*: BOOLEAN  (*read only*)
+      END ;
 
   (* Item forms and meaning of fields:
     mode    r      a       b
@@ -36,36 +40,36 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     RegI   regno   off     -
     Cond  cond   Fchain  Tchain  *)
 
-  VAR pc*, varsize: Sys.Integer;   (*program counter, data index*)
-    tdx, strx: Sys.Integer;
-    entry: Sys.Integer;   (*main entry point*)
-    RH: Sys.Integer;  (*available registers R[0] ... R[H-1]*)
-    frame: Sys.Integer;  (*frame offset changed in SaveRegs and RestoreRegs*)
-    fixorgP, fixorgD, fixorgT: Sys.Integer;   (*origins of lists of locations to be fixed up by loader*)
+  VAR pc*, varsize: LONGINT;   (*program counter, data index*)
+    tdx, strx: LONGINT;
+    entry: LONGINT;   (*main entry point*)
+    RH: LONGINT;  (*available registers R[0] ... R[H-1]*)
+    frame: LONGINT;  (*frame offset changed in SaveRegs and RestoreRegs*)
+    fixorgP, fixorgD, fixorgT: LONGINT;   (*origins of lists of locations to be fixed up by loader*)
     check: BOOLEAN;  (*emit run-time checks*)
-    version: Sys.Integer;  (* 0 = RISC-0, 1 = RISC-5 *)
+    version: INTEGER;  (* 0 = RISC-0, 1 = RISC-5 *)
     
-    relmap: ARRAY 6 OF Sys.Integer;  (*condition codes for relations*)
-    code: ARRAY maxCode OF Sys.Integer;
-    data: ARRAY maxTD OF Sys.Integer;  (*type descriptors*)
+    relmap: ARRAY 6 OF INTEGER;  (*condition codes for relations*)
+    code: ARRAY maxCode OF LONGINT;
+    data: ARRAY maxTD OF LONGINT;  (*type descriptors*)
     str: ARRAY maxStrx OF CHAR;
 
     W: Texts.Writer;
 
   (*instruction assemblers according to formats*)
 
-  PROCEDURE Put0(op, a, b, c: Sys.Integer);
+  PROCEDURE Put0(op, a, b, c: LONGINT);
   BEGIN (*emit format-0 instruction*)
     code[pc] := ((a*10H + b) * 10H + op) * 10000H + c; INC(pc)
   END Put0;
 
-  PROCEDURE Put1(op, a, b, im: Sys.Integer);
+  PROCEDURE Put1(op, a, b, im: LONGINT);
   BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
     IF im < 0 THEN INC(op, V) END ;
     code[pc] := (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H); INC(pc)
   END Put1;
 
-  PROCEDURE Put1a(op, a, b, im: Sys.Integer);
+  PROCEDURE Put1a(op, a, b, im: LONGINT);
   BEGIN (*same as Put1, but with range test  -10000H <= im < 10000H*)
     IF (im >= -10000H) & (im <= 0FFFFH) THEN Put1(op, a, b, im)
     ELSE Put1(Mov+U, RH, 0, im DIV 10000H);
@@ -74,12 +78,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Put1a;
 
-  PROCEDURE Put2(op, a, b, off: Sys.Integer);
+  PROCEDURE Put2(op, a, b, off: LONGINT);
   BEGIN (*emit load/store instruction*)
     code[pc] := ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H); INC(pc)
   END Put2;
 
-  PROCEDURE Put3(op, cond, off: Sys.Integer);
+  PROCEDURE Put3(op, cond, off: LONGINT);
   BEGIN (*emit branch instruction*)
     code[pc] := ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H); INC(pc)
   END Put3;
@@ -96,38 +100,38 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     IF frame # 0 THEN ORS.Mark("frame error"); frame := 0 END
   END CheckRegs;
 
-  PROCEDURE SetCC(VAR x: Item; n: Sys.Integer);
+  PROCEDURE SetCC(VAR x: Item; n: LONGINT);
   BEGIN x.mode := Cond; x.a := 0; x.b := 0; x.r := n
   END SetCC;
 
-  PROCEDURE Trap(cond, num: Sys.Integer);
+  PROCEDURE Trap(cond, num: LONGINT);
   BEGIN Put3(BLR, cond, ORS.Pos()*100H + num*10H + MT)
   END Trap;
 
   (*handling of forward reference, fixups of branch addresses and constant tables*)
 
-  PROCEDURE negated(cond: Sys.Integer): Sys.Integer;
+  PROCEDURE negated(cond: LONGINT): LONGINT;
   BEGIN
     IF cond < 8 THEN cond := cond+8 ELSE cond := cond-8 END ;
     RETURN cond
   END negated;
 
-  PROCEDURE fix(at, with: Sys.Integer);
+  PROCEDURE fix(at, with: LONGINT);
   BEGIN code[at] := code[at] DIV C24 * C24 + (with MOD C24)
   END fix;
 
-  PROCEDURE FixOne*(at: Sys.Integer);
+  PROCEDURE FixOne*(at: LONGINT);
   BEGIN fix(at, pc-at-1)
   END FixOne;
 
-  PROCEDURE FixLink*(L: Sys.Integer);
-    VAR L1: Sys.Integer;
+  PROCEDURE FixLink*(L: LONGINT);
+    VAR L1: LONGINT;
   BEGIN
     WHILE L # 0 DO L1 := code[L] MOD 40000H; fix(L, pc-L-1); L := L1 END
   END FixLink;
 
-  PROCEDURE FixLinkWith(L0, dst: Sys.Integer);
-    VAR L1: Sys.Integer;
+  PROCEDURE FixLinkWith(L0, dst: LONGINT);
+    VAR L1: LONGINT;
   BEGIN
     WHILE L0 # 0 DO
       L1 := code[L0] MOD C24;
@@ -135,8 +139,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END FixLinkWith;
 
-  PROCEDURE merged(L0, L1: Sys.Integer): Sys.Integer;
-    VAR L2, L3: Sys.Integer;
+  PROCEDURE merged(L0, L1: LONGINT): LONGINT;
+    VAR L2, L3: LONGINT;
   BEGIN 
     IF L0 # 0 THEN L3 := L0;
       REPEAT L2 := L3; L3 := code[L2] MOD 40000H UNTIL L3 = 0;
@@ -147,7 +151,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   (* loading of operands and addresses into registers *)
 
-  PROCEDURE GetSB(base: Sys.Integer);
+  PROCEDURE GetSB(base: LONGINT);
   BEGIN
     IF version = 0 THEN Put1(Mov, RH, 0, VarOrg0)
     ELSE Put2(Ldr, RH, -base, pc-fixorgD); fixorgD := pc-1
@@ -159,7 +163,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END NilCheck;
 
   PROCEDURE load(VAR x: Item);
-    VAR op: Sys.Integer;
+    VAR op: LONGINT;
   BEGIN
     IF x.type.size = 1 THEN op := Ldr+1 ELSE op := Ldr END ;
     IF x.mode # Reg THEN
@@ -231,16 +235,16 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   (* Items: Conversion from constants or from Objects on the Heap to Items on the Stack*)
 
-  PROCEDURE MakeConstItem*(VAR x: Item; typ: ORB.Type; val: Sys.Integer);
+  PROCEDURE MakeConstItem*(VAR x: Item; typ: ORB.Type; val: LONGINT);
   BEGIN x.mode := ORB.Const; x.type := typ; x.a := val
   END MakeConstItem;
 
   PROCEDURE MakeRealItem*(VAR x: Item; val: REAL);
-  BEGIN x.mode := ORB.Const; x.type := ORB.realType; x.a := SYSTEM.VAL(Sys.Integer, val)
+  BEGIN x.mode := ORB.Const; x.type := ORB.realType; x.a := SYSTEM.VAL(LONGINT, val)
   END MakeRealItem;
 
-  PROCEDURE MakeStringItem*(VAR x: Item; len: Sys.Integer); (*copies string from ORS-buffer to ORG-string array*)
-    VAR i: Sys.Integer;
+  PROCEDURE MakeStringItem*(VAR x: Item; len: LONGINT); (*copies string from ORS-buffer to ORG-string array*)
+    VAR i: LONGINT;
   BEGIN x.mode := ORB.Const; x.type := ORB.strType; x.a := strx; x.b := len; i := 0;
     IF strx + len + 4 < maxStrx THEN
       WHILE len > 0 DO str[strx] := ORS.str[i]; INC(strx); INC(i); DEC(len) END ;
@@ -249,7 +253,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END MakeStringItem;
 
-  PROCEDURE MakeItem*(VAR x: Item; y: ORB.Object; curlev: Sys.Integer);
+  PROCEDURE MakeItem*(VAR x: Item; y: ORB.Object; curlev: LONGINT);
   BEGIN x.mode := y.class; x.type := y.type; x.a := y.val; x.rdo := y.rdo;
     IF y.class = ORB.Par THEN x.b := 0
     ELSIF (y.class = ORB.Const) & (y.type.form = ORB.String) THEN x.b := y.lev  (*len*) ;
@@ -272,7 +276,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END Field;
 
   PROCEDURE Index*(VAR x, y: Item);   (* x := x[y] *)
-    VAR s, lim: Sys.Integer;
+    VAR s, lim: LONGINT;
   BEGIN s := x.type.base.size; lim := x.type.len;
     IF (y.mode = ORB.Const) & (lim >= 0) THEN
       IF (y.a < 0) OR (y.a >= lim) THEN ORS.Mark("bad index") END ;
@@ -319,7 +323,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     x.mode := RegI; x.a := 0; x.b := 0
   END DeRef;
 
-  PROCEDURE Q(T: ORB.Type; VAR dcw: Sys.Integer);
+  PROCEDURE Q(T: ORB.Type; VAR dcw: LONGINT);
   BEGIN (*one entry of type descriptor extension table*)
     IF T.base # NIL THEN
       Q(T.base, dcw); data[dcw] := (T.mno*1000H + T.len) * 1000H + dcw - fixorgT;
@@ -327,8 +331,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Q;
 
-  PROCEDURE FindPtrFlds(typ: ORB.Type; off: Sys.Integer; VAR dcw: Sys.Integer);
-    VAR fld: ORB.Object; i, s: Sys.Integer;
+  PROCEDURE FindPtrFlds(typ: ORB.Type; off: LONGINT; VAR dcw: LONGINT);
+    VAR fld: ORB.Object; i, s: LONGINT;
   BEGIN
     IF (typ.form = ORB.Pointer) OR (typ.form = ORB.NilTyp) THEN data[dcw] := off; INC(dcw)
     ELSIF typ.form = ORB.Record THEN
@@ -340,8 +344,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END FindPtrFlds;
 
-  PROCEDURE BuildTD*(T: ORB.Type; VAR dc: Sys.Integer);
-    VAR dcw, k, s: Sys.Integer;  (*dcw = word address*)
+  PROCEDURE BuildTD*(T: ORB.Type; VAR dc: LONGINT);
+    VAR dcw, k, s: LONGINT;  (*dcw = word address*)
   BEGIN dcw := dc DIV 4; s := T.size; (*convert size for heap allocation*)
     IF s <= 24 THEN s := 32 ELSIF s <= 56 THEN s := 64 ELSIF s <= 120 THEN s := 128
     ELSE s := (s+263) DIV 256 * 256
@@ -357,7 +361,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END BuildTD;
 
   PROCEDURE TypeTest*(VAR x: Item; T: ORB.Type; varpar, isguard: BOOLEAN);
-    VAR pc0: Sys.Integer;
+    VAR pc0: LONGINT;
   BEGIN
     IF T = NIL THEN
       IF x.mode >= Reg THEN DEC(RH) END ;
@@ -383,7 +387,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   (* Code generation for Boolean operators *)
 
   PROCEDURE Not*(VAR x: Item);   (* x := ~x *)
-    VAR t: Sys.Integer;
+    VAR t: LONGINT;
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
     x.r := negated(x.r); t := x.a; x.a := x.b; x.b := t
@@ -432,7 +436,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Neg;
 
-  PROCEDURE AddOp*(op: Sys.Integer; VAR x, y: Item);   (* x := x +- y *)
+  PROCEDURE AddOp*(op: LONGINT; VAR x, y: Item);   (* x := x +- y *)
   BEGIN
     IF op = ORS.plus THEN
       IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN x.a := x.a + y.a
@@ -449,14 +453,14 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END AddOp;
 
-  PROCEDURE log2(m: Sys.Integer; VAR e: Sys.Integer): Sys.Integer;
+  PROCEDURE log2(m: LONGINT; VAR e: LONGINT): LONGINT;
   BEGIN e := 0;
     WHILE ~ODD(m) DO m := m DIV 2; INC(e) END ;
     RETURN m
   END log2;
   
   PROCEDURE MulOp*(VAR x, y: Item);   (* x := x * y *)
-    VAR e: Sys.Integer;
+    VAR e: LONGINT;
   BEGIN
     IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN x.a := x.a * y.a
     ELSIF (y.mode = ORB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); Put1(Lsl, x.r, x.r, e)
@@ -467,8 +471,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END MulOp;
 
-  PROCEDURE DivOp*(op: Sys.Integer; VAR x, y: Item);   (* x := x op y *)
-    VAR e: Sys.Integer;
+  PROCEDURE DivOp*(op: LONGINT; VAR x, y: Item);   (* x := x op y *)
+    VAR e: LONGINT;
   BEGIN
     IF op = ORS.div THEN
       IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN
@@ -496,7 +500,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   (* Code generation for REAL operators *)
 
-  PROCEDURE RealOp*(op: Sys.Integer; VAR x, y: Item);   (* x := x op y *)
+  PROCEDURE RealOp*(op: INTEGER; VAR x, y: Item);   (* x := x op y *)
   BEGIN load(x); load(y);
     IF op = ORS.plus THEN Put0(Fad, RH-2, x.r, y.r)
     ELSIF op = ORS.minus THEN Put0(Fsb, RH-2, x.r, y.r)
@@ -542,7 +546,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     SetCC(x, MI)
   END In;
 
-  PROCEDURE SetOp*(op: Sys.Integer; VAR x, y: Item);   (* x := x op y *)
+  PROCEDURE SetOp*(op: LONGINT; VAR x, y: Item);   (* x := x op y *)
     VAR xset, yset: SET; (*x.type.form = Set*)
   BEGIN
     IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN
@@ -552,7 +556,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       ELSIF op = ORS.times THEN xset := xset * yset
       ELSIF op = ORS.rdiv THEN xset := xset / yset
       END ;
-      x.a := SYSTEM.VAL(Sys.Integer, xset)
+      x.a := SYSTEM.VAL(LONGINT, xset)
     ELSIF y.mode = ORB.Const THEN
       load(x);
       IF op = ORS.plus THEN Put1a(Ior, x.r, x.r, y.a)
@@ -572,7 +576,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   (* Code generation for relations *)
 
-  PROCEDURE IntRelation*(op: Sys.Integer; VAR x, y: Item);   (* x := x < y *)
+  PROCEDURE IntRelation*(op: INTEGER; VAR x, y: Item);   (* x := x < y *)
   BEGIN
     IF (y.mode = ORB.Const) & (y.type.form # ORB.Proc) THEN
       load(x);
@@ -585,7 +589,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     SetCC(x, relmap[op - ORS.eql])
   END IntRelation;
 
-  PROCEDURE RealRelation*(op: Sys.Integer; VAR x, y: Item);   (* x := x < y *)
+  PROCEDURE RealRelation*(op: INTEGER; VAR x, y: Item);   (* x := x < y *)
   BEGIN load(x);
     IF (y.mode = ORB.Const) & (y.a = 0) THEN DEC(RH)
     ELSE load(y); Put0(Fsb, x.r, x.r, y.r); DEC(RH, 2)
@@ -593,7 +597,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     SetCC(x, relmap[op - ORS.eql])
   END RealRelation;
 
-  PROCEDURE StringRelation*(op: Sys.Integer; VAR x, y: Item);   (* x := x < y *)
+  PROCEDURE StringRelation*(op: INTEGER; VAR x, y: Item);   (* x := x < y *)
     (*x, y are char arrays or strings*)
   BEGIN
     IF x.type.form = ORB.String THEN loadStringAdr(x) ELSE loadAdr(x) END ;
@@ -612,7 +616,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END StrToChar;
 
   PROCEDURE Store*(VAR x, y: Item); (* x := y *)
-    VAR op: Sys.Integer;
+    VAR op: LONGINT;
   BEGIN  load(y);
     IF x.type.size = 1 THEN op := Str+1 ELSE op := Str END ;
     IF x.mode = ORB.Var THEN
@@ -627,7 +631,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END Store;
 
   PROCEDURE StoreStruct*(VAR x, y: Item); (* x := y, frame = 0 *)
-    VAR s, pc0: Sys.Integer;
+    VAR s, pc0: LONGINT;
   BEGIN
     IF y.type.size # 0 THEN
       loadAdr(x); loadAdr(y);
@@ -657,7 +661,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END StoreStruct;
 
   PROCEDURE CopyString*(VAR x, y: Item);  (* x := y *) 
-     VAR len: Sys.Integer;
+     VAR len: LONGINT;
    BEGIN loadAdr(x); len := x.type.len;
     IF len >= 0 THEN
       IF len <  y.b THEN ORS.Mark("string too long") END
@@ -679,7 +683,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END OpenArrayParam;
 
   PROCEDURE VarParam*(VAR x: Item; ftype: ORB.Type);
-    VAR xmd: Sys.Integer;
+    VAR xmd: INTEGER;
   BEGIN xmd := x.mode; loadAdr(x);
     IF (ftype.form = ORB.Array) & (ftype.len < 0) THEN (*open array*)
       IF x.type.len >= 0 THEN Put1a(Mov, RH, 0, x.type.len) ELSE  Put2(Ldr, RH, SP, x.a+4+frame) END ;
@@ -703,7 +707,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   BEGIN load(y)
   END For0;
 
-  PROCEDURE For1*(VAR x, y, z, w: Item; VAR L: Sys.Integer);
+  PROCEDURE For1*(VAR x, y, z, w: Item; VAR L: LONGINT);
   BEGIN 
     IF z.mode = ORB.Const THEN Put1a(Cmp, RH, y.r, z.a)
     ELSE load(z); Put0(Cmp, RH-1, y.r, z.r); DEC(RH)
@@ -722,11 +726,11 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   (* Branches, procedure calls, procedure prolog and epilog *)
 
-  PROCEDURE Here*(): Sys.Integer;
+  PROCEDURE Here*(): LONGINT;
   BEGIN RETURN pc
   END Here;
 
-  PROCEDURE FJump*(VAR L: Sys.Integer);
+  PROCEDURE FJump*(VAR L: LONGINT);
   BEGIN Put3(BC, 7, L); L := pc-1
   END FJump;
 
@@ -736,11 +740,11 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     Put3(BC, negated(x.r), x.a); FixLink(x.b); x.a := pc-1
   END CFJump;
 
-  PROCEDURE BJump*(L: Sys.Integer);
+  PROCEDURE BJump*(L: LONGINT);
   BEGIN Put3(BC, 7, L-pc-1)
   END BJump;
 
-  PROCEDURE CBJump*(VAR x: Item; L: Sys.Integer);
+  PROCEDURE CBJump*(VAR x: Item; L: LONGINT);
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
     Put3(BC, negated(x.r), L-pc-1); FixLink(x.b); FixLinkWith(x.a, L)
@@ -750,28 +754,28 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   BEGIN FixLink(x.a)
   END Fixup;
 
-  PROCEDURE SaveRegs(r: Sys.Integer);  (* R[0 .. r-1]*)
-    VAR r0: Sys.Integer;
+  PROCEDURE SaveRegs(r: LONGINT);  (* R[0 .. r-1]*)
+    VAR r0: LONGINT;
   BEGIN (*r > 0*) r0 := 0;
     Put1(Sub, SP, SP, r*4); INC(frame, 4*r);
     REPEAT Put2(Str, r0, SP, (r-r0-1)*4); INC(r0) UNTIL r0 = r
   END SaveRegs;
 
-  PROCEDURE RestoreRegs(r: Sys.Integer); (*R[0 .. r-1]*)
-    VAR r0: Sys.Integer;
+  PROCEDURE RestoreRegs(r: LONGINT); (*R[0 .. r-1]*)
+    VAR r0: LONGINT;
   BEGIN (*r > 0*) r0 := r;
     REPEAT DEC(r0); Put2(Ldr, r0, SP, (r-r0-1)*4) UNTIL r0 = 0;
     Put1(Add, SP, SP, r*4); DEC(frame, 4*r)
   END RestoreRegs;
 
-  PROCEDURE PrepCall*(VAR x: Item; VAR r: Sys.Integer);
+  PROCEDURE PrepCall*(VAR x: Item; VAR r: LONGINT);
   BEGIN (*x.type.form = ORB.Proc*)
     IF x.mode > ORB.Par THEN load(x) END ;
     r := RH;
     IF RH > 0 THEN SaveRegs(RH); RH := 0 END
   END PrepCall;
 
-  PROCEDURE Call*(VAR x: Item; r: Sys.Integer);
+  PROCEDURE Call*(VAR x: Item; r: LONGINT);
   BEGIN (*x.type.form = ORB.Proc*)
     IF x.mode = ORB.Const THEN
       IF x.r >= 0 THEN Put3(BL, 7, (x.a DIV 4)-pc-1)
@@ -795,8 +799,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Call;
 
-  PROCEDURE Enter*(parblksize, locblksize: Sys.Integer; int: BOOLEAN);
-    VAR a, r: Sys.Integer;
+  PROCEDURE Enter*(parblksize, locblksize: LONGINT; int: BOOLEAN);
+    VAR a, r: LONGINT;
   BEGIN frame := 0;
     IF ~int THEN (*procedure prolog*)
       IF locblksize >= 10000H THEN ORS.Mark("too many locals") END ;
@@ -809,7 +813,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Enter;
 
-  PROCEDURE Return*(form: Sys.Integer; VAR x: Item; size: Sys.Integer; int: BOOLEAN);
+  PROCEDURE Return*(form: INTEGER; VAR x: Item; size: LONGINT; int: BOOLEAN);
   BEGIN
     IF form # ORB.NoTyp THEN load(x) END ;
     IF ~int THEN (*procedure epilog*)
@@ -823,8 +827,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   (* In-line code procedures*)
 
-  PROCEDURE Increment*(upordown: Sys.Integer; VAR x, y: Item);
-    VAR op, zr, v: Sys.Integer;
+  PROCEDURE Increment*(upordown: LONGINT; VAR x, y: Item);
+    VAR op, zr, v: LONGINT;
   BEGIN (*frame = 0*)
     IF upordown = 0 THEN op := Add ELSE op := Sub END ;
     IF x.type = ORB.byteType THEN v := 1 ELSE v := 0 END ;
@@ -839,8 +843,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Increment;
 
-  PROCEDURE Include*(inorex: Sys.Integer; VAR x, y: Item);
-    VAR op, zr: Sys.Integer;
+  PROCEDURE Include*(inorex: LONGINT; VAR x, y: Item);
+    VAR op, zr: LONGINT;
   BEGIN loadAdr(x); zr := RH; Put2(Ldr, RH, x.r, 0); incR;
     IF inorex = 0 THEN op := Ior ELSE op := Ann END ;
     IF y.mode = ORB.Const THEN Put1a(op, zr, zr, BIF07.LSL(1, y.a))
@@ -850,7 +854,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END Include;
 
   PROCEDURE Assert*(VAR x: Item);
-    VAR cond: Sys.Integer;
+    VAR cond: LONGINT;
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
     IF x.a = 0 THEN cond := negated(x.r)
@@ -950,8 +954,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END 
   END Len;
 
-  PROCEDURE Shift*(fct: Sys.Integer; VAR x, y: Item);
-    VAR op: Sys.Integer;
+  PROCEDURE Shift*(fct: LONGINT; VAR x, y: Item);
+    VAR op: LONGINT;
   BEGIN load(x);
     IF fct = 0 THEN op := Lsl ELSIF fct = 1 THEN op := Asr ELSE op := Ror END ;
     IF y.mode = ORB.Const THEN Put1(op, x.r, x.r, y.a MOD 20H)
@@ -1002,14 +1006,14 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   BEGIN (*x.mode = Const*) SetCC(x, x.a)
   END Condition;
 
-  PROCEDURE Open*(v: Sys.Integer);
+  PROCEDURE Open*(v: INTEGER);
   BEGIN pc := 0; tdx := 0; strx := 0; RH := 0; fixorgP := 0; fixorgD := 0; fixorgT := 0; check := v # 0; version := v;
     IF v = 0 THEN pc := 1;
       REPEAT code[pc] := 0; INC(pc) UNTIL pc = 8
     END
   END Open;
 
-  PROCEDURE SetDataSize*(dc: Sys.Integer);
+  PROCEDURE SetDataSize*(dc: LONGINT);
   BEGIN varsize := dc
   END SetDataSize;
 
@@ -1020,8 +1024,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Header;
 
-  PROCEDURE NofPtrs(typ: ORB.Type): Sys.Integer;
-    VAR fld: ORB.Object; n: Sys.Integer;
+  PROCEDURE NofPtrs(typ: ORB.Type): LONGINT;
+    VAR fld: ORB.Object; n: LONGINT;
   BEGIN
     IF (typ.form = ORB.Pointer) OR (typ.form = ORB.NilTyp) THEN n := 1
     ELSIF typ.form = ORB.Record THEN
@@ -1033,8 +1037,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     RETURN n
   END NofPtrs;
 
-  PROCEDURE FindPtrs(VAR R: Files.Rider; typ: ORB.Type; adr: Sys.Integer);
-    VAR fld: ORB.Object; i, s: Sys.Integer;
+  PROCEDURE FindPtrs(VAR R: Files.Rider; typ: ORB.Type; adr: LONGINT);
+    VAR fld: ORB.Object; i, s: LONGINT;
   BEGIN
     IF (typ.form = ORB.Pointer) OR (typ.form = ORB.NilTyp) THEN Files.WriteInt(R, adr)
     ELSIF typ.form = ORB.Record THEN
@@ -1046,9 +1050,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END FindPtrs;
 
-  PROCEDURE Close*(VAR modid: ORS.Ident; key, nofent: Sys.Integer);
+  PROCEDURE Close*(VAR modid: ORS.Ident; key, nofent: LONGINT);
     VAR obj: ORB.Object;
-      i, comsize, nofimps, nofptrs, size: Sys.Integer;
+      i, comsize, nofimps, nofptrs, size: LONGINT;
       name: ORS.Ident;
       F: Files.File; R: Files.Rider;
   BEGIN  (*exit code*)
