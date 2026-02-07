@@ -14,10 +14,10 @@ The directories:
 - `Oberon0/` contains the source code from [Compiler Construction](https://people.inf.ethz.ch/wirth/CompilerConstruction/index.html).
 - `Oberon07/` contains ORP, ORTool, ORL, ORX, Depends.
 - `Oberon07/EO/` contains the inner core of Embedded Oberon.
-- `Oberon07/PO2013/` contains the sources of Project Oberon 2013.
+- `Oberon07/PO2013/` contains the sources of [Project Oberon 2013](https://people.inf.ethz.ch/wirth/ProjectOberon/index.html).
 - `Oberon07/riscw/` contains the Windows 64bit binary of Peter De Wachter's [oberon-risc-emu](https://github.com/pdewacht/oberon-risc-emu).
-- `Lola2/EO/` contains the Lola-2 compiler.
-- `Lola2/risc5/` Lola-2 sources of RISC5.
+- `Lola2/EO/` contains the [Lola-2 compiler](https://people.inf.ethz.ch/wirth/Lola/index.html).
+- `Lola2/risc5/` Lola-2 definition of RISC5 Computer.
 - `Misc/` contains classic Hello World, Fibonacci series, Oberon-2 type sizes programs.
 - `Misc/Benchmark/` contains the Pow! benchmark program.
 - `Misc/RayTest/` contains [Paul Graham's Common Lisp ray-tracer](https://paulgraham.com/acl.html) ported to Oberon-2.
