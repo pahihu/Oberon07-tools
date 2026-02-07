@@ -21,6 +21,7 @@ The directories:
 - `Misc/` contains classic Hello World, Fibonacci series, Oberon-2 type sizes programs.
 - `Misc/Benchmark/` contains the Pow! benchmark program.
 - `Misc/RayTest/` contains [Paul Graham's Common Lisp ray-tracer](https://paulgraham.com/acl.html) ported to Oberon-2.
+- `Misc/voc-O7/` port of [O7 ARMv6/v7-M](https://github.com/aixp/O7) compiler from A.Shiryaev.
 - `cedt/` contains Oberon-2 and Lola-2 syntax definitions for [Crimson Editor](http://www.crimsoneditor.com/).
 
 You can rebuild the Project Oberon 2013 sources and install it in an SD card image with these tools.
