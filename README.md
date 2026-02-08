@@ -13,15 +13,14 @@ The original sources depend on the assumption, that `SIZE(INTEGER) = 4`. Hence I
 The directories:
 - `Oberon0/` contains the source code from [Compiler Construction](https://people.inf.ethz.ch/wirth/CompilerConstruction/index.html).
 - `Oberon07/` contains ORP, ORTool, ORL, ORX, Depends.
-- `Oberon07/EO/` contains the inner core of Embedded Oberon.
 - `Oberon07/PO2013/` contains the sources of [Project Oberon 2013](https://people.inf.ethz.ch/wirth/ProjectOberon/index.html).
 - `Oberon07/riscw/` contains the Windows 64bit binary of Peter De Wachter's [oberon-risc-emu](https://github.com/pdewacht/oberon-risc-emu).
-- `Lola2/EO/` contains the [Lola-2 compiler](https://people.inf.ethz.ch/wirth/Lola/index.html) with patches from [Jörg Straube](https://lists.inf.ethz.ch/pipermail/oberon/).
+- `Lola2/` contains the [Lola-2 compiler](https://people.inf.ethz.ch/wirth/Lola/index.html) with patches from [Jörg Straube](https://lists.inf.ethz.ch/pipermail/oberon/).
 - `Lola2/risc5/` Lola-2 definition of RISC5 Computer.
 - `Misc/` contains classic Hello World, Fibonacci series, Oberon-2 type sizes programs.
 - `Misc/Benchmark/` contains the Pow! benchmark program.
 - `Misc/RayTest/` contains [Paul Graham's Common Lisp ray-tracer](https://paulgraham.com/acl.html) ported to Oberon-2.
-- `Misc/voc-O7/` port of [O7 ARMv6/v7-M](https://github.com/aixp/O7) compiler from A.Shiryaev.
+- `Misc/voc-O7/` port of [O7 ARMv6/v7(E)-M](https://github.com/aixp/O7) compiler from A.Shiryaev.
 - `cedt/` contains Oberon-2 and Lola-2 syntax definitions for [Crimson Editor](http://www.crimsoneditor.com/).
 
 You can rebuild the Project Oberon 2013 sources and install it in an SD card image with these tools.
