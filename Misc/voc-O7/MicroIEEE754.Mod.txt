@@ -1,0 +1,74 @@
+MODULE MicroIEEE754;
+
+	(*
+		A. V. Shiryaev, 2011.09, 2013.01, 2015.02
+
+		IEEE 754 32-bit
+
+		frac:23	exp:8	sign:1
+		LSB				MSB
+
+		ZERO:			(exp = 0) & (frac = 0)
+		SUBNORMAL:	(exp = 0) & (frac # 0)
+		INFINITE:		(exp = EXP_INFNAN) & (frac = 0)
+		NAN:				(exp = EXP_INFNAN) & (frac # 0)
+		NORMAL:		in all other cases
+
+		FINITE = ZERO | SUBNORMAL | NORMAL
+	*)
+
+	IMPORT SYSTEM;
+
+	CONST
+		FRACBITS = 23;
+		EXPBITS = 8;
+
+		EXPINFNAN = 255;
+
+		negZero* = SYSTEM.VAL(REAL, {31});
+
+		posInf* = SYSTEM.VAL(REAL, {FRACBITS..FRACBITS+EXPBITS-1});
+		negInf* = SYSTEM.VAL(REAL, {FRACBITS..FRACBITS+EXPBITS-1,31});
+
+	(* (x = 0.0) OR (x = negZero) *)
+	PROCEDURE IsZero* (x: REAL): BOOLEAN;
+	BEGIN
+	RETURN SYSTEM.VAL(SET, x) - {31} = {}
+	END IsZero;
+
+	PROCEDURE IsNaN* (x: REAL): BOOLEAN;
+	BEGIN
+	(* RETURN (x.exp = EXP_INFNAN) & (x.frac # 0) *)
+	RETURN
+		(SYSTEM.VAL(SET, x) * {FRACBITS..FRACBITS+EXPBITS-1}
+			= {FRACBITS..FRACBITS+EXPBITS-1})
+		& (SYSTEM.VAL(SET, x) * {0..FRACBITS-1} # {})
+	END IsNaN;
+
+	PROCEDURE IsInf* (x: REAL): BOOLEAN;
+	BEGIN
+	(* RETURN (x.exp = EXP_INFNAN) & (x.frac = 0) *)
+	RETURN
+		SYSTEM.VAL(SET, LSL(SYSTEM.VAL(INTEGER, x), 1)) = {FRACBITS+1..FRACBITS+EXPBITS}
+	END IsInf;
+
+	PROCEDURE IsNormal* (x: REAL): BOOLEAN;
+	BEGIN
+	(* RETURN (x.exp # 0) & (x.exp # EXP_INFNAN) *)
+	RETURN
+		(SYSTEM.VAL(SET, x) * {FRACBITS..FRACBITS+EXPBITS-1} # {})
+		& (SYSTEM.VAL(SET, x) * {FRACBITS..FRACBITS+EXPBITS-1}
+			# {FRACBITS..FRACBITS+EXPBITS-1})
+	END IsNormal;
+
+	(* IsZero OR IsSubNormal OR IsNormal *)
+	PROCEDURE IsFinite* (x: REAL): BOOLEAN;
+	BEGIN
+	(* RETURN x.exp # EXP_INFNAN *)
+	RETURN SYSTEM.VAL(SET, x) * {FRACBITS..FRACBITS+EXPBITS-1}
+		# {FRACBITS..FRACBITS+EXPBITS-1}
+	END IsFinite;
+
+END MicroIEEE754.
+
+O7ARMv7MTool.DecObj MicroIEEE754.a7m 

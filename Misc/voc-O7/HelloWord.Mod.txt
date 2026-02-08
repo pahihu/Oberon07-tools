@@ -1,0 +1,11 @@
+MODULE HelloWord;
+
+VAR
+A, B :INTEGER;
+
+BEGIN
+A := 5;
+B := 11;
+B := A + B;
+
+END HelloWord.
