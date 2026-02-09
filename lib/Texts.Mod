@@ -63,6 +63,7 @@ MODULE Texts;
   VAR
     LIntPrecision: INTEGER;
     HexDigits: INTEGER;
+    EOL: CHAR;
 
   (*------------------------------------------------------------------*)
 
@@ -91,12 +92,16 @@ MODULE Texts;
   PROCEDURE OpenReader* (VAR R: Reader; T: Text; pos: LONGINT);
   BEGIN Files.Set (R.rider, T.base, pos); R.eot := FALSE
   END OpenReader;
+
+  PROCEDURE IsLineEnd(ch: CHAR): BOOLEAN;
+  BEGIN RETURN (ch = CR) OR (ch = LF)
+  END IsLineEnd;
   
   PROCEDURE Read* (VAR R: Reader; VAR ch: CHAR);
   BEGIN
     IF R.eot THEN ch := 0FFX
     ELSE Files.Read (R.rider, ch);
-      WHILE ~R.rider.eof & (ch = LF) DO Files.Read (R.rider, ch) END;
+      WHILE ~R.rider.eof & IsLineEnd(ch) & (ch # EOL) DO Files.Read (R.rider, ch) END;
       R.eot := R.rider.eof
     END
   END Read;
@@ -123,8 +128,8 @@ MODULE Texts;
     END Save;
     
   BEGIN ch := S.nextCh; i := 0;
-    WHILE (ch = " ") OR (ch = TAB) OR (ch = CR) DO
-      IF ch = CR THEN INC(S.line) END ;
+    WHILE (ch = " ") OR (ch = TAB) OR (ch = EOL) DO
+      IF ch = EOL THEN INC(S.line) END ;
       Read(S, ch)
     END ;
     IF ("A" <= ch) & (ch <= "Z") OR ("a" <= ch) & (ch <= "z") THEN (*name*)
@@ -194,7 +199,7 @@ MODULE Texts;
   END Write;
   
   PROCEDURE WriteLn* (VAR W: Writer);
-  BEGIN Write (W, CR)
+  BEGIN Write (W, EOL)
   END WriteLn;
 
   PROCEDURE WriteString* (VAR W: Writer; s: ARRAY OF CHAR);
@@ -269,13 +274,10 @@ MODULE Texts;
   BEGIN
     FOR i := 0 TO B.len-1 DO
       ch := B.s[i];
-      IF ch = CR THEN
-        IF ~dos THEN ch := LF END
-      END;
       OutChar (T, ch);
-      IF ch = CR THEN
-        IF dos THEN OutChar (T, LF) END
-      END
+      IF (ch = EOL) & dos THEN
+        OutChar (T, LF)
+      END;
     END;
     B.len := 0
   END Append;
@@ -293,6 +295,7 @@ MODULE Texts;
   END SetPrecision;
 
 BEGIN SetPrecision(4);
+  IF dos THEN EOL := CR ELSE EOL := LF END
 END Texts.
 
 (* vim:set ts=2 sw=2 et: *)

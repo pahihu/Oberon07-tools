@@ -365,7 +365,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
 
   PROCEDURE ReadByteEx(VAR R: Rider; VAR x: Sys.Byte);
     VAR ch: CHAR;
-  BEGIN ReadByte(R, ch); x := ORD(ch)
+  BEGIN ReadByte(R, ch); x := SHORT(ORD(ch));
   END ReadByteEx;
 
   PROCEDURE ReadInt*(VAR R: Rider; VAR x: Sys.Integer);

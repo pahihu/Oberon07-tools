@@ -35,3 +35,5 @@ MODULE System;
   END BinOr;
 
 END System.
+
+(* vim:set ts=2 sw=2 et: *)

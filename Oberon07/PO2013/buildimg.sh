@@ -80,9 +80,12 @@ do
   nm=$(basename $f .Mod)
   src=$f
   dst=$f
+  ismod=0
   if [ "$nm.Mod" = "$f" ];
   then
-    src=$nm.Mod.txt
+    awk 'sub("$", "\r")' $nm.Mod.txt > $f
+    src=$f
+    ismod=1
   fi
   if [ ! -s $src ];
   then
@@ -90,6 +93,10 @@ do
     exit 1
   fi
   ../POSystem CopyTo "$src => $dst"
+  if [ $ismod -eq 1 ];
+  then
+    rm $src
+  fi
 done
 
 echo "writing inner core (Modules.bin)..."
