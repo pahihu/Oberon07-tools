@@ -6,7 +6,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     cmd: ARRAY 32 OF CHAR;
 
   PROCEDURE Read(VAR R: Files.Rider; VAR n: Sys.Integer);
-  BEGIN Files.ReadByte(R, n)
+    VAR b: Sys.Byte;
+  BEGIN Files.ReadByte(R, b); n := b
   END Read;
   
 (* ---------------------------------------------------*)
@@ -64,7 +65,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END Sync;
   
   PROCEDURE Write(VAR R: Files.Rider; x: Sys.Integer);
-  BEGIN Files.WriteByte(R, x)  (* -128 <= x < 128 *)
+    VAR b: Sys.Byte;
+  BEGIN b := SHORT(x); Files.WriteByte(R, b)  (* -128 <= x < 128 *)
   END Write;
 
   PROCEDURE DecObj*;  (*decode object file*)

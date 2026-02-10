@@ -1,19 +1,22 @@
 MODULE ORTool;  (*NW 18.2.2013*)
   IMPORT SYSTEM, Files := Files07, Texts, Oberon, ORB, Sys := System;
+  TYPE
+    LONGINT = Sys.Integer;
+    INTEGER = Sys.Integer;
+
   VAR W: Texts.Writer;
-    Form: Sys.Integer;  (*result of ReadType*)
+    Form: INTEGER;  (*result of ReadType*)
     mnemo0, mnemo1: ARRAY 16, 4 OF CHAR;  (*mnemonics*)
-    cmd: ARRAY 32 OF CHAR;
 
   PROCEDURE Read(VAR R: Files.Rider; VAR n: Sys.Integer);
-    VAR b: SYSTEM.BYTE;
-  BEGIN Files.ReadByte(R, n);
+    VAR b: Sys.Byte;
+  BEGIN Files.ReadByte(R, b); n := b
     (* IF b < 80H THEN n := b ELSE n := b - 100H END *)
   END Read;
 
   PROCEDURE ReadType(VAR R: Files.Rider);
-    VAR key, len, lev, size, off: Sys.Integer;
-      ref, mno, class, form, readonly: Sys.Integer;
+    VAR key, len, lev, size, off: INTEGER;
+      ref, mno, class, form, readonly: INTEGER;
       name, modname: ARRAY 32 OF CHAR;
   BEGIN Read(R, ref); Texts.Write(W, " "); Texts.Write(W, "[");
     IF ref < 0 THEN Texts.Write(W, "^"); Texts.WriteInt(W, -ref, 1)
@@ -58,7 +61,7 @@ MODULE ORTool;  (*NW 18.2.2013*)
   END ReadType;
 
   PROCEDURE DecSym*;  (*decode symbol file*)
-    VAR class, typno, k: Sys.Integer;
+    VAR class, typno, k: INTEGER;
       name: ARRAY 32 OF CHAR;
       F: Files.File; R: Files.Rider;
       S: Texts.Scanner;
@@ -98,7 +101,7 @@ MODULE ORTool;  (*NW 18.2.2013*)
   
 (* ---------------------------------------------------*)
 
-  PROCEDURE WriteReg(r: Sys.Integer);
+  PROCEDURE WriteReg(r: LONGINT);
   BEGIN Texts.Write(W, " ");
     IF r < 12 THEN Texts.WriteString(W, " R"); Texts.WriteInt(W, r MOD 10H, 1)
     ELSIF r = 12 THEN Texts.WriteString(W, "MT")
@@ -108,8 +111,8 @@ MODULE ORTool;  (*NW 18.2.2013*)
     END
   END WriteReg;
 
-  PROCEDURE opcode(w: Sys.Integer);
-    VAR k, op, u, a, b, c: Sys.Integer;
+  PROCEDURE opcode(w: LONGINT);
+    VAR k, op, u, a, b, c: LONGINT;
   BEGIN
       k := w DIV 40000000H MOD 4;
       a := w DIV 1000000H MOD 10H;
@@ -148,8 +151,9 @@ MODULE ORTool;  (*NW 18.2.2013*)
   BEGIN Files.Read(R, ch); Texts.WriteString(W, "Sync "); Texts.Write(W, ch); Texts.WriteLn(W)
   END Sync;
   
-  PROCEDURE Write(VAR R: Files.Rider; x: Sys.Integer);
-  BEGIN Files.WriteByte(R, x)  (* -128 <= x < 128 *)
+  PROCEDURE Write(VAR R: Files.Rider; x: INTEGER);
+    VAR b: Sys.Byte;
+  BEGIN b := SHORT(x); Files.WriteByte(R, b)  (* -128 <= x < 128 *)
   END Write;
 
   PROCEDURE DecObj*;   (*decode object file*)

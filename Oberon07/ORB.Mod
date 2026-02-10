@@ -160,8 +160,8 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   END ThisModule;
   
   PROCEDURE Read(VAR R: Files.Rider; VAR x: Sys.Integer);
-    VAR b: SYSTEM.BYTE;
-  BEGIN Files.ReadByte(R, x)
+    VAR b: Sys.Byte;
+  BEGIN Files.ReadByte(R, b); x := b
     (* IF b < 80H THEN x := b ELSE x := b - 100H END *)
   END Read;
   
@@ -261,7 +261,8 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
   (*-------------------------------- Export ---------------------------------*)
 
   PROCEDURE Write(VAR R: Files.Rider; x: INTEGER);
-  BEGIN Files.WriteByte(R, x)
+    VAR b: Sys.Byte;
+  BEGIN b := SHORT(x); Files.WriteByte(R, b)
   END Write;
 
   PROCEDURE OutType(VAR R: Files.Rider; t: Type);
@@ -454,3 +455,5 @@ BEGIN
 
   Texts.OpenWriter(W);
 END ORB.
+
+(* vim:set ts=2 sw=2 et: *)

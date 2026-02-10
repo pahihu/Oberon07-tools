@@ -1,32 +1,34 @@
 MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
-  IMPORT SYSTEM, Files := Files07, Kernel := POKernel, Texts, Oberon;
+  IMPORT SYSTEM, Files := Files07, Kernel := POKernel, Texts, Oberon, Sys := System;
   CONST versionkey = 1X; versionkey0 = 0X; MT = 12; DescSize = 80; MnLength = 32; BootSec = 2; BootSize = 64; FPrint = 12345678H;
     noerr* = 0; nofile* = 1; badversion* = 2; badkey* = 3; badfile* = 4; nospace* = 5;
     DestAdr = 8; MemAdr = 12; AllocAdr = 16; RootAdr = 20; StackAdr = 24; FPrintAdr = 28; MTAdr = 32; ModAdr = 256;
     C4 = 10H; C6 = 40H; C8 = 100H; C10 = 400H; C12 = 1000H; C14 = 4000H; C16 = 10000H;
     C18 = 40000H; C20 = 100000H; C22 = 400000H; C24 = 1000000H; BCT = 0E7000000H; BLT = 0F7000000H;
     
-    SectorLength = 1024; MemSize = 20000H; (*128K*)
+    MemSize = 20000H; (*128K*)
 
   TYPE  (*copied from Modules for use as cross linker/loader*)
-    Integer = LONGINT;
+    LONGINT = Sys.Integer;
+    INTEGER = Sys.Integer;
+    BYTE = Sys.Byte;
+    
     Module* = POINTER TO ModDesc;
     Command* = PROCEDURE;
     ModuleName* = ARRAY MnLength OF CHAR;
     ModDesc* = RECORD
       name*: ModuleName;
       next*: Module;
-      key*, num*, size*, refcnt*: Integer;
-      data*, code*, imp*, cmd*, ent*, ptr*, unused: Integer  (*addresses*)
+      key*, num*, size*, refcnt*: INTEGER;
+      data*, code*, imp*, cmd*, ent*, ptr*, unused: INTEGER  (*addresses*)
     END ;
 
   VAR root: Module;
-    MTOrg, AllocPtr, Start, limit, res*: Integer;
+    MTOrg, AllocPtr, Start, limit, res*: INTEGER;
     importing*, imported*: ModuleName;
     W: Texts.Writer;
-    MemBase: Integer;
+    MemBase: LONGINT;
     Mem: POINTER TO ARRAY MemSize OF CHAR;
-    cmd: ARRAY 32 OF CHAR;
 
   PROCEDURE EndLine;
   BEGIN Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
@@ -50,8 +52,8 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
   BEGIN res := n; COPY(name, importing)
   END error;
 
-  PROCEDURE check(s: ARRAY OF CHAR; VAR slen: Integer);  (*slen includes trailing 0X*)
-    VAR i: Integer; ch: CHAR;
+  PROCEDURE check(s: ARRAY OF CHAR; VAR slen: INTEGER);  (*slen includes trailing 0X*)
+    VAR i: INTEGER; ch: CHAR;
   BEGIN ch := s[0]; res := 1; i := 0; slen := 0;
     IF (ch >= "A") & (ch <= "Z") OR (ch >= "a") & (ch <= "z") THEN
       REPEAT INC(i); ch := s[i]
@@ -70,12 +72,12 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
       res = badfile: corrupted file;
       res = nospace: insufficient space*)
     VAR mod, impmod: Module;
-      i, n, key, impkey, mno, nofimps, size: Integer;
-      p, u, v, w: Integer;  (*addresses*)
+      i, n, key, impkey, mno, nofimps, size: INTEGER;
+      p, u, v, w: INTEGER;  (*addresses*)
       ch: CHAR;
       body: Command;
-      fixorgP, fixorgD, fixorgT: Integer;
-      disp, adr, inst, pno, vno, dest, offset: Integer;
+      fixorgP, fixorgD, fixorgT: INTEGER;
+      disp, adr, inst, pno, vno, dest, offset: INTEGER;
       name1, impname: ModuleName;
       F: Files.File; R: Files.Rider;
       import: ARRAY 16 OF Module;
@@ -207,7 +209,7 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
   END LinkOne;
 
   PROCEDURE Link*;  (*link multiple object files together and create a single boot file M.bin from them*)
-    VAR i, x: Integer;
+    VAR i, x: INTEGER;
       F: Files.File; R: Files.Rider;
       S: Texts.Scanner;
       M, p: Module;
@@ -220,7 +222,7 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
       IF res = noerr THEN p := root; Texts.WriteString(W, "  linking");
         WHILE p # NIL DO (*fixup*) Texts.Write(W, " "); Texts.WriteString(W, p.name);
           M := p; p := p.next;
-          IF p # NIL THEN M.next := SYSTEM.VAL(Module, SYSTEM.VAL(Integer, p) - Start) END ;
+          IF p # NIL THEN M.next := SYSTEM.VAL(Module, SYSTEM.VAL(INTEGER, p) - Start) END ;
           M.data := M.data - Start;
           SYSTEM.PUT(M.num * 4 + MTOrg, M.data);  (*module table entry*)
           M.code := M.code - Start;
@@ -236,7 +238,7 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
         SYSTEM.PUT(Start + DestAdr, 0);  (*destination address of the prelinked, executable binary*)
         SYSTEM.PUT(Start + MemAdr, 0);  (*limit of available memory, typically overwritten by the boot loader*)
         SYSTEM.PUT(Start + AllocAdr, AllocPtr - Start);  (*address of the end of the module space loaded*)
-        SYSTEM.PUT(Start + RootAdr, SYSTEM.VAL(Integer, root) - Start);  (*current root of the links of loaded modules*)
+        SYSTEM.PUT(Start + RootAdr, SYSTEM.VAL(INTEGER, root) - Start);  (*current root of the links of loaded modules*)
         SYSTEM.PUT(Start + StackAdr, 0);  (*current limit of the module area, typically overwritten by the boot loader*)
         SYSTEM.PUT(Start + FPrintAdr, FPrint);  (*fingerprint*)
         MakeFileName(name, S.s, ".bin"); F := Files.New(name); Files.Set(R, F, 0); i := Start;
@@ -258,7 +260,7 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
   END Link;
 
   PROCEDURE Load*;  (*load prelinked boot file M.bin onto the boot area of the local disk*)
-    VAR i, secno: LONGINT; b: CHAR (*SYSTEM.BYTE*);
+    VAR i, secno: LONGINT; b: BYTE;
       F: Files.File; R: Files.Rider;
       S: Texts.Scanner;
       buf: Kernel.Sector;
@@ -270,10 +272,10 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
         IF S.class = Texts.Name THEN
           Texts.WriteString(W, "  image "); Texts.WriteString(W, S.s); Kernel.OpenImage(S.s);
           IF Kernel.res = Kernel.done THEN
-            secno := BootSec; i := 0; Files.Set(R, F, 0); Files.Read(R, b); res := noerr;
-            WHILE ~R.eof DO buf[i] := b; INC(i);
+            secno := BootSec; i := 0; Files.Set(R, F, 0); Files.ReadByte(R, b); res := noerr;
+            WHILE ~R.eof DO buf[i] := SHORT(b); INC(i);
               IF i = Kernel.SectorLength THEN Kernel.PutSector(secno*29, buf); INC(secno); i := 0 END ;
-              Files.Read(R, b)
+          Files.ReadByte(R, b)
             END ;
             IF i > 0 THEN
               WHILE i < Kernel.SectorLength DO buf[i] := 0; INC(i) END ;
@@ -301,6 +303,6 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
   END Help; 
 
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Boot linker/loader  AP 1.5.23"); EndLine;
-  NEW(Mem); MemBase := SYSTEM.VAL(Integer, Mem); limit := MemBase + MemSize; 
+  NEW(Mem); MemBase := SYSTEM.VAL(LONGINT, Mem); limit := MemBase + MemSize; 
   Oberon.Run
 END ORL32.

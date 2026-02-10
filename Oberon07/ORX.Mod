@@ -2,9 +2,13 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
   IMPORT Files := Files07, Texts, Oberon, Sys := System;
   CONST CR = 0DX; noerr = 0; badfile = 4;  (*copied from Modules for use as cross development tool*)
 
-  TYPE Writer = PROCEDURE(VAR R: Files.Rider; x: Sys.Integer);
+  TYPE
+    LONGINT = Sys.Integer;
+    INTEGER = Sys.Integer;
+    BYTE = Sys.Byte;
+    Writer = PROCEDURE(VAR R: Files.Rider; x: LONGINT);
 
-  VAR res*: Sys.Integer;
+  VAR res*: INTEGER;
     W: Texts.Writer;
     cmd: ARRAY 32 OF CHAR;
 
@@ -12,8 +16,8 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
   BEGIN Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END EndLine;
 
-  PROCEDURE WriteHex(VAR R: Files.Rider; x: Sys.Integer);  (*write a 4 byte LONGINT in 8 digit hex format*)
-    VAR i: Sys.Integer; y: Sys.Integer;
+  PROCEDURE WriteHex(VAR R: Files.Rider; x: LONGINT);  (*write a 4 byte LONGINT in 8 digit hex format*)
+    VAR i: INTEGER; y: LONGINT;
       a: ARRAY 10 OF CHAR;
   BEGIN i := 0;
     REPEAT y := x MOD 10H;
@@ -24,9 +28,9 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
     Files.Write(R, CR)
   END WriteHex;
 
-  PROCEDURE ExtractCode(VAR R, R1: Files.Rider; write: Writer; VAR codelen, entry, res: Sys.Integer);
-    VAR n, data: Sys.Integer;                                      (*codelen in words, entry in bytes*)
-      ch: CHAR; b: Sys.Integer (*SYSTEM.BYTE*);
+  PROCEDURE ExtractCode(VAR R, R1: Files.Rider; write: Writer; VAR codelen, entry, res: INTEGER);
+    VAR n, data: INTEGER;                                      (*codelen in words, entry in bytes*)
+      ch: CHAR; b: BYTE;
       F: Files.File;
       name: ARRAY 32 OF CHAR;
   BEGIN F := Files.Base(R); Files.ReadString(R, name); Files.ReadInt(R, data); (*key*)
@@ -51,8 +55,7 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
 
   PROCEDURE WriteFile*;  (*write code section of M.rsc in hex format to output file*)
     VAR f, g: Files.File; Rf, Rg: Files.Rider;
-      n, codelen, entry: Sys.Integer;
-      filelen: LONGINT;
+      n, codelen, filelen, entry: INTEGER;
       name: ARRAY 32 OF CHAR;
       S: Texts.Scanner;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
@@ -84,7 +87,7 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
 
   PROCEDURE WriteCode*;  (*write code section of M.rsc in binary format to output file*)
     VAR f, g: Files.File; Rf, Rg: Files.Rider;
-      codelen, entry: Sys.Integer;
+      codelen, entry: INTEGER;
       name: ARRAY 32 OF CHAR;
       S: Texts.Scanner;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
@@ -111,8 +114,8 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
     EndLine
   END WriteCode;
 
-  PROCEDURE MakeStream(VAR Rf, Rg: Files.Rider; blksize, destadr: LONGINT);
-    VAR a: LONGINT; i, b: Sys.Integer (*SYSTEM.BYTE*);
+  PROCEDURE MakeStream(VAR Rf, Rg: Files.Rider; blksize, destadr: INTEGER);
+    VAR i, a: INTEGER; b: BYTE;
   BEGIN Files.ReadByte(Rf, b); i := 0; a := destadr;
     WHILE ~Rf.eof DO
       IF i MOD blksize = 0 THEN Files.WriteInt(Rg, Sys.Short(blksize)); Files.WriteInt(Rg, Sys.Short(a)); INC(a, blksize); i := 0 END ;
@@ -124,7 +127,7 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
 
   PROCEDURE WriteStream*;  (*convert boot file to stream format with specified block size and dest adr*)
     VAR f, g: Files.File; Rf, Rg: Files.Rider;
-      filelen, blksize: LONGINT;
+      filelen, blksize: INTEGER;
       name, name1: ARRAY 32 OF CHAR;
       S: Texts.Scanner;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
