@@ -75,28 +75,23 @@ do
 done
 
 echo "copying new files to image..."
-for f in $FILES
+for dst in $FILES
 do
-  nm=$(basename $f .Mod)
-  src=$f
-  dst=$f
-  ismod=0
-  if [ "$nm.Mod" = "$f" ];
+  src=$dst
+  cmd=CopyTo
+  # check MODULE source
+  nm=$(basename $src .Mod)
+  if [ "$nm.Mod" = "$src" ];
   then
-    awk 'sub("$", "\r")' $nm.Mod.txt > $f
-    src=$f
-    ismod=1
+    src=$nm.Mod.txt
+    cmd=CopyAsciiTo
   fi
   if [ ! -s $src ];
   then
-    echo "$f not found"
+    echo "$src not found"
     exit 1
   fi
-  ../POSystem CopyTo "$src => $dst"
-  if [ $ismod -eq 1 ];
-  then
-    rm $src
-  fi
+  ../POSystem $cmd "$src => $dst"
 done
 
 echo "writing inner core (Modules.bin)..."

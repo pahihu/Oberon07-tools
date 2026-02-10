@@ -2,6 +2,10 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
   IMPORT Kernel := POKernel, FileDir := POFileDir, Files := POFiles,
     Texts, Oberon, Sys := System, HostFiles := Files;
 
+  CONST
+    TextTag = 0F1X;
+    CR = 0DX; LF = 0AX;
+
   VAR W: Texts.Writer;
     pat: ARRAY 32 OF CHAR;
 
@@ -197,10 +201,110 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
     END
   END CopyTo;
 
+  PROCEDURE AsciiToText* (VAR W: Files.Rider; T: Texts.Text);
+    CONST FontName = "Oberon10.Scn.Fnt";
+    VAR R: HostFiles.Rider;
+      pch, ch: CHAR;
+      off, pos, rlen: Sys.Integer;
+      col, voff: Sys.Byte;
+      skip: BOOLEAN;
+  BEGIN Files.Write(W, TextTag);
+    pos := Files.Pos(W); Files.WriteInt(W, 0); (*place holder*)
+    Files.WriteByte(W, 1); (* no. of fonts *)
+    Files.WriteString(W, FontName);
+    col := 15; voff := 0; rlen := Sys.Short(T.len);
+    Files.WriteByte(W, col);
+    Files.WriteByte(W, voff);
+    Files.WriteInt(W, rlen);
+    (*text*)
+    Files.WriteByte(W, 0); Files.WriteInt(W, rlen);
+    off := Files.Pos(W);
+    (*each piece*)
+    pch := 0X; skip := FALSE;
+    HostFiles.Set(R, T.base, 0);
+    WHILE rlen > 0 DO
+      HostFiles.Read(R, ch);
+      IF ch = LF THEN
+        ch := CR;
+        skip := pch = CR;
+      END;
+      IF skip THEN skip := FALSE ELSE Files.Write(W, ch) END;
+      pch := ch; DEC(rlen)
+    END;
+    Files.Set(W, Files.Base(W), pos); Files.WriteInt(W, off); (*fixup*)
+  END AsciiToText;
+
+  PROCEDURE CopyAsciiTo*;
+    VAR ch: CHAR;
+      g: Files.File; Rg: Files.Rider;
+      name: ARRAY 32 OF CHAR;
+      S: Texts.Scanner;
+      T: Texts.Text;
+  BEGIN GetArg(S);
+    Texts.WriteString(W, "System.CopyAsciiTo"); EndLine;
+    WHILE S.class = Texts.Name DO
+      COPY(S.s, name); Texts.Scan(S);
+      IF (S.class = Texts.Char) & (S.c = "=") THEN Texts.Scan(S);
+        IF (S.class = Texts.Char) & (S.c = ">") THEN Texts.Scan(S);
+          IF S.class = Texts.Name THEN
+            Texts.WriteString(W, name); Texts.WriteString(W, " => "); Texts.WriteString(W, S.s);
+            Texts.WriteString(W, " copying"); Texts.Append(Oberon.Log, W.buf);
+            NEW(T); Texts.Open(T, name);
+            IF T.len > 0 THEN g := Files.New(S.s); Files.Set(Rg, g, 0);
+              AsciiToText(Rg, T); Files.Register(g)
+            ELSE Texts.WriteString(W, " failed")
+            END ;
+            EndLine
+          END
+        END
+      END ;
+      Texts.Scan(S)
+    END
+  END CopyAsciiTo;
+
+  PROCEDURE CopyTextFrom*;
+    VAR f: Files.File; Rf: Files.Rider; ch: CHAR;
+      g: HostFiles.File; Rg: HostFiles.Rider;
+      name: ARRAY 32 OF CHAR;
+      S: Texts.Scanner;
+      pos: Sys.Integer;
+  BEGIN GetArg(S);
+    Texts.WriteString(W, "System.CopyTextFrom"); EndLine;
+    WHILE S.class = Texts.Name DO
+      COPY(S.s, name); Texts.Scan(S);
+      IF (S.class = Texts.Char) & (S.c = "=") THEN Texts.Scan(S);
+        IF (S.class = Texts.Char) & (S.c = ">") THEN Texts.Scan(S);
+          IF S.class = Texts.Name THEN
+            Texts.WriteString(W, name); Texts.WriteString(W, " => "); Texts.WriteString(W, S.s);
+            Texts.WriteString(W, " copying"); Texts.Append(Oberon.Log, W.buf);
+            f := Files.Old(name);
+            IF f # NIL THEN
+              Files.Set(Rf, f, 0); Files.Read(Rf, ch);
+              IF ch = TextTag THEN
+                g := HostFiles.New(S.s); HostFiles.Set(Rg, g, 0);
+                Files.ReadInt(Rf, pos); Files.Set(Rf, f, pos); Files.Read(Rf, ch); (*skip to text*)
+                WHILE ~Rf.eof DO
+                  HostFiles.Write(Rg, ch);
+                  IF ch = CR THEN HostFiles.Write(Rg, LF); END; (*write as CRLF*)
+                  Files.Read(Rf, ch)
+                END;
+                HostFiles.Register(g)
+              ELSE Texts.WriteString(W, " not text");
+              END
+            ELSE Texts.WriteString(W, " failed")
+            END ;
+            EndLine
+          END
+        END
+      END ;
+      Texts.Scan(S)
+    END
+  END CopyTextFrom;
+
   (* ---------------------------------------------------------*)
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: POSystem Directory pat! | CopyFiles from => to... | CopyFrom from => host... | CopyTo host => to... | RenameFiles old => new... | DeleteFiles files...");
+  BEGIN Texts.WriteString(W, "usage: POSystem Directory pat! | CopyFiles from => to... | CopyFrom from => host... | CopyTextFrom text => host... | CopyTo from => to... | CopyAsciiTo ascii => text... | RenameFiles old => new... | DeleteFiles files...");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
   
@@ -214,3 +318,5 @@ BEGIN Texts.OpenWriter(W);
     Oberon.Run
   END
 END POSystem.
+
+(* vim:set ts=2 sw=2 et: *)
