@@ -17,7 +17,8 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
         HeaderMark* = -6458E27AH (*9BA71D86H*);
         FillerSize = 52;
 
-  TYPE DiskAdr      = Sys.Integer;
+  TYPE INTEGER = Sys.Integer;
+    DiskAdr      = INTEGER;
     FileName*       = ARRAY FnLength OF CHAR;
     SectorTable*    = ARRAY SecTabSize OF DiskAdr;
     ExtensionTable* = ARRAY ExTabSize OF DiskAdr;
@@ -25,9 +26,9 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
 
     FileHeader* =
       RECORD (*first page of each file on disk*)
-        mark*: Sys.Integer;
+        mark*: INTEGER;
         name*: FileName;
-        aleng*, bleng*, date*: Sys.Integer;
+        aleng*, bleng*, date*: INTEGER;
         ext*:  ExtensionTable;
         sec*: SectorTable;
         fill: ARRAY SectorSize - HeaderSize OF SYSTEM.BYTE;
@@ -45,8 +46,8 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
       END ;
 
     DirPage*  =
-      RECORD mark*:  Sys.Integer;
-        m*:     Sys.Integer;
+      RECORD mark*:  INTEGER;
+        m*:     INTEGER;
         p0*:    DiskAdr;  (*sec no of left descendant in directory*)
         fill:  ARRAY FillerSize OF SYSTEM.BYTE;
         e*:  ARRAY DirPgSize OF DirEntry
@@ -55,7 +56,7 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
   (*Exported procedures: Search, Insert, Delete, Enumerate, Init*)
 
   PROCEDURE Search*(name: FileName; VAR A: DiskAdr);
-    VAR i, L, R: Sys.Integer; dadr: DiskAdr;
+    VAR i, L, R: INTEGER; dadr: DiskAdr;
       a: DirPage;
   BEGIN dadr := DirRootAdr; A := 0;
     REPEAT Kernel.GetSector(dadr, a); ASSERT(a.mark = DirMark);
@@ -78,7 +79,7 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
                    fad:     DiskAdr);
     (*h = "tree has become higher and v is ascending element"*)
     VAR ch: CHAR;
-      i, j, L, R: Sys.Integer;
+      i, j, L, R: INTEGER;
       dpg1: DiskAdr;
       u: DirEntry;
       a: DirPage;
@@ -148,9 +149,9 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
 
   PROCEDURE underflow(VAR c: DirPage;  (*ancestor page*)
                       dpg0:  DiskAdr;
-                      s:     Sys.Integer;  (*insertion point in c*)
+                      s:     INTEGER;  (*insertion point in c*)
                       VAR h: BOOLEAN); (*c undersize*)
-    VAR i, k: Sys.Integer;
+    VAR i, k: INTEGER;
         dpg1: DiskAdr;
         a, b: DirPage;  (*a := underflowing page, b := neighbouring page*)
   BEGIN Kernel.GetSector(dpg0, a); ASSERT(a.mark = DirMark);
@@ -202,11 +203,11 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
   (*search and delete entry with key name; if a page underflow arises,
     balance with adjacent page or merge; h := "page dpg0 is undersize"*)
 
-    VAR i, L, R: Sys.Integer;
+    VAR i, L, R: INTEGER;
       dpg1: DiskAdr;
       a: DirPage;
 
-    PROCEDURE del(VAR a: DirPage; R: Sys.Integer; dpg1: DiskAdr; VAR h: BOOLEAN);
+    PROCEDURE del(VAR a: DirPage; R: INTEGER; dpg1: DiskAdr; VAR h: BOOLEAN);
       VAR dpg2: DiskAdr;  (*global: a, R*)
           b: DirPage;
     BEGIN Kernel.GetSector(dpg1, b); ASSERT(b.mark = DirMark); dpg2 := b.e[b.m-1].p;
@@ -259,7 +260,7 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
                       dpg:          DiskAdr;
                       proc:         EntryHandler;
                       VAR continue: BOOLEAN);
-    VAR i, j: Sys.Integer; pfx, nmx: CHAR;
+    VAR i, j: INTEGER; pfx, nmx: CHAR;
       dpg1: DiskAdr; a: DirPage;
   BEGIN Kernel.GetSector(dpg, a); ASSERT(a.mark = DirMark); i := 0;
     WHILE (i < a.m) & continue DO
@@ -289,16 +290,16 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
 (* ----- initialization ----- *)
 
 PROCEDURE Init*;
-    VAR k: Sys.Integer;
+    VAR k: INTEGER;
         A: ARRAY 2000 OF DiskAdr;
 
-    PROCEDURE MarkSectors(VAR A: ARRAY OF DiskAdr; k: Sys.Integer);
-      VAR L, R, i, j, n: Sys.Integer; x: DiskAdr;
+    PROCEDURE MarkSectors(VAR A: ARRAY OF DiskAdr; k: INTEGER);
+      VAR L, R, i, j, n: INTEGER; x: DiskAdr;
         hd: FileHeader;
         B: IndexSector;
 
-      PROCEDURE sift(VAR A: ARRAY OF DiskAdr; L, R: Sys.Integer);
-        VAR i, j: Sys.Integer; x: DiskAdr;
+      PROCEDURE sift(VAR A: ARRAY OF DiskAdr; L, R: INTEGER);
+        VAR i, j: INTEGER; x: DiskAdr;
       BEGIN j := L; x := A[j];
         REPEAT i := j; j := 2*j + 1;
           IF (j+1 < R) & (A[j] < A[j+1]) THEN INC(j) END ;
@@ -331,8 +332,8 @@ PROCEDURE Init*;
       END
     END MarkSectors;
 
-    PROCEDURE TraverseDir(VAR A: ARRAY OF DiskAdr; VAR k: Sys.Integer; dpg: DiskAdr);
-      VAR i: Sys.Integer; a: DirPage;
+    PROCEDURE TraverseDir(VAR A: ARRAY OF DiskAdr; VAR k: INTEGER; dpg: DiskAdr);
+      VAR i: INTEGER; a: DirPage;
     BEGIN Kernel.GetSector(dpg, a); ASSERT(a.mark = DirMark); Kernel.MarkSector(dpg); i := 0;
       WHILE i < a.m DO
         A[k] := a.e[i].adr; INC(k); INC(i);

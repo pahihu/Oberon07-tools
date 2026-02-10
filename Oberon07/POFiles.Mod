@@ -12,33 +12,34 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
       STS       = FileDir.SecTabSize;
       XS        = FileDir.IndexSize;
 
-  TYPE  DiskAdr = Sys.Integer;
+  TYPE INTEGER = Sys.Integer;
+      DiskAdr = INTEGER;
       File*    = POINTER TO FileDesc;
       Buffer  = POINTER TO BufferRecord;
       Index   = POINTER TO IndexRecord;
 
     Rider* =
       RECORD eof*: BOOLEAN;
-        res*: Sys.Integer;
+        res*: INTEGER;
         file: File;
-        apos, bpos: Sys.Integer;
+        apos, bpos: INTEGER;
         buf: Buffer
       END ;
 
     FileDesc =
-      RECORD next: Sys.Integer; (*list of files invisible to the GC*)
-        nofbufs, aleng, bleng: Sys.Integer;
+      RECORD next: INTEGER; (*list of files invisible to the GC*)
+        nofbufs, aleng, bleng: INTEGER;
         modH, registered: BOOLEAN;
         firstbuf: Buffer;
         sechint: DiskAdr;
         name: FileDir.FileName;
-        date: Sys.Integer;
+        date: INTEGER;
         ext:  ARRAY FileDir.ExTabSize OF Index;
         sec: FileDir.SectorTable
       END ;
 
     BufferRecord =
-      RECORD apos, lim: Sys.Integer;
+      RECORD apos, lim: INTEGER;
         mod: BOOLEAN;
         next: Buffer;
         data: FileDir.DataSector
@@ -56,13 +57,11 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
       0 <= apos <= aleng < PgTabSize
       (apos < aleng) & (lim = SS) OR (apos = aleng) *)
 
-  VAR root: Sys.Integer (*File*);  (*list of open files*)
-  
-  (*---------------------------------------*)
+  VAR root: INTEGER (*File*);  (*list of open files*)
 
   PROCEDURE Check(s: ARRAY OF CHAR;
-        VAR name: FileDir.FileName; VAR res: Sys.Integer);
-    VAR i: Sys.Integer; ch: CHAR;
+        VAR name: FileDir.FileName; VAR res: INTEGER);
+    VAR i: INTEGER; ch: CHAR;
   BEGIN ch := s[0]; i := 0;
     IF (ch >= "A") & (ch <= "Z") OR (ch >= "a") & (ch <= "z") THEN
       REPEAT name[i] := ch; INC(i); ch := s[i]
@@ -79,7 +78,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END Check;
 
   PROCEDURE Old*(name: ARRAY OF CHAR): File;
-    VAR i, k, res: Sys.Integer;
+    VAR i, k, res: INTEGER;
       f: File;
       header: DiskAdr;
       buf: Buffer;
@@ -106,7 +105,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
             Kernel.GetSector(inxpg.adr, inxpg.sec); f.ext[i] := inxpg; INC(i)
           END ;
           WHILE i < FileDir.ExTabSize DO f.ext[i] := NIL; INC(i) END ;
-          f.sechint := header; f.modH := FALSE; f.next := root; root := SYSTEM.VAL(Sys.Integer, f)
+          f.sechint := header; f.modH := FALSE; f.next := root; root := SYSTEM.VAL(INTEGER, f)
         END
       END
     END ;
@@ -114,7 +113,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END Old;
 
   PROCEDURE New*(name: ARRAY OF CHAR): File;
-    VAR i, res: Sys.Integer;
+    VAR i, res: INTEGER;
       f: File;
       buf: Buffer;
       F: FileDir.FileHd;
@@ -144,7 +143,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     WHILE k > 0 DO DEC(k); F.ext[k] := f.ext[k].adr END
   END UpdateHeader;
 
-  PROCEDURE ReadBuf(f: File; buf: Buffer; pos: Sys.Integer);
+  PROCEDURE ReadBuf(f: File; buf: Buffer; pos: INTEGER);
     VAR sec: DiskAdr;
   BEGIN
     IF pos < STS THEN sec := f.sec[pos]
@@ -156,7 +155,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END ReadBuf;
 
   PROCEDURE WriteBuf(f: File; buf: Buffer);
-    VAR i, k: Sys.Integer;
+    VAR i, k: INTEGER;
       secadr: DiskAdr; inx: Index;
       fh: FileDir.FileHeader;
   BEGIN 
@@ -182,7 +181,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     Kernel.PutSector(secadr, buf.data); buf.mod := FALSE
   END WriteBuf;
 
-  PROCEDURE Buf(f: File; pos: Sys.Integer): Buffer;
+  PROCEDURE Buf(f: File; pos: INTEGER): Buffer;
     VAR buf: Buffer;
   BEGIN buf := f.firstbuf;
     WHILE (buf.apos # pos) & (buf.next # f.firstbuf) DO buf := buf.next END ;
@@ -190,7 +189,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     RETURN buf
   END Buf;
 
-  PROCEDURE GetBuf(f: File; pos: Sys.Integer): Buffer;
+  PROCEDURE GetBuf(f: File; pos: INTEGER): Buffer;
     VAR buf: Buffer;
   BEGIN buf := f.firstbuf;
     WHILE (buf.apos # pos) & (buf.next # f.firstbuf) DO buf := buf.next END ;
@@ -206,7 +205,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END GetBuf;
 
   PROCEDURE Unbuffer(f: File);
-    VAR i, k: Sys.Integer;
+    VAR i, k: INTEGER;
       buf: Buffer;
       inx: Index;
       head: FileDir.FileHeader;
@@ -247,7 +246,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END Close;
 
   PROCEDURE Purge*(f: File);
-    VAR a, i, j, k: Sys.Integer;
+    VAR a, i, j, k: INTEGER;
       ind: FileDir.IndexSector;
   BEGIN
     IF f # NIL THEN a := f.aleng + 1; f.aleng := 0; f.bleng := HS;
@@ -263,7 +262,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     END
   END Purge;
 
-  PROCEDURE Delete*(name: ARRAY OF CHAR; VAR res: Sys.Integer);
+  PROCEDURE Delete*(name: ARRAY OF CHAR; VAR res: INTEGER);
     VAR adr: DiskAdr;
         namebuf: FileDir.FileName;
   BEGIN Check(name, namebuf, res);
@@ -273,7 +272,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     END
   END Delete;
 
-  PROCEDURE Rename*(old, new: ARRAY OF CHAR; VAR res: Sys.Integer);
+  PROCEDURE Rename*(old, new: ARRAY OF CHAR; VAR res: INTEGER);
     VAR adr: DiskAdr;
         oldbuf, newbuf: FileDir.FileName;
         head: FileDir.FileHeader;
@@ -291,18 +290,18 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     END
   END Rename;
 
-  PROCEDURE Length*(f: File): Sys.Integer;
+  PROCEDURE Length*(f: File): INTEGER;
   BEGIN RETURN f.aleng * SS + f.bleng - HS
   END Length;
 
-  PROCEDURE Date*(f: File): Sys.Integer;
+  PROCEDURE Date*(f: File): INTEGER;
   BEGIN RETURN f.date
   END Date;
 
   (*---------------------------Read---------------------------*)
 
-  PROCEDURE Set*(VAR r: Rider; f: File; pos: Sys.Integer);
-    VAR a, b: Sys.Integer;
+  PROCEDURE Set*(VAR r: Rider; f: File; pos: INTEGER);
+    VAR a, b: INTEGER;
   BEGIN  r.eof := FALSE; r.res := 0;
     IF f # NIL THEN
       IF pos < 0 THEN a := 0; b := HS
@@ -315,7 +314,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     END
   END Set;
 
-  PROCEDURE Pos*(VAR r: Rider): Sys.Integer;
+  PROCEDURE Pos*(VAR r: Rider): INTEGER;
   BEGIN RETURN r.apos * SS + r.bpos - HS
   END Pos;
 
@@ -340,8 +339,8 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     END
   END ReadByte;
 
-  PROCEDURE ReadBytes*(VAR r: Rider; VAR x: ARRAY OF SYSTEM.BYTE; n: Sys.Integer);
-    VAR i: Sys.Integer;
+  PROCEDURE ReadBytes*(VAR r: Rider; VAR x: ARRAY OF SYSTEM.BYTE; n: INTEGER);
+    VAR i: INTEGER;
   BEGIN i := 0;  (*this implementation is to be improved*)
     WHILE i < n DO ReadByte(r, x[i]); INC(i) END
   END ReadBytes;
@@ -385,7 +384,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END ReadReal;
 
   PROCEDURE ReadString*(VAR R: Rider; VAR x: ARRAY OF CHAR);
-    VAR i: Sys.Integer; ch: CHAR;
+    VAR i: INTEGER; ch: CHAR;
   BEGIN i := 0; Read(R, ch);
     WHILE ch # 0X DO
       IF i < LEN(x)-1 THEN x[i] := ch; INC(i) END ;
@@ -404,7 +403,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   (*---------------------------Write---------------------------*)
 
   PROCEDURE NewExt(f: File);
-    VAR i, k: Sys.Integer; ext: Index;
+    VAR i, k: INTEGER; ext: Index;
   BEGIN k := (f.aleng - STS) DIV XS;
     NEW(ext); ext.adr := 0; ext.mod := TRUE; f.ext[k] := ext; i := XS;
     REPEAT DEC(i); ext.sec[i] := 0 UNTIL i = 0
@@ -431,8 +430,8 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     r.buf.data[r.bpos] := x; INC(r.bpos); r.buf.mod := TRUE
   END WriteByte;
 
-  PROCEDURE WriteBytes*(VAR r: Rider; x: ARRAY OF SYSTEM.BYTE; n: Sys.Integer);
-    VAR i: Sys.Integer;
+  PROCEDURE WriteBytes*(VAR r: Rider; x: ARRAY OF SYSTEM.BYTE; n: INTEGER);
+    VAR i: INTEGER;
   BEGIN i := 0; (*this implementation is to be improed*)
     WHILE i < n DO WriteByte(r, x[i]); INC(i) END
   END WriteBytes;
@@ -478,12 +477,12 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END WriteReal;
 
   PROCEDURE WriteString*(VAR R: Rider; x: ARRAY OF CHAR);
-    VAR i: Sys.Integer; ch: CHAR;
+    VAR i: INTEGER; ch: CHAR;
   BEGIN i := 0;
     REPEAT ch := x[i]; Write(R, ch); INC(i) UNTIL ch = 0X
   END WriteString;
 
-  PROCEDURE WriteNum*(VAR R: Rider; x: Sys.Integer);
+  PROCEDURE WriteNum*(VAR R: Rider; x: INTEGER);
   BEGIN
     WHILE (x < -40H) OR (x >= 40H) DO WriteByteEx(R, x MOD 80H + 80H); x := BIF07.ASR(x, 7) END ;
     WriteByteEx(R, x MOD 80H)
