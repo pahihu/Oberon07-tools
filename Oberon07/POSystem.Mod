@@ -212,9 +212,9 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
     pos := Files.Pos(W); Files.WriteInt(W, 0); (*place holder*)
     Files.WriteByte(W, 1); (* no. of fonts *)
     Files.WriteString(W, FontName);
-    col := 15; voff := 0; rlen := Sys.Short(T.len);
-    Files.WriteByte(W, col);
-    Files.WriteByte(W, voff);
+    col := 1; voff := 0; rlen := Sys.Short(T.len);
+    Files.WriteByte(W, CHR(col));
+    Files.WriteByte(W, CHR(voff));
     Files.WriteInt(W, rlen);
     (*text*)
     Files.WriteByte(W, 0); Files.WriteInt(W, rlen);
