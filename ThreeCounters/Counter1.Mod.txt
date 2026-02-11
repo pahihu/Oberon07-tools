@@ -1,0 +1,14 @@
+MODULE* Counter1;
+  VAR x, y: INTEGER;
+BEGIN y := 0;
+  REPEAT LED(y); x := 1000000;
+  REPEAT x := x - 1 UNTIL x = 0;
+  y := y + 1
+  UNTIL FALSE
+END Counter1.
+
+ORP Compile Counter1.Mod.txt
+ORTool DecObj Counter1.rsc
+ORX WriteFile Counter1.rsc 2048 prom.mem
+
+(* vim:set ts=2 sw=2 et: *)
