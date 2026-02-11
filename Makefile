@@ -38,10 +38,11 @@ System.Mod: dot.env lib/System32.Mod lib/System64.Mod
 	cp lib/System$(O2CARCH).Mod lib/System.Mod
 
 dot.env:
-	echo "export O2CARCH=$(O2CARCH)" > .env
+	echo "DIR=$$(pwd)" > .env
+	echo "export O2CARCH=$(O2CARCH)" >> .env
 	echo "export DYNEXPORT=\"$(DYNEXPORT)\"" >> .env
 	echo "export EXE=\"$(EXE)\"" >> .env
-	echo "export PATH=$(PWD)/Lola2:$(PWD)/Oberon07:$(PATH)" >> .env
+	echo 'export PATH=$$DIR/Lola2:$$DIR/Oberon07:$$PATH' >> .env
 
 force:
 	$(RM) -f .env

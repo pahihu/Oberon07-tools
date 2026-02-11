@@ -47,9 +47,9 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   VAR boolType*, intType*: Type;
     curlev*, pc*: INTEGER;
     curSB: INTEGER;
-    entry, fixlist, fixorgD: LONGINT;
+    entry*, fixlist, fixorgD: LONGINT;
     RH: LONGINT;  (*register stack pointer*)
-    W: Texts.Writer;
+    W*: Texts.Writer;
     relmap: ARRAY 6 OF INTEGER;
     code*: ARRAY MemSize OF LONGINT;
     mnemo0, mnemo1: ARRAY 16, 4 OF CHAR;  (*for decoder*)
@@ -485,7 +485,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
 
   (*-------------------- output -----------------------*)
 
-  PROCEDURE WriteReg(r: LONGINT);
+  PROCEDURE WriteReg*(r: LONGINT);
   BEGIN Texts.Write(W, " ");
     IF r < 13 THEN Texts.Write(W, "R"); Texts.WriteInt(W, r, 1)
     ELSIF r = 13 THEN Texts.WriteString(W, "SB")
@@ -494,37 +494,42 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     END
   END WriteReg;
 
+  PROCEDURE Decode1*(i: LONGINT; w: LONGINT);
+    VAR a, b, c, op: LONGINT;
+  BEGIN
+    a := w DIV 1000000H MOD 10H;
+    b := w DIV 100000H MOD 10H;
+    Texts.WriteInt(W, i, 4); Texts.WriteHex(W, w); Texts.Write(W, 9X);
+    IF ASH(w, 31) = 0 THEN  (*~p:  register instruction*)
+      op := w DIV 10000H MOD 10H;
+      Texts.WriteString(W, mnemo0[op]); WriteReg(a); WriteReg(b);
+      IF ~ODD(w DIV 40000000H) THEN (*~q*) WriteReg(w MOD 10H)
+      ELSE c := w MOD 10000H;;
+        IF ODD(w DIV 10000000H) THEN (*v*) c := Sys.BinOr(c, 0FFFF0000H) END ;
+        Texts.WriteInt(W, c, 8)
+      END
+    ELSIF ~ODD(w DIV 40000000H) THEN  (*load/store*)
+      IF ODD(w DIV 20000000H) THEN Texts.WriteString(W, "STW") ELSE Texts.WriteString(W, "LDW") END ;
+      WriteReg(a); WriteReg(b); Texts.WriteInt(W, w MOD 100000H, 8)
+    ELSE  (*Branch instr*)
+      Texts.Write(W, "B");
+      IF ODD(w DIV 10000000H) THEN Texts.Write(W, "L") END ;
+      Texts.WriteString(W, mnemo1[a]);
+      IF ~ODD(w DIV 20000000H) THEN WriteReg(w MOD 10H) ELSE
+        w := w MOD 1000000H;
+        IF w >= 800000H THEN w := w - 1000000H END ;
+        Texts.WriteInt(W, w, 8)
+      END
+    END ;
+    Texts.WriteLn(W)
+  END Decode1;
+
   PROCEDURE Decode*;
-    VAR i, w, a, b, c, op: LONGINT;
+    VAR i, w: LONGINT;
   BEGIN Texts.WriteHex(W, code[0]); Texts.WriteHex(W, code[1]); Texts.WriteLn(W);
     i := 0;
     WHILE i < pc DO
-      w := code[i];
-      a := w DIV 1000000H MOD 10H;
-      b := w DIV 100000H MOD 10H;
-      Texts.WriteInt(W, i, 4); Texts.WriteHex(W, w); Texts.Write(W, 9X);
-      IF ASH(w, 31) = 0 THEN  (*~p:  register instruction*)
-        op := w DIV 10000H MOD 10H;
-        Texts.WriteString(W, mnemo0[op]); WriteReg(a); WriteReg(b);
-        IF ~ODD(w DIV 40000000H) THEN (*~q*) WriteReg(w MOD 10H)
-        ELSE c := w MOD 10000H;;
-          IF ODD(w DIV 10000000H) THEN (*v*) c := Sys.BinOr(c, 0FFFF0000H) END ;
-          Texts.WriteInt(W, c, 8)
-        END
-      ELSIF ~ODD(w DIV 40000000H) THEN  (*load/store*)
-        IF ODD(w DIV 20000000H) THEN Texts.WriteString(W, "STW") ELSE Texts.WriteString(W, "LDW") END ;
-        WriteReg(a); WriteReg(b); Texts.WriteInt(W, w MOD 100000H, 8)
-      ELSE  (*Branch instr*)
-        Texts.Write(W, "B");
-        IF ODD(w DIV 10000000H) THEN Texts.Write(W, "L") END ;
-        Texts.WriteString(W, mnemo1[a]);
-        IF ~ODD(w DIV 20000000H) THEN WriteReg(w MOD 10H) ELSE
-          w := w MOD 1000000H;
-          IF w >= 800000H THEN w := w - 1000000H END ;
-          Texts.WriteInt(W, w, 8)
-        END
-      END ;
-      Texts.WriteLn(W); INC(i)
+      w := code[i]; Decode1(i, w); INC(i)
     END ;
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Decode;
@@ -561,3 +566,5 @@ BEGIN Texts.OpenWriter(W);
   mnemo1[GT] := "GT ";
   mnemo1[15] := "NO ";
 END OSG.
+
+(* vim:set ts=2 sw=2 et: *)

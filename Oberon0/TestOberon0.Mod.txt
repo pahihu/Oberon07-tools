@@ -127,4 +127,5 @@ MODULE TestOberon0;
     END
   END Powers;
 
+BEGIN Permutations
 END TestOberon0.
