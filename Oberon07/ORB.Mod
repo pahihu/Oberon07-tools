@@ -19,8 +19,8 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
       String* = 11; Array* = 12; Record* = 13;
       
   TYPE
-    LONGINT = Sys.Integer;
-    INTEGER = Sys.Integer;
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
     
     Object* = POINTER TO ObjDesc;
     Module* = POINTER TO ModDesc;
@@ -75,7 +75,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
 
     W: Texts.Writer;
 
-  PROCEDURE NewObj*(VAR obj: Object; id: ORS.Ident; class: Sys.Integer);  (*insert new Object with name id*)
+  PROCEDURE NewObj*(VAR obj: Object; id: ORS.Ident; class: INTEGER);  (*insert new Object with name id*)
     VAR new, x: Object;
   BEGIN x := topScope;
     WHILE (x.next # NIL) & (x.next.name # id) DO x := x.next END ;
@@ -159,7 +159,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
     RETURN obj
   END ThisModule;
   
-  PROCEDURE Read(VAR R: Files.Rider; VAR x: Sys.Integer);
+  PROCEDURE Read(VAR R: Files.Rider; VAR x: INTEGER);
     VAR b: Sys.Byte;
   BEGIN Files.ReadByte(R, b); x := b
     (* IF b < 80H THEN x := b ELSE x := b - 100H END *)

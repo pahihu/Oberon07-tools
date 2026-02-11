@@ -1,8 +1,12 @@
 MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   IMPORT Texts, Oberon, OSS, OSG, Sys := System;
 
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+
   CONST WordSize = 4;
-  VAR sym, level: Sys.Integer;
+  VAR sym, level: INTEGER;
     topScope, universe, dummy: OSG.Object;
     expression: PROCEDURE (VAR x: OSG.Item);  (*to avoid forward reference*)
     W: Texts.Writer;
@@ -10,7 +14,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
 
     doDecode: BOOLEAN;
   
-  PROCEDURE NewObj(VAR obj: OSG.Object; class: Sys.Integer);
+  PROCEDURE NewObj(VAR obj: OSG.Object; class: INTEGER);
     VAR new, x: OSG.Object;
   BEGIN x := topScope;
     WHILE (x.next # NIL) & (x.next.name # OSS.id) DO x := x.next END ;
@@ -38,7 +42,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     IF list # NIL THEN obj := list ELSE OSS.Mark("undef"); obj := dummy END
   END FindField;
 
-  PROCEDURE Check(s: Sys.Integer; msg: ARRAY OF CHAR);
+  PROCEDURE Check(s: INTEGER; msg: ARRAY OF CHAR);
   BEGIN
     IF sym = s THEN OSS.Get(sym) ELSE OSS.Mark(msg) END
   END Check;
@@ -112,7 +116,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END Parameter;
 
   PROCEDURE ParamList(VAR obj: OSG.Object);
-    VAR n: Sys.Integer; par: OSG.Object;
+    VAR n: INTEGER; par: OSG.Object;
   BEGIN par := obj.dsc; n := 0;
     IF sym # OSS.rparen THEN
       Parameter(par); n := 1;
@@ -129,7 +133,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     END
   END ParamList;
 
-  PROCEDURE StandFunc(VAR x: OSG.Item; fctno: Sys.Integer);
+  PROCEDURE StandFunc(VAR x: OSG.Item; fctno: LONGINT);
     VAR y, z: OSG.Item;
   BEGIN
     IF sym = OSS.lparen THEN
@@ -170,7 +174,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END factor;
 
   PROCEDURE term(VAR x: OSG.Item);
-    VAR y: OSG.Item; op: Sys.Integer;
+    VAR y: OSG.Item; op: INTEGER;
   BEGIN factor(x);
     WHILE (sym >= OSS.times) & (sym <= OSS.and) DO
       op := sym; OSS.Get(sym);
@@ -182,7 +186,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END term;
 
   PROCEDURE SimpleExpression(VAR x: OSG.Item);
-    VAR y: OSG.Item; op: Sys.Integer;
+    VAR y: OSG.Item; op: INTEGER;
   BEGIN
     IF sym = OSS.plus THEN OSS.Get(sym); term(x); CheckInt(x)
     ELSIF sym = OSS.minus THEN OSS.Get(sym); term(x); CheckInt(x); OSG.Neg(x)
@@ -197,7 +201,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END SimpleExpression;
 
   PROCEDURE expression0(VAR x: OSG.Item);
-    VAR y: OSG.Item; op: Sys.Integer;
+    VAR y: OSG.Item; op: INTEGER;
   BEGIN SimpleExpression(x);
     IF (sym >= OSS.eql) & (sym <= OSS.geq) THEN
       op := sym; OSS.Get(sym); SimpleExpression(y);
@@ -206,7 +210,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     END
   END expression0;
 
-  PROCEDURE StandProc(pno: Sys.Integer);
+  PROCEDURE StandProc(pno: LONGINT);
     VAR x, y: OSG.Item;
   BEGIN
     IF pno = 0 THEN  OSG.OpenInput
@@ -227,7 +231,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END StandProc;
 
   PROCEDURE StatSequence;
-    VAR par, obj: OSG.Object; x, y: OSG.Item; n, L: Sys.Integer;
+    VAR par, obj: OSG.Object; x, y: OSG.Item; n, L: LONGINT;
   BEGIN (* StatSequence *)
     REPEAT (*sync*) obj := NIL;
       IF ~((sym = OSS.ident) OR (sym >= OSS.if) & (sym <= OSS.repeat) OR (sym >= OSS.semicolon)) THEN
@@ -289,7 +293,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     UNTIL sym > OSS.semicolon
   END StatSequence;
   
-  PROCEDURE IdentList(class: Sys.Integer; VAR first: OSG.Object);
+  PROCEDURE IdentList(class: INTEGER; VAR first: OSG.Object);
     VAR obj: OSG.Object;
   BEGIN
     IF sym = OSS.ident THEN
@@ -337,9 +341,9 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     END
   END Type;
 
-  PROCEDURE Declarations(VAR varsize: Sys.Integer);
+  PROCEDURE Declarations(VAR varsize: LONGINT);
     VAR obj, first: OSG.Object;
-      x: OSG.Item; tp: OSG.Type; L: Sys.Integer;
+      x: OSG.Item; tp: OSG.Type; L: LONGINT;
   BEGIN (*sync*)
     IF (sym < OSS.const) & (sym # OSS.end) THEN OSS.Mark("declaration?");
       REPEAT OSS.Get(sym) UNTIL (sym >= OSS.const) OR (sym = OSS.end)
@@ -383,11 +387,11 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     CONST marksize = 4;
     VAR proc, obj: OSG.Object;
       procid: OSS.Ident;
-      nofpar: Sys.Integer;
-      locblksize, parblksize: Sys.Integer;
+      nofpar: INTEGER;
+      locblksize, parblksize: LONGINT;
       
-    PROCEDURE FPSection(VAR adr: Sys.Integer; VAR nofpar: Sys.Integer);
-      VAR obj, first: OSG.Object; tp: OSG.Type; parsize: Sys.Integer;
+    PROCEDURE FPSection(VAR adr: LONGINT; VAR nofpar: INTEGER);
+      VAR obj, first: OSG.Object; tp: OSG.Type; parsize: LONGINT;
     BEGIN
       IF sym = OSS.var THEN OSS.Get(sym); IdentList(OSG.Par, first)
       ELSE IdentList(OSG.Var, first)
@@ -442,7 +446,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END ProcedureDecl;
 
   PROCEDURE Module;
-    VAR modid: OSS.Ident; dc: Sys.Integer;
+    VAR modid: OSS.Ident; dc: LONGINT;
   BEGIN Texts.WriteString(W, "  compiling ");
     IF sym = OSS.module THEN
       OSS.Get(sym); OSG.Open; OpenScope; dc := 0; level := 0;
@@ -496,7 +500,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     END
   END Compile;
 
-  PROCEDURE enter(name: ARRAY OF CHAR; cl: Sys.Integer; n: Sys.Integer;  type: OSG.Type);
+  PROCEDURE enter(name: ARRAY OF CHAR; cl: INTEGER; n: LONGINT;  type: OSG.Type);
     VAR obj: OSG.Object;
   BEGIN NEW(obj);
     obj.class := cl; obj.val := n; COPY(name, obj.name); obj.type := type; obj.dsc := NIL;

@@ -16,6 +16,18 @@ MODULE System;
   PROCEDURE Short*(x: LONGINT): Integer;
   BEGIN RETURN SHORT(x);
   END Short;
+
+  PROCEDURE ReadByte*(VAR R: Files.Rider; VAR x: Byte);
+    VAR ch: CHAR;
+  BEGIN Files.Read(R, ch); x := SHORT(ORD(ch));
+    IF x > 127 THEN x := x - 256 END
+  END ReadByte;
+
+  PROCEDURE WriteByte*(VAR R: Files.Rider; x: Byte);
+    VAR ch: CHAR;
+  BEGIN IF x < 0 THEN x := x + 256 END;
+    ch := CHR(x); Files.Write(R, ch)
+  END WriteByte;
     
   PROCEDURE ReadInt*(VAR R: Files.Rider; VAR x: Integer);
   BEGIN Files.ReadInt(R, x)

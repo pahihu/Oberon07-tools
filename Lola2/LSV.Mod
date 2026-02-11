@@ -1,8 +1,12 @@
 MODULE LSV;  (*Lola System: display Verilog; generate txt-File; NW 27.8.2018*)
   IMPORT Files, Texts, Oberon, LSB, Sys := System;
 
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+
   VAR W: Texts.Writer;
-    nofgen: Sys.Integer;
+    nofgen: INTEGER;
     Constructor: PROCEDURE (VAR x: LSB.Item);   (*to avoid forward reference*)
     F: Files.File; R: Files.Rider;
     C: ARRAY 64, 6 OF CHAR;
@@ -15,16 +19,16 @@ MODULE LSV;  (*Lola System: display Verilog; generate txt-File; NW 27.8.2018*)
   BEGIN Files.Write(R, 0DX); Files.Write(R, 0AX)
   END WriteLn;
 
-  PROCEDURE WriteInt(x: Sys.Integer);  (* x >= 0 *)
-    VAR i: Sys.Integer; d: ARRAY 14 OF Sys.Integer;
+  PROCEDURE WriteInt(x: LONGINT);  (* x >= 0 *)
+    VAR i: INTEGER; d: ARRAY 14 OF LONGINT;
   BEGIN i := 0;
     IF x < 0 THEN Files.Write(R, "-"); x := -x END ;
     REPEAT d[i] := x MOD 10; x := x DIV 10; INC(i) UNTIL x = 0;
     REPEAT DEC(i); Files.Write(R, CHR(d[i] + 30H)) UNTIL i = 0
   END WriteInt;
 
-  PROCEDURE WriteHex(x: Sys.Integer);  (*x >= 0*)
-    VAR i: Sys.Integer; d: ARRAY 8 OF Sys.Integer;
+  PROCEDURE WriteHex(x: LONGINT);  (*x >= 0*)
+    VAR i: INTEGER; d: ARRAY 8 OF LONGINT;
   BEGIN i := 0;
     REPEAT d[i] := x MOD 10H; x := x DIV 10H; INC(i) UNTIL (x = 0) OR (i = 8);
     REPEAT DEC(i);
@@ -33,7 +37,7 @@ MODULE LSV;  (*Lola System: display Verilog; generate txt-File; NW 27.8.2018*)
   END WriteHex;
 
   PROCEDURE WriteString(s: ARRAY OF CHAR);
-    VAR i: Sys.Integer;
+    VAR i: INTEGER;
   BEGIN i := 0;
     WHILE s[i] # 0X DO Files.Write(R, s[i]); INC(i) END
   END WriteString;
@@ -150,7 +154,7 @@ MODULE LSV;  (*Lola System: display Verilog; generate txt-File; NW 27.8.2018*)
   END ActParam;
 
   PROCEDURE ObjList1(obj: LSB.Object);  (*assignments to variables*)
-    VAR apar, x: LSB.Item; fpar: LSB.Object; size: Sys.Integer;
+    VAR apar, x: LSB.Item; fpar: LSB.Object; size: LONGINT;
   BEGIN
     WHILE obj # LSB.root DO
       IF (obj.tag = LSB.var) OR (obj.tag = LSB.const) THEN

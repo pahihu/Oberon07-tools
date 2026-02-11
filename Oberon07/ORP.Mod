@@ -7,8 +7,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     Parser is target-independent, except for part of the handling of allocations.*)
 
   TYPE
-    LONGINT = Sys.Integer;
-    INTEGER = Sys.Integer;
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
     PtrBase = POINTER TO PtrBaseDesc;
     PtrBaseDesc = RECORD  (*list of names of pointer base types*)
       name: ORS.Ident; type: ORB.Type; next: PtrBase

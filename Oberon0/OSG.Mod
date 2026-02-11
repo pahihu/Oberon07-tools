@@ -1,6 +1,10 @@
 MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*) 
   IMPORT SYSTEM, Files := Files07, Texts, Oberon, OSS, Sys := System;
 
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+
   CONST MemSize = 8192;
     (* class / mode*) Head* = 0;
     Const* = 1; Var* = 2; Par* = 3; Fld* = 4; Typ* = 5;
@@ -19,54 +23,54 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     Type* = POINTER TO TypeDesc;
 
     Item* = RECORD
-      mode*, lev*: Sys.Integer;
+      mode*, lev*: INTEGER;
       type*: Type;
-      a*, b, r: Sys.Integer
+      a*, b, r: LONGINT
     END ;
 
     ObjDesc*= RECORD
-      class*, lev*: Sys.Integer;
+      class*, lev*: INTEGER;
       next*, dsc*: Object;
       type*: Type;
       name*: OSS.Ident;
-      val*, nofpar*: Sys.Integer;
+      val*, nofpar*: LONGINT;
       comd*: BOOLEAN
     END ;
 
     TypeDesc* = RECORD
-      form*: Sys.Integer;
+      form*: INTEGER;
       dsc*: Object;
       base*: Type;
-      size*, len*, nofpar*: Sys.Integer
+      size*, len*, nofpar*: LONGINT
     END ;
   
   VAR boolType*, intType*: Type;
-    curlev*, pc*: Sys.Integer;
-    curSB: Sys.Integer;
-    entry, fixlist, fixorgD: Sys.Integer;
-    RH: Sys.Integer;  (*register stack pointer*)
+    curlev*, pc*: INTEGER;
+    curSB: INTEGER;
+    entry, fixlist, fixorgD: LONGINT;
+    RH: LONGINT;  (*register stack pointer*)
     W: Texts.Writer;
-    relmap: ARRAY 6 OF Sys.Integer;
-    code*: ARRAY MemSize OF Sys.Integer;
+    relmap: ARRAY 6 OF INTEGER;
+    code*: ARRAY MemSize OF LONGINT;
     mnemo0, mnemo1: ARRAY 16, 4 OF CHAR;  (*for decoder*)
 
-  PROCEDURE Put0(op, a, b, c: Sys.Integer);
+  PROCEDURE Put0(op, a, b, c: LONGINT);
   BEGIN (*emit format-0 instruction*)
     code[pc] := ((a*10H + b) * 10H + op) * 10000H + c; INC(pc)
   END Put0;
 
-  PROCEDURE Put1(op, a, b, im: Sys.Integer);
+  PROCEDURE Put1(op, a, b, im: LONGINT);
   BEGIN (*emit format-1 instruction*)
     IF im < 0 THEN INC(op, 1000H) END ;  (*set v-bit*)
     code[pc] := (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H); INC(pc)
   END Put1;
 
-  PROCEDURE Put2(op, a, b, off: Sys.Integer);
+  PROCEDURE Put2(op, a, b, off: LONGINT);
   BEGIN (*emit load/store instruction*)
     code[pc] := (((op+8) * 10H + a) * 10H + b) * 100000H + (off MOD 10000H); INC(pc)
   END Put2;
 
-  PROCEDURE Put3(op, cond, off: Sys.Integer);
+  PROCEDURE Put3(op, cond, off: LONGINT);
   BEGIN (*emit branch instruction*)
     code[pc] := ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H); INC(pc)
   END Put3;
@@ -85,16 +89,16 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     END
   END CheckRegs;
 
-  PROCEDURE SetCC(VAR x: Item; n: Sys.Integer);
+  PROCEDURE SetCC(VAR x: Item; n: LONGINT);
   BEGIN x.mode := Cond; x.a := 0; x.b := 0; x.r := n
   END SetCC;
 
-  PROCEDURE TestRange(x: Sys.Integer);
+  PROCEDURE TestRange(x: LONGINT);
   BEGIN (*16-bit entity*)
     IF (x > 0FFFFH) OR (x < -10000H) THEN OSS.Mark("value too large") END
   END TestRange;
 
-  PROCEDURE negated(cond: Sys.Integer): Sys.Integer;
+  PROCEDURE negated(cond: LONGINT): LONGINT;
   BEGIN
     IF cond < 8 THEN cond := cond+8 ELSE cond := cond-8 END ;
     RETURN cond
@@ -104,12 +108,12 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   BEGIN curSB := 1
   END invalSB;
 
-  PROCEDURE fix(at, with: Sys.Integer);
+  PROCEDURE fix(at, with: LONGINT);
   BEGIN code[at] := code[at] DIV 1000000H * 1000000H + (with MOD 1000000H)
   END fix;
 
-  PROCEDURE FixLink*(L: Sys.Integer);
-    VAR L1: Sys.Integer;
+  PROCEDURE FixLink*(L: LONGINT);
+    VAR L1: LONGINT;
   BEGIN 
     WHILE L # 0 DO
       IF L < MemSize THEN L1 := code[L] MOD 40000H; fix(L, pc-L-1); L := L1 END
@@ -162,8 +166,8 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     END
   END loadCond;
 
-  PROCEDURE merged(L0, L1: Sys.Integer): Sys.Integer;
-    VAR L2, L3: Sys.Integer;
+  PROCEDURE merged(L0, L1: LONGINT): LONGINT;
+    VAR L2, L3: LONGINT;
   BEGIN 
     IF L0 # 0 THEN
       L3 := L0;
@@ -175,16 +179,16 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
 
   (*-----------------------------------------------*)
 
-  PROCEDURE IncLevel*(n: Sys.Integer);
+  PROCEDURE IncLevel*(n: INTEGER);
   BEGIN curlev := curlev + n
   END IncLevel;
 
-  PROCEDURE MakeConstItem*(VAR x: Item; typ: Type; val: Sys.Integer);
+  PROCEDURE MakeConstItem*(VAR x: Item; typ: Type; val: LONGINT);
   BEGIN x.mode := Const; x.type := typ; x.a := val
   END MakeConstItem;
 
-  PROCEDURE MakeItem*(VAR x: Item; y: Object; curlev: Sys.Integer);
-    VAR r: Sys.Integer;
+  PROCEDURE MakeItem*(VAR x: Item; y: Object; curlev: LONGINT);
+    VAR r: LONGINT;
   BEGIN x.mode := y.class; x.type := y.type; x.a := y.val; x.r := y.lev;
     IF y.class = Par THEN x.b := 0 END ;
     IF (y.lev > 0) & (y.lev # curlev) & (y.class # Const) THEN OSS.Mark("level error") END
@@ -198,7 +202,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   END Field;
 
   PROCEDURE Index*(VAR x, y: Item);   (* x := x[y] *)
-    VAR s: Sys.Integer;
+    VAR s: LONGINT;
   BEGIN
     IF y.mode = Const THEN
       IF (y.a < 0) OR (y.a >= x.type.len) THEN OSS.Mark("bad index") END ;
@@ -220,7 +224,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   (* Code generation for Boolean operators *)
 
   PROCEDURE Not*(VAR x: Item);   (* x := ~x *)
-    VAR t: Sys.Integer;
+    VAR t: LONGINT;
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
     x.r := negated(x.r); t := x.a; x.a := x.b; x.b := t
@@ -259,7 +263,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     END
   END Neg;
 
-  PROCEDURE AddOp*(op: Sys.Integer; VAR x, y: Item);   (* x := x +- y *)
+  PROCEDURE AddOp*(op: LONGINT; VAR x, y: Item);   (* x := x +- y *)
   BEGIN
     IF op = OSS.plus THEN
       IF (x.mode = Const) & (y.mode = Const) THEN x.a := x.a + y.a
@@ -286,7 +290,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     END
   END MulOp;
 
-  PROCEDURE DivOp*(op: Sys.Integer; VAR x, y: Item);   (* x := x op y *)
+  PROCEDURE DivOp*(op: LONGINT; VAR x, y: Item);   (* x := x op y *)
   BEGIN
     IF op = OSS.div THEN
       IF (x.mode = Const) & (y.mode = Const) THEN
@@ -307,7 +311,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     END
   END DivOp;
 
-  PROCEDURE Relation*(op: Sys.Integer; VAR x, y: Item);   (* x := x ? y *)
+  PROCEDURE Relation*(op: INTEGER; VAR x, y: Item);   (* x := x ? y *)
   BEGIN
     IF y.mode = Const THEN load(x); Put1(Cmp, x.r, x.r, y.a); DEC(RH)
     ELSE load(x); load(y); Put0(Cmp, x.r, x.r, y.r); DEC(RH, 2)
@@ -327,7 +331,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   END Store;
 
   PROCEDURE VarParam*(VAR x: Item; ftype: Type);
-    VAR xmd: Sys.Integer;
+    VAR xmd: INTEGER;
   BEGIN xmd := x.mode; loadAdr(x);
     IF (ftype.form = Array) & (ftype.len < 0) THEN (*open array*)
       IF x.type.len >= 0 THEN Put1(Mov, RH, 0, x.type.len) ELSE  Put2(Ldw, RH, SP, x.a+4) END ;
@@ -355,17 +359,17 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     Put3(2, negated(x.r), x.a); FixLink(x.b); x.a := pc-1
   END CFJump;
 
-  PROCEDURE FJump*(VAR L: Sys.Integer);  (*unconditional forward jump*)
+  PROCEDURE FJump*(VAR L: LONGINT);  (*unconditional forward jump*)
   BEGIN Put3(2, 7, L); L := pc-1
   END FJump;
 
-  PROCEDURE CBJump*(VAR x: Item; L: Sys.Integer);  (*conditional backward jump*)
+  PROCEDURE CBJump*(VAR x: Item; L: LONGINT);  (*conditional backward jump*)
   BEGIN
     IF x.mode # Cond THEN loadCond(x) END ;
     Put3(2, negated(x.r), L-pc-1)
   END CBJump;
   
-  PROCEDURE BJump*(L: Sys.Integer);  (*unconditional backward jump*)
+  PROCEDURE BJump*(L: LONGINT);  (*unconditional backward jump*)
   BEGIN Put3(2, 7, L-pc-1)
   END BJump;
 
@@ -373,14 +377,14 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   BEGIN Put3(3, 7, (obj.val DIV 4) - pc-1); RH := 0
   END Call;
 
-  PROCEDURE Enter*(parblksize, locblksize: Sys.Integer; comd: BOOLEAN);
-    VAR a, r: Sys.Integer;
+  PROCEDURE Enter*(parblksize, locblksize: LONGINT; comd: BOOLEAN);
+    VAR a, r: LONGINT;
   BEGIN a := 4; r := 0; Put1(Sub, SP, SP, locblksize); Put2(Stw, LNK, SP, 0);
     WHILE a < parblksize DO Put2(Stw, r, SP, a); INC(r); INC(a, 4) END ;
   (* IF comd THEN Put2(Ldw, SB, 0, 0) END *)
   END Enter;
 
-  PROCEDURE Return*(size: Sys.Integer);
+  PROCEDURE Return*(size: LONGINT);
   BEGIN Put2(Ldw, LNK, SP, 0); Put1(Add, SP, SP, size); Put3(BR, 7, LNK); RH := 0
   END Return;
 
@@ -425,20 +429,20 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   BEGIN curlev := 0; pc := 0; RH := 0; fixlist := 0; fixorgD := 0
   END Open;
 
-  PROCEDURE Header*(size: Sys.Integer);
+  PROCEDURE Header*(size: LONGINT);
   BEGIN entry := pc*4; Put1(Sub, SP, SP, 4); Put2(Stw, LNK, SP, 0); invalSB
   END Header;
 
   PROCEDURE MakeFileName(VAR FName: OSS.Ident; name, ext: ARRAY OF CHAR);
-    VAR i, j: Sys.Integer;
+    VAR i, j: INTEGER;
   BEGIN i := 0; j := 0;  (*assume name suffix less than 4 characters*)
     WHILE (i < OSS.IdLen-5) & (name[i] > 0X) DO FName[i] := name[i]; INC(i) END ;
     REPEAT FName[i]:= ext[j]; INC(i); INC(j) UNTIL ext[j] = 0X;
     FName[i] := 0X
   END MakeFileName;
 
-  PROCEDURE Close*(VAR modid: OSS.Ident; key, datasize: Sys.Integer; topScope: Object);  (*write code file*)
-    VAR i, nofent, nofimp, comsize, size: Sys.Integer;
+  PROCEDURE Close*(VAR modid: OSS.Ident; key, datasize: LONGINT; topScope: Object);  (*write code file*)
+    VAR i, nofent, nofimp, comsize, size: INTEGER;
       obj: Object;
       name: OSS.Ident;
       F: Files.File; R: Files.Rider;
@@ -481,7 +485,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
 
   (*-------------------- output -----------------------*)
 
-  PROCEDURE WriteReg(r: Sys.Integer);
+  PROCEDURE WriteReg(r: LONGINT);
   BEGIN Texts.Write(W, " ");
     IF r < 13 THEN Texts.Write(W, "R"); Texts.WriteInt(W, r, 1)
     ELSIF r = 13 THEN Texts.WriteString(W, "SB")
@@ -491,7 +495,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   END WriteReg;
 
   PROCEDURE Decode*;
-    VAR i, w, a, b, c, op: Sys.Integer;
+    VAR i, w, a, b, c, op: LONGINT;
   BEGIN Texts.WriteHex(W, code[0]); Texts.WriteHex(W, code[1]); Texts.WriteLn(W);
     i := 0;
     WHILE i < pc DO
@@ -525,7 +529,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Decode;
 
-  PROCEDURE HexCh(k: Sys.Integer): CHAR;
+  PROCEDURE HexCh(k: LONGINT): CHAR;
   BEGIN
     IF k >= 10 THEN INC(k, 27H) END ; 
     RETURN CHR(k+30H)

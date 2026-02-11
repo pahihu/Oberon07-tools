@@ -2,7 +2,11 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   IMPORT Texts, Oberon, LSB, LSS,
          Sys := System, LSP, LSV;
   
-  VAR sym: Sys.Integer;
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+
+  VAR sym: INTEGER;
     err: BOOLEAN;  (*used at end of Unit*)
     top, bot, undef: LSB.Object;
     factor: PROCEDURE (VAR x: LSB.Item);  (*to avoid forward references*)
@@ -12,24 +16,24 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
     
     doList, doVerilog: BOOLEAN;
 
-  PROCEDURE Err(n: Sys.Integer);
+  PROCEDURE Err(n: INTEGER);
   BEGIN LSS.Mark("type error"); Texts.WriteInt(W, n, 4);
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Err;
 
-  PROCEDURE Log(m: Sys.Integer): Sys.Integer;
-    VAR n: Sys.Integer;
+  PROCEDURE Log(m: LONGINT): LONGINT;
+    VAR n: LONGINT;
   BEGIN n := 1;
     WHILE m > 1 DO m := m DIV 2; INC(n) END ;
     RETURN n
   END Log;
 
-  PROCEDURE New(tag: Sys.Integer; a, b: LSB.Item): LSB.Item;
+  PROCEDURE New(tag: INTEGER; a, b: LSB.Item): LSB.Item;
     VAR z: LSB.Item;
   BEGIN NEW(z); z.tag := tag; z.a := a; z.b := b; z.val := b.val; RETURN z
   END New;
 
-  PROCEDURE NewObj(class: Sys.Integer): LSB.Object; (*insert at end, before BIT*)
+  PROCEDURE NewObj(class: INTEGER): LSB.Object; (*insert at end, before BIT*)
     VAR new, x: LSB.Object;
   BEGIN x := top;
     WHILE (x.next # bot) & (x.next.name # LSS.id) DO x := x.next END ;
@@ -99,7 +103,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
 
   PROCEDURE selector(VAR x: LSB.Item);
     VAR y, z: LSB.Item; obj: LSB.Object;
-      eltyp: LSB.Type; len, kind: Sys.Integer;
+      eltyp: LSB.Type; len, kind: LONGINT;
   BEGIN
     WHILE (sym = LSS.lbrak) OR (sym = LSS.period) DO
       IF sym = LSS.lbrak THEN
@@ -119,8 +123,8 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
     END
   END selector;
 
-  PROCEDURE elem(VAR x: LSB.Item; VAR len: Sys.Integer);
-    VAR y, z: LSB.Item; m, n: Sys.Integer;
+  PROCEDURE elem(VAR x: LSB.Item; VAR len: LONGINT);
+    VAR y, z: LSB.Item; m, n: LONGINT;
   BEGIN expression(x);
     IF (x.type = LSB.integer) OR (x.type = LSB.string) THEN m := x.size ELSE m := x.type.size END ;
     IF sym = LSS.repl THEN
@@ -135,7 +139,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   END elem;
 
   PROCEDURE constructor(VAR x: LSB.Item);
-    VAR y: LSB.Item; n, len: Sys.Integer;
+    VAR y: LSB.Item; n, len: LONGINT;
   BEGIN elem(x, len);
     WHILE sym = LSS.comma DO
       LSS.Get(sym); elem(y, n); INC(len, n); x := New(LSB.cons, x, y); x.val := len
@@ -146,7 +150,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
 
   PROCEDURE factor0(VAR x: LSB.Item);
     VAR obj: LSB.Object; y, z: LSB.Item;
-      n, len: Sys.Integer; t: LSB.ArrayType;
+      n, len: LONGINT; t: LSB.ArrayType;
   BEGIN
     (*JR IF sym = LSS.ident THEN
       x := ThisObj(LSS.id); LSS.Get(sym);
@@ -184,7 +188,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   END factor0;
 
   PROCEDURE term(VAR x: LSB.Item);
-    VAR y, z: LSB.Item; op: Sys.Integer;
+    VAR y, z: LSB.Item; op: INTEGER;
   BEGIN factor(x);
     WHILE (sym >= LSS.times) & (sym <= LSS.and) DO
       IF sym = LSS.and THEN op := LSB.and
@@ -196,7 +200,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   END term;
 
   PROCEDURE SimpleExpression(VAR x: LSB.Item);
-    VAR y, z: LSB.Item; op: Sys.Integer;
+    VAR y, z: LSB.Item; op: INTEGER;
   BEGIN
     IF sym = LSS.minus THEN LSS.Get(sym); term(y);
       IF y.tag = LSB.lit THEN x := y; x.val := -y.val
@@ -216,7 +220,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   END SimpleExpression;
 
   PROCEDURE UncondExpression(VAR x: LSB.Item);
-    VAR y, z: LSB.Item; rel: Sys.Integer;
+    VAR y, z: LSB.Item; rel: INTEGER;
   BEGIN SimpleExpression(x);
     IF (sym >= LSS.eql) & (sym <= LSS.geq) THEN
       IF sym = LSS.eql THEN rel := LSB.eql
@@ -365,7 +369,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   END ConstDeclaration;
 
   PROCEDURE Type0(VAR type: LSB.Type);
-    VAR obj: LSB.Object; len, size: Sys.Integer;
+    VAR obj: LSB.Object; len, size: LONGINT;
       eltyp: LSB.Type; arrtyp: LSB.ArrayType;
   BEGIN len := 1;
     IF sym = LSS.lbrak THEN (*array*) LSS.Get(sym);
@@ -400,7 +404,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
     END
   END TypeDeclaration;
 
-  PROCEDURE VarList(kind: Sys.Integer; clk: LSB.Item);
+  PROCEDURE VarList(kind: INTEGER; clk: LSB.Item);
     VAR first, new, obj: LSB.Object; type: LSB.Type;
   BEGIN obj := NIL;
     WHILE sym = LSS.ident DO
@@ -422,7 +426,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   END VarList;
 
   PROCEDURE ParamList;
-    VAR kind: Sys.Integer;
+    VAR kind: INTEGER;
   BEGIN
     IF sym = LSS.in THEN LSS.Get(sym); kind := 6
     ELSIF sym = LSS.out THEN LSS.Get(sym); kind := 3
@@ -448,7 +452,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   END Traverse;
 
   PROCEDURE Unit0(VAR locals: LSB.Object);
-    VAR obj, oldtop: LSB.Object; kind: Sys.Integer; clock: LSB.Item;
+    VAR obj, oldtop: LSB.Object; kind: INTEGER; clock: LSB.Item;
   BEGIN oldtop := top.next; top.next := LSB.root;  (*top is dummy*)
     IF sym = LSS.lparen THEN LSS.Get(sym) ELSE LSS.Mark("lparen ?") END ;
     WHILE (sym = LSS.in) OR (sym = LSS.out) OR (sym = LSS.inout) DO ParamList END ;
@@ -499,7 +503,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
     top.next := oldtop
   END Unit0;
 
-  PROCEDURE Module(T: Texts.Text; pos: Sys.Integer);
+  PROCEDURE Module(T: Texts.Text; pos: LONGINT);
     VAR root: LSB.Object; modname: ARRAY 32 OF CHAR;
   BEGIN Texts.WriteString(W, "compiling Lola: ");
     bot := LSB.root; top.next := bot; LSS.Init(T, pos); LSS.Get(sym);
@@ -537,7 +541,7 @@ MODULE LSC;  (*Lola System Compiler, NW 8.1.95 / 11.4.2019 for RISC (LSCX)*)
   END Option;
 
   PROCEDURE Compile*;
-    VAR beg, end, time: Sys.Integer;
+    VAR beg, end, time: LONGINT;
       S: Texts.Scanner; T: Texts.Text;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     IF S.class = Texts.Char THEN

@@ -1,19 +1,21 @@
 MODULE BIF07;
   IMPORT SYSTEM, Sys := System;
 
+  TYPE INTEGER = Sys.INT32;
+
   PROCEDURE FLT* (n: LONGINT): REAL;
   BEGIN RETURN n + 0.0E0
   END FLT;
   
-  PROCEDURE ASR* (x: Sys.Integer; y: Sys.Integer): Sys.Integer;
+  PROCEDURE ASR* (x: INTEGER; y: INTEGER): INTEGER;
   BEGIN RETURN Sys.Short(ASH(x, -y))
   END ASR;
 
-  PROCEDURE ROR* (x: Sys.Integer; y: Sys.Integer): Sys.Integer;
+  PROCEDURE ROR* (x: INTEGER; y: INTEGER): INTEGER;
   BEGIN RETURN SYSTEM.ROT(x, -y)
   END ROR;
 
-  PROCEDURE LSL* (x: Sys.Integer; y: Sys.Integer): Sys.Integer;
+  PROCEDURE LSL* (x: INTEGER; y: INTEGER): INTEGER;
   BEGIN RETURN SYSTEM.LSH(x, y)
   END LSL;
 

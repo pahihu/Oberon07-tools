@@ -1,18 +1,22 @@
 MODULE ORTool0;  (*NW 18.2.2013*)
   IMPORT Files := Files07, Texts, Oberon, Args, Sys := System;
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+
   VAR W: Texts.Writer;
-    Form: Sys.Integer;  (*result of ReadType*)
+    Form: INTEGER;  (*result of ReadType*)
     mnemo0, mnemo1: ARRAY 16, 4 OF CHAR;  (*mnemonics*)
     cmd: ARRAY 32 OF CHAR;
 
-  PROCEDURE Read(VAR R: Files.Rider; VAR n: Sys.Integer);
+  PROCEDURE Read(VAR R: Files.Rider; VAR n: INTEGER);
     VAR b: Sys.Byte;
   BEGIN Files.ReadByte(R, b); n := b
   END Read;
   
 (* ---------------------------------------------------*)
 
-  PROCEDURE WriteReg(r: Sys.Integer);
+  PROCEDURE WriteReg(r: LONGINT);
   BEGIN Texts.Write(W, " ");
     IF r < 12 THEN 
       IF r < 10 THEN Texts.Write(W, " ") END;
@@ -24,8 +28,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     END
   END WriteReg;
 
-  PROCEDURE opcode(w: Sys.Integer);
-    VAR k, op, u, a, b, c: Sys.Integer;
+  PROCEDURE opcode(w: LONGINT);
+    VAR k, op, u, a, b, c: LONGINT;
   BEGIN
       k := w DIV 40000000H MOD 4;
       a := w DIV 1000000H MOD 10H;
@@ -64,13 +68,13 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   BEGIN Files.Read(R, ch); Texts.WriteString(W, "Sync "); Texts.Write(W, ch); Texts.WriteLn(W)
   END Sync;
   
-  PROCEDURE Write(VAR R: Files.Rider; x: Sys.Integer);
+  PROCEDURE Write(VAR R: Files.Rider; x: INTEGER);
     VAR b: Sys.Byte;
   BEGIN b := SHORT(x); Files.WriteByte(R, b)  (* -128 <= x < 128 *)
   END Write;
 
   PROCEDURE DecObj*;  (*decode object file*)
-    VAR class, i, n, key, size, fix, adr, data, len: Sys.Integer;
+    VAR class, i, n, key, size, fix, adr, data, len: INTEGER;
       ch: CHAR;
       name: ARRAY 32 OF CHAR;
       F: Files.File; R: Files.Rider;

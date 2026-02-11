@@ -44,9 +44,7 @@ MODULE Files07;
   END Read;
 
   PROCEDURE ReadByte* (VAR R: Rider; VAR x: Sys.Byte);
-    VAR ch: CHAR;
-  BEGIN Files.Read(R, ch); x := ORD(ch);
-    IF x > 127 THEN x := x - 256 END
+  BEGIN Sys.ReadByte(R, x)
   END ReadByte;
 
   PROCEDURE ReadBytes* (VAR R: Rider; VAR x: ARRAY OF SYSTEM.BYTE; n: LONGINT);
@@ -71,9 +69,7 @@ MODULE Files07;
   END ReadString;
 
   PROCEDURE WriteByte* (VAR R: Rider; x: Sys.Byte);
-    VAR ch: CHAR;
-  BEGIN IF x < 0 THEN x := x + 256 END;
-    ch := CHR(x); Files.Write(R, ch)
+  BEGIN Sys.WriteByte(R, x)
   END WriteByte;
   
   PROCEDURE WriteBytes* (VAR R: Rider; VAR x: ARRAY OF SYSTEM.BYTE; n: LONGINT);

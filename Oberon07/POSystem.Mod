@@ -2,6 +2,10 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
   IMPORT Kernel := POKernel, FileDir := POFileDir, Files := POFiles,
     Texts, Oberon, Sys := System, HostFiles := Files;
 
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+
   CONST
     TextTag = 0F1X;
     CR = 0DX; LF = 0AX;
@@ -10,7 +14,7 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
     pat: ARRAY 32 OF CHAR;
 
   PROCEDURE GetArg(VAR S: Texts.Scanner);
-    VAR T: Texts.Text; beg, end, time: Sys.Integer;
+    VAR T: Texts.Text; beg, end, time: LONGINT;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     (*IF (S.class = Texts.Char) & (S.c = "^") THEN
       Oberon.GetSelection(T, beg, end, time);
@@ -24,8 +28,8 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
 
   (* ------------- Toolbox of file system ---------------*)
 
-  PROCEDURE List(name: FileDir.FileName; adr: Sys.Integer; VAR cont: BOOLEAN);
-    VAR i0, i, j0, j: Sys.Integer; hp: FileDir.FileHeader;
+  PROCEDURE List(name: FileDir.FileName; adr: LONGINT; VAR cont: BOOLEAN);
+    VAR i0, i, j0, j: INTEGER; hp: FileDir.FileHeader;
   BEGIN
     i := 0;
     WHILE (pat[i] > "*") & (pat[i] = name[i]) DO INC(i) END ;
@@ -55,10 +59,10 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
   END List;
 
   PROCEDURE Directory*;
-    VAR X, Y, i: Sys.Integer; ch: CHAR;
+    VAR X, Y, i: INTEGER; ch: CHAR;
       R: Texts.Reader;
       T, t: Texts.Text;
-      beg, end, time: Sys.Integer;
+      beg, end, time: LONGINT;
       pre: ARRAY 32 OF CHAR;
   BEGIN Texts.OpenReader(R, Oberon.Par.text, Oberon.Par.pos); Texts.Read(R, ch);
     WHILE ch = " " DO Texts.Read(R, ch) END;
@@ -108,7 +112,7 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
   END CopyFiles;
 
   PROCEDURE RenameFiles*;
-    VAR res: Sys.Integer;
+    VAR res: INTEGER;
       name: ARRAY 32 OF CHAR;
       S: Texts.Scanner;
   BEGIN GetArg(S);
@@ -130,7 +134,7 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
   END RenameFiles;
 
   PROCEDURE DeleteFiles*;
-    VAR res: Sys.Integer; S: Texts.Scanner;
+    VAR res: INTEGER; S: Texts.Scanner;
   BEGIN GetArg(S);
     Texts.WriteString(W, "System.DeleteFiles"); EndLine;
     WHILE S.class = Texts.Name DO
@@ -205,7 +209,7 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
     CONST FontName = "Oberon10.Scn.Fnt";
     VAR R: HostFiles.Rider;
       pch, ch: CHAR;
-      off, pos, rlen: Sys.Integer;
+      off, pos, rlen: INTEGER;
       col, voff: Sys.Byte;
       skip: BOOLEAN;
   BEGIN Files.Write(W, TextTag);
@@ -267,7 +271,7 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
       g: HostFiles.File; Rg: HostFiles.Rider;
       name: ARRAY 32 OF CHAR;
       S: Texts.Scanner;
-      pos: Sys.Integer;
+      pos: INTEGER;
   BEGIN GetArg(S);
     Texts.WriteString(W, "System.CopyTextFrom"); EndLine;
     WHILE S.class = Texts.Name DO

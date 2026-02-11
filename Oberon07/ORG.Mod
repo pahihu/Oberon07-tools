@@ -20,8 +20,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
 
     TYPE
-      LONGINT = Sys.Integer;
-      INTEGER = Sys.Integer;
+      LONGINT = Sys.INT32;
+      INTEGER = Sys.INT32;
       
       Item* = RECORD
         mode*: INTEGER;

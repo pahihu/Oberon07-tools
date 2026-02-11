@@ -1,8 +1,6 @@
 .SUFFIXES:
 .SUFFIXES: .Lola.txt .v
 
-LSC=../LSC
-
 SRC=Divider.Lola.txt FPAdder.Lola.txt FPDivider.Lola.txt FPMultiplier.Lola.txt \
   LeftShifter.Lola.txt MouseP.Lola.txt Multiplier.Lola.txt PS2.Lola.txt \
   RISC5.Lola.txt RISC5Top.Lola.txt RS232R.Lola.txt RS232T.Lola.txt \
@@ -10,7 +8,7 @@ SRC=Divider.Lola.txt FPAdder.Lola.txt FPDivider.Lola.txt FPMultiplier.Lola.txt \
 VLOG=$(SRC:.Lola.txt=.v)
 
 %.v: %.Lola.txt
-	$(LSC) Compile $</v $@
+	LSC Compile $</v $@
 
 all: RISC5Top.v
 

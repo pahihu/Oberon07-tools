@@ -11,21 +11,24 @@ MODULE LSS; (* NW 16.10.93 / 13.8.2018*)
     const* = 51; type* = 52; reg* = 53; var* = 54; out* = 55; inout* = 56; in* = 57;
     begin* = 58; module* = 59; eof = 60;
 
-  TYPE Ident* = ARRAY IdLen OF CHAR;
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+    Ident* = ARRAY IdLen OF CHAR;
 
-  VAR val*: Sys.Integer;
+  VAR val*: LONGINT;
     id*: Ident;
     error*: BOOLEAN;
 
     ch: CHAR;
-    errpos: Sys.Integer;
+    errpos: LONGINT;
     R: Texts.Reader;
     W: Texts.Writer;
     key: ARRAY NofKeys OF Ident;
-    symno: ARRAY NofKeys OF Sys.Integer;
+    symno: ARRAY NofKeys OF INTEGER;
 
   PROCEDURE Mark*(msg: ARRAY OF CHAR);
-    VAR p: Sys.Integer;
+    VAR p: LONGINT;
   BEGIN p := Texts.Pos(R);
     IF p > errpos+2 THEN
       Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1);
@@ -35,8 +38,8 @@ MODULE LSS; (* NW 16.10.93 / 13.8.2018*)
     errpos := p; error := TRUE
   END Mark;
   
-  PROCEDURE identifier(VAR sym: Sys.Integer);
-    VAR i: Sys.Integer;
+  PROCEDURE identifier(VAR sym: INTEGER);
+    VAR i: INTEGER;
   BEGIN i := 0;
     REPEAT
       IF i < IdLen THEN id[i] := ch; INC(i) END ;
@@ -54,10 +57,10 @@ MODULE LSS; (* NW 16.10.93 / 13.8.2018*)
     IF i < NofKeys THEN sym := symno[i] ELSE sym := ident END
   END identifier;
 
-  PROCEDURE Number(VAR sym: Sys.Integer);
-    VAR i, k, h, n, d: Sys.Integer;
+  PROCEDURE Number(VAR sym: INTEGER);
+    VAR i, k, h, n, d: LONGINT;
       hex: BOOLEAN;
-      dig: ARRAY 16 OF Sys.Integer;
+      dig: ARRAY 16 OF LONGINT;
   BEGIN sym := integer; i := 0; k := 0; n := 0; hex := FALSE;
     REPEAT
       IF n < 16 THEN d := ORD(ch)-30H;
@@ -92,7 +95,7 @@ MODULE LSS; (* NW 16.10.93 / 13.8.2018*)
     IF ~R.eot THEN Texts.Read(R, ch) ELSE Mark("comment not terminated") END
   END comment;
 
-  PROCEDURE Get*(VAR sym: Sys.Integer);
+  PROCEDURE Get*(VAR sym: INTEGER);
   BEGIN
     REPEAT
       WHILE ~R.eot & (ch <= " ") DO Texts.Read(R, ch) END;
@@ -146,7 +149,7 @@ MODULE LSS; (* NW 16.10.93 / 13.8.2018*)
     UNTIL sym # null
   END Get;
 
-  PROCEDURE Init*(T: Texts.Text; pos: Sys.Integer);
+  PROCEDURE Init*(T: Texts.Text; pos: LONGINT);
   BEGIN error := FALSE; errpos := pos; Texts.OpenReader(R, T, pos); Texts.Read(R, ch)
   END Init;
   

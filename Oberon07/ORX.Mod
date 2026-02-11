@@ -3,8 +3,8 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
   CONST CR = 0DX; noerr = 0; badfile = 4;  (*copied from Modules for use as cross development tool*)
 
   TYPE
-    LONGINT = Sys.Integer;
-    INTEGER = Sys.Integer;
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
     BYTE = Sys.Byte;
     Writer = PROCEDURE(VAR R: Files.Rider; x: LONGINT);
 
@@ -55,21 +55,21 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
 
   PROCEDURE WriteFile*;  (*write code section of M.rsc in hex format to output file*)
     VAR f, g: Files.File; Rf, Rg: Files.Rider;
-      n, codelen, filelen, entry: INTEGER;
+      Q, n, codelen, filelen, entry: INTEGER;
       name: ARRAY 32 OF CHAR;
       S: Texts.Scanner;
-  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
+  BEGIN Q := 512; Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
     IF S.class = Texts.Name THEN COPY(S.s, name); Texts.Scan(S);
+      IF S.class = Texts.Int THEN Q := Sys.Short(S.i); Texts.Scan(S) END;
       IF S.class = Texts.Name THEN Texts.WriteString(W, "  WriteFile "); res := -2;
         Texts.WriteString(W, name); Texts.Write(W, " "); Texts.WriteString(W, S.s);
         f := Files.Old(name);
         IF f # NIL THEN
           IF Files.Length(f) > 0 THEN
             g := Files.New(S.s); Files.Set(Rf, f, 0); Files.Set(Rg, g, 0);
-
             ExtractCode(Rf, Rg, WriteHex, codelen, entry, res);
             IF res = noerr THEN
-              filelen := ((codelen DIV 512) + 1) * 512; n := codelen;
+              filelen := ((codelen DIV Q) + 1) * Q; n := codelen;
               WHILE n < filelen DO WriteHex(Rg, 0); INC(n) END ; (*zero-fill*)
               Texts.WriteInt(W, codelen*4, 6); Texts.WriteInt(W, entry, 6);
               Texts.WriteString(W, "  done"); Files.Register(g)
@@ -81,7 +81,7 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
         END
       END
     END ;
-    IF res = -1 THEN Texts.WriteString(W, "Usage: ORX.WriteFile M.rsc M.mem") END ;
+    IF res = -1 THEN Texts.WriteString(W, "Usage: ORX.WriteFile M.rsc [quanta] M.mem") END ;
     EndLine
   END WriteFile;
 
@@ -133,16 +133,16 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
     IF S.class = Texts.Name THEN COPY(S.s, name); Texts.Scan(S);
       IF S.class = Texts.Name THEN COPY(S.s, name1); Texts.Scan(S);
-        IF S.class = Texts.Int THEN blksize := S.i; Texts.Scan(S);
+        IF S.class = Texts.Int THEN blksize := Sys.Short(S.i); Texts.Scan(S);
           IF S.class = Texts.Int THEN Texts.WriteString(W, "  WriteStream "); res := -2;
             Texts.WriteString(W, name); Texts.Write(W, " "); Texts.WriteString(W, name1);
             Texts.WriteInt(W, blksize, 5); Texts.WriteInt(W, S.i, 5);
             IF blksize >= 0 THEN
               IF S.i >= 0 THEN f := Files.Old(name);
-                IF f # NIL THEN filelen := Files.Length(f);
+                IF f # NIL THEN filelen := Sys.Short(Files.Length(f));
                   IF filelen > 0 THEN g := Files.New(name1); res := noerr;
                     IF blksize = 0 THEN blksize := filelen END ;
-                    Files.Set(Rf, f, 0); Files.Set(Rg, g, 0); MakeStream(Rf, Rg, blksize, S.i);
+                    Files.Set(Rf, f, 0); Files.Set(Rg, g, 0); MakeStream(Rf, Rg, blksize, Sys.Short(S.i));
                     Files.Register(g); Texts.WriteString(W, "  done")
                   ELSE Texts.WriteString(W, "  input file empty")
                   END

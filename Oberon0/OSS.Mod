@@ -1,7 +1,11 @@
 MODULE OSS; (* NW 19.9.93 / 17.11.94 / 1.11.2013*)
   IMPORT Texts, Oberon, Sys := System;
 
-  CONST IdLen* = 16; KW = 34; maxInt = 2147483647;
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+
+  CONST IdLen* = 16; KW = 34; maxInt = MAX(INTEGER);
 
     (*lexical symbols of Oberon*)
     null = 0; times* = 1; div* = 3; mod* = 4;
@@ -21,17 +25,17 @@ MODULE OSS; (* NW 19.9.93 / 17.11.94 / 1.11.2013*)
 
   TYPE Ident* = ARRAY IdLen OF CHAR;
 
-  VAR val*: Sys.Integer;
+  VAR val*: LONGINT;
     id*: Ident;
     error*: BOOLEAN;
 
     ch: CHAR;
-    nkw: Sys.Integer;
+    nkw: INTEGER;
     errpos: LONGINT;
     R: Texts.Reader;
     W: Texts.Writer;
     keyTab: ARRAY KW OF  (*keywords of Oberon*)
-        RECORD sym: Sys.Integer; id: ARRAY 12 OF CHAR END;
+        RECORD sym: INTEGER; id: ARRAY 12 OF CHAR END;
 
   PROCEDURE Mark*(msg: ARRAY OF CHAR);
     VAR p: LONGINT;
@@ -44,8 +48,8 @@ MODULE OSS; (* NW 19.9.93 / 17.11.94 / 1.11.2013*)
     errpos := p; error := TRUE
   END Mark;
 
-  PROCEDURE Identifier(VAR sym: Sys.Integer);
-    VAR i, k: Sys.Integer;
+  PROCEDURE Identifier(VAR sym: INTEGER);
+    VAR i, k: INTEGER;
   BEGIN i := 0;
     REPEAT
       IF i < IdLen THEN id[i] := ch; INC(i) END ;
@@ -56,7 +60,7 @@ MODULE OSS; (* NW 19.9.93 / 17.11.94 / 1.11.2013*)
     IF k < nkw THEN sym := keyTab[k].sym ELSE sym := ident END
   END Identifier;
 
-  PROCEDURE Number(VAR sym: Sys.Integer);
+  PROCEDURE Number(VAR sym: INTEGER);
   BEGIN val := 0; sym := int;
     REPEAT
       IF val <= (maxInt - ORD(ch) + ORD("0")) DIV 10 THEN
@@ -80,7 +84,7 @@ MODULE OSS; (* NW 19.9.93 / 17.11.94 / 1.11.2013*)
     IF ~R.eot THEN Texts.Read(R, ch) ELSE Mark("comment not terminated") END
   END comment;
 
-  PROCEDURE Get*(VAR sym: Sys.Integer);
+  PROCEDURE Get*(VAR sym: INTEGER);
   BEGIN
     REPEAT
       WHILE ~R.eot & (ch <= " ") DO Texts.Read(R, ch) END;
@@ -134,11 +138,11 @@ MODULE OSS; (* NW 19.9.93 / 17.11.94 / 1.11.2013*)
     UNTIL sym # null
   END Get;
 
-  PROCEDURE Init*(T: Texts.Text; pos: Sys.Integer);
+  PROCEDURE Init*(T: Texts.Text; pos: LONGINT);
   BEGIN error := FALSE; errpos := pos; Texts.OpenReader(R, T, pos); Texts.Read(R, ch)
   END Init;
   
-  PROCEDURE EnterKW(sym: Sys.Integer; name: ARRAY OF CHAR);
+  PROCEDURE EnterKW(sym: INTEGER; name: ARRAY OF CHAR);
   BEGIN keyTab[nkw].sym := sym; COPY(name, keyTab[nkw].id); INC(nkw)
   END EnterKW;
 

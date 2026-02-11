@@ -106,8 +106,8 @@ MODULE Texts;
     END
   END Read;
   
-  PROCEDURE Pos* (VAR R: Reader): LONGINT;
-  BEGIN RETURN Files.Pos (R.rider)
+  PROCEDURE Pos* (VAR R: Reader): Sys.Integer;
+  BEGIN RETURN Sys.Short(Files.Pos (R.rider))
   END Pos;
   
   (*------------------------------------------------------------------*)

@@ -12,7 +12,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
       STS       = FileDir.SecTabSize;
       XS        = FileDir.IndexSize;
 
-  TYPE INTEGER = Sys.Integer;
+  TYPE INTEGER = Sys.INT32;
       DiskAdr = INTEGER;
       File*    = POINTER TO FileDesc;
       Buffer  = POINTER TO BufferRecord;
@@ -137,7 +137,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END New;
 
   PROCEDURE UpdateHeader(f: File; F: FileDir.FileHd);
-    VAR k: Sys.Integer;
+    VAR k: INTEGER;
   BEGIN F.aleng := f.aleng; F.bleng := f.bleng;
     F.sec := f.sec; k := (f.aleng + (XS-STS)) DIV XS;
     WHILE k > 0 DO DEC(k); F.ext[k] := f.ext[k].adr END
@@ -235,7 +235,7 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     IF (f # NIL) & (f.name[0] # 0X) THEN
       Unbuffer(f);
       IF ~f.registered THEN
-        FileDir.Insert(f.name, f.sec[0]); f.registered := TRUE; f.next := root; root := SYSTEM.VAL(Sys.Integer, f)
+        FileDir.Insert(f.name, f.sec[0]); f.registered := TRUE; f.next := root; root := SYSTEM.VAL(INTEGER, f)
       END
     END
   END Register;
@@ -367,19 +367,19 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   BEGIN ReadByte(R, ch); x := SHORT(ORD(ch));
   END ReadByteEx;
 
-  PROCEDURE ReadInt*(VAR R: Rider; VAR x: Sys.Integer);
+  PROCEDURE ReadInt*(VAR R: Rider; VAR x: INTEGER);
     VAR x0, x1, x2, x3: Sys.Byte (*SYSTEM.BYTE*);
   BEGIN ReadByteEx(R, x0); ReadByteEx(R, x1); ReadByteEx(R, x2); ReadByteEx(R, x3);
     x := ((x3 * 100H + x2) * 100H + x1) * 100H + x0
   END ReadInt;
 
   PROCEDURE ReadSet*(VAR R: Rider; VAR s: SET);
-    VAR n: Sys.Integer;
+    VAR n: INTEGER;
   BEGIN ReadInt(R, n); s := SYSTEM.VAL(SET, n)
   END ReadSet;
 
   PROCEDURE ReadReal*(VAR R: Rider; VAR x: REAL);
-    VAR n: Sys.Integer;
+    VAR n: INTEGER;
   BEGIN ReadInt(R, n); x := SYSTEM.VAL(REAL, n)
   END ReadReal;
 
@@ -393,8 +393,8 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     x[i] := 0X
   END ReadString;
 
-  PROCEDURE ReadNum*(VAR R: Rider; VAR x: Sys.Integer);
-    VAR n, y: Sys.Integer; b: Sys.Byte (*SYSTEM.BYTE*);
+  PROCEDURE ReadNum*(VAR R: Rider; VAR x: INTEGER);
+    VAR n, y: INTEGER; b: Sys.Byte (*SYSTEM.BYTE*);
   BEGIN n := 32; y := 0; ReadByteEx(R, b);
     WHILE b >= 80H DO y := BIF07.ROR(y + b-80H, 7); DEC(n, 7); ReadByteEx(R, b) END ;
     IF n <= 4 THEN x := BIF07.ROR(y + b MOD 10H, 4) ELSE x := BIF07.ASR(BIF07.ROR(y + b, 7), n-7) END
@@ -457,11 +457,11 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
     r.buf.data[r.bpos] := SYSTEM.VAL(SYSTEM.BYTE,ch); INC(r.bpos); r.buf.mod := TRUE
   END Write;
 
-  PROCEDURE WriteByteEx(VAR R: Rider; x: Sys.Integer);
+  PROCEDURE WriteByteEx(VAR R: Rider; x: INTEGER);
   BEGIN WriteByte(R, CHR(x))
   END WriteByteEx;
 
-  PROCEDURE WriteInt*(VAR R: Rider; x: Sys.Integer);
+  PROCEDURE WriteInt*(VAR R: Rider; x: INTEGER);
   BEGIN WriteByteEx(R, x MOD 100H);
     WriteByteEx(R, x DIV 100H MOD 100H);
     WriteByteEx(R, x DIV 10000H MOD 100H);
@@ -469,11 +469,11 @@ MODULE POFiles;  (*NW 11.1.86 / 22.9.93 / 25.5.95 / 25.12.95 / 15.8.2013*)
   END WriteInt;
 
   PROCEDURE WriteSet*(VAR R: Rider; s: SET);
-  BEGIN WriteInt(R, SYSTEM.VAL(Sys.Integer,s))
+  BEGIN WriteInt(R, SYSTEM.VAL(INTEGER,s))
   END WriteSet;
 
   PROCEDURE WriteReal*(VAR R: Rider; x: REAL);
-  BEGIN  WriteInt(R, SYSTEM.VAL(Sys.Integer,x))
+  BEGIN  WriteInt(R, SYSTEM.VAL(INTEGER,x))
   END WriteReal;
 
   PROCEDURE WriteString*(VAR R: Rider; x: ARRAY OF CHAR);

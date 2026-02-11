@@ -1,14 +1,14 @@
 MODULE ORTool;  (*NW 18.2.2013*)
   IMPORT SYSTEM, Files := Files07, Texts, Oberon, ORB, Sys := System;
   TYPE
-    LONGINT = Sys.Integer;
-    INTEGER = Sys.Integer;
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
 
   VAR W: Texts.Writer;
     Form: INTEGER;  (*result of ReadType*)
     mnemo0, mnemo1: ARRAY 16, 4 OF CHAR;  (*mnemonics*)
 
-  PROCEDURE Read(VAR R: Files.Rider; VAR n: Sys.Integer);
+  PROCEDURE Read(VAR R: Files.Rider; VAR n: INTEGER);
     VAR b: Sys.Byte;
   BEGIN Files.ReadByte(R, b); n := b
     (* IF b < 80H THEN n := b ELSE n := b - 100H END *)
@@ -157,7 +157,7 @@ MODULE ORTool;  (*NW 18.2.2013*)
   END Write;
 
   PROCEDURE DecObj*;   (*decode object file*)
-    VAR class, i, n, key, size, fix, adr, data, len: Sys.Integer;
+    VAR class, i, n, key, size, fix, adr, data, len: INTEGER;
       ch: CHAR;
       name: ARRAY 32 OF CHAR;
       F: Files.File; R: Files.Rider;

@@ -10,6 +10,9 @@ MODULE LSB;  (*Lola System Compiler Base LSBX, 26.9.2015*)
     then* = 30; else* = 31; ts* = 32; next* = 33;
 
   TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+
     Item* = POINTER TO ItemDesc;
     Object* = POINTER TO ObjDesc;
     Type* = POINTER TO TypeDesc;
@@ -17,9 +20,9 @@ MODULE LSB;  (*Lola System Compiler Base LSBX, 26.9.2015*)
     UnitType* = POINTER TO UnitTypeDesc;
 
     ItemDesc* = RECORD
-      tag*: Sys.Integer;
+      tag*: INTEGER;
       type*: Type;
-      val*, size*: Sys.Integer;
+      val*, size*: LONGINT;
       a*, b*: Item
     END ;
 
@@ -29,7 +32,7 @@ MODULE LSB;  (*Lola System Compiler Base LSBX, 26.9.2015*)
       marked*: BOOLEAN
     END ;
 
-    TypeDesc* = RECORD len*, size*: Sys.Integer; typobj*: Object END ;
+    TypeDesc* = RECORD len*, size*: LONGINT; typobj*: Object END ;
     ArrayTypeDesc* = RECORD (TypeDesc) eltyp*: Type END ;
     UnitTypeDesc* = RECORD (TypeDesc) firstobj*: Object END ;
 

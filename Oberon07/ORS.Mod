@@ -33,8 +33,8 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     verbose* = FALSE;
 
   TYPE Ident* = ARRAY IdLen OF CHAR;
-       LONGINT = Sys.Integer;
-       INTEGER = Sys.Integer;
+       LONGINT = Sys.INT32;
+       INTEGER = Sys.INT32;
 
   VAR ival*, slen*: LONGINT;  (*results of Get*)
     rval*: REAL;
@@ -55,8 +55,8 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   BEGIN ident := id
   END CopyId;
 
-  PROCEDURE Pos*(): Sys.Integer;
-  BEGIN RETURN Sys.AddrToInt(Texts.Pos(R) - 1)
+  PROCEDURE Pos*(): LONGINT;
+  BEGIN RETURN Texts.Pos(R) - 1
   END Pos;
 
   PROCEDURE Mark*(msg: ARRAY OF CHAR);

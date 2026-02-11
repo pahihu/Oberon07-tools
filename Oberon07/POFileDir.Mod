@@ -17,7 +17,7 @@ MODULE POFileDir;   (*NW 12.1.86 / 23.8.90 / 15.8.2013*)
         HeaderMark* = -6458E27AH (*9BA71D86H*);
         FillerSize = 52;
 
-  TYPE INTEGER = Sys.Integer;
+  TYPE INTEGER = Sys.INT32;
     DiskAdr      = INTEGER;
     FileName*       = ARRAY FnLength OF CHAR;
     SectorTable*    = ARRAY SecTabSize OF DiskAdr;

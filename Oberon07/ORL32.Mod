@@ -9,8 +9,8 @@ MODULE ORL32;  (*Oberon boot linker/loader for RISC / AP 1.5.23*)
     MemSize = 20000H; (*128K*)
 
   TYPE  (*copied from Modules for use as cross linker/loader*)
-    LONGINT = Sys.Integer;
-    INTEGER = Sys.Integer;
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
     BYTE = Sys.Byte;
     
     Module* = POINTER TO ModDesc;

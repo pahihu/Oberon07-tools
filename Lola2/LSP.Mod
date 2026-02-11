@@ -1,6 +1,8 @@
 MODULE LSP;  (*display data structure;  NW 28.8.2015*)
   IMPORT Texts, Oberon, LSB, Sys := System;
 
+  TYPE INTEGER = Sys.INT32;
+
   VAR W: Texts.Writer;
     C: ARRAY 64, 6 OF CHAR;
 
@@ -16,8 +18,8 @@ MODULE LSP;  (*display data structure;  NW 28.8.2015*)
     Texts.Append(Oberon.Log, W.buf)
   END PrintType;
 
-  PROCEDURE PrintTree(x: LSB.Item; n: Sys.Integer);
-    VAR i: Sys.Integer;
+  PROCEDURE PrintTree(x: LSB.Item; n: INTEGER);
+    VAR i: INTEGER;
   BEGIN
     IF x # NIL THEN  i := n;
       IF x IS LSB.Object THEN
@@ -33,7 +35,7 @@ MODULE LSP;  (*display data structure;  NW 28.8.2015*)
     END
   END PrintTree;
 
-  PROCEDURE PrintObj(obj: LSB.Object; n: Sys.Integer);
+  PROCEDURE PrintObj(obj: LSB.Object; n: INTEGER);
     VAR apar: LSB.Item; obj1: LSB.Object;
   BEGIN
     IF n > 0 THEN Texts.Write(W, 9X) END ;
