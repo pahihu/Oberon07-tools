@@ -1,0 +1,16 @@
+MODULE Adder(IN clk: BIT; IN X,Y:[8]BIT; OUT Z:[8]BIT);
+  CONST N=8;
+  TYPE Cell = MODULE(IN x,y,ci:BIT; OUT z,co:BIT) ^;
+  VAR S:[N]Cell; (* composite type instances *)
+BEGIN
+  S.0(X.0, Y.0, ci, Z.0); (* inputs in cell 0 *)
+  FOR i:=1..N-1 DO
+    S.i(X.i,Y.i,S[i-1].co); (* inputs in cell i *)
+  END;
+  FOR i:=0..N-1 DO
+    Z.i:=S.i.z;
+  END;
+  co:=S.7.co;
+END Adder.
+
+(* vim:set ts=2 sw=2 et: *)

@@ -1,0 +1,5 @@
+MODULE Cell(IN x,y,ci:BIT; OUT z,co:BIT);
+BEGIN
+    z:=x-y-ci;
+    co:=x*y+x*ci+y*ci;
+END Cell.
