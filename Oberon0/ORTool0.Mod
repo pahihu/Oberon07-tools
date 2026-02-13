@@ -36,7 +36,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   BEGIN doExecute := FALSE;
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
-      IF (S.class = Texts.Name) & (S.s[0] = "d") THEN doExecute := TRUE END
+      IF (S.class = Texts.Name) & (S.s[0] = "x") THEN doExecute := TRUE END
     END
   END Option;
   

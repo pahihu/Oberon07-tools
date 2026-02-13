@@ -49,7 +49,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       cond: BOOLEAN;
   BEGIN PC := pc (*0*); R[13] := pc * 4; R[14] := Sys.Short(LEN(M)*4);
     REPEAT (*interpretation cycle*)
-      IR := M[PC]; RISCEmu.Status(W, PC, IR, R, H, N, Z); INC(PC);
+      IR := M[PC]; RISCEmu.Status(W, PC, IR, R, H, N, Z, Y, V); INC(PC);
       a := IR DIV 1000000H MOD 10H;
       b := IR DIV 100000H MOD 10H;
       op := IR DIV 10000H MOD 10H;
