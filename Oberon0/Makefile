@@ -27,8 +27,8 @@ clean:
 	$(RM) Oberon.Log
 
 ###
-OSP$(EXE): OSP.Mod OSS.Mod OSG.Mod RISC.Mod
-ORTool$(EXE): ORTool0.Mod
 TestOberon0.rsc: OSP$(EXE) TestOberon0.Mod.txt
 TestOberon0.dump: ORTool0$(EXE) TestOberon0.rsc
+include Makefile.dep
 
+# vim:set ts=4 sw=4 noet:

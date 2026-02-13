@@ -1,5 +1,5 @@
 MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
-  IMPORT Texts, Oberon, OSS, OSG, Sys := System, RISC;
+  IMPORT Texts, Oberon, OSS, OSG, Sys := System;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -12,7 +12,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     W: Texts.Writer;
     cmd: ARRAY 32 OF CHAR;
 
-    doDecode, doExecute: BOOLEAN;
+    doDecode: BOOLEAN;
   
   PROCEDURE NewObj(VAR obj: OSG.Object; class: INTEGER);
     VAR new, x: OSG.Object;
@@ -471,7 +471,6 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
         OSG.Close(modid, 1, dc, topScope); Texts.WriteString(W, "code generated "); Texts.WriteString(W, modid);
         Texts.WriteInt(W, OSG.pc, 6); Texts.WriteInt(W, dc, 6); Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
         IF doDecode THEN OSG.Decode
-        ELSIF doExecute THEN RISC.Execute(OSG.code, OSG.entry DIV 4, S, W)
         END
       END ;
       CloseScope
@@ -480,15 +479,10 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END Module;
 
   PROCEDURE Option(VAR S: Texts.Scanner);
-  BEGIN doDecode := FALSE; doExecute := FALSE;
+  BEGIN doDecode := FALSE;
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
-      IF (S.class = Texts.Name) THEN
-        CASE S.s[0] OF
-        "d": doDecode := TRUE |
-        "x": doExecute := TRUE
-        END
-      END
+      IF (S.class = Texts.Name) & (S.s[0] = "d") THEN doDecode := TRUE END
     END
   END Option;
   
@@ -502,7 +496,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
       ELSE Texts.WriteString(W, " cannot open "); Texts.WriteString(W, S.s);
         Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
       END
-    ELSE Texts.WriteString(W, "usage: OSP.Compile module [/dx]");
+    ELSE Texts.WriteString(W, "usage: OSP.Compile module [/d]");
       Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
     END
   END Compile;
@@ -515,7 +509,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END enter;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: OSP Compile module[/dx]");
+  BEGIN Texts.WriteString(W, "usage: OSP Compile module [/d]");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
   
