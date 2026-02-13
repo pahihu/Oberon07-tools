@@ -2,6 +2,9 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
   IMPORT Texts;
 
   VAR mnemo0, mnemo1: ARRAY 16, 4 OF CHAR;  (*mnemonics*)
+      specmov: ARRAY 4, 4 OF CHAR; (*spec. MOV*)
+      specop: ARRAY 3, 4 OF CHAR; (*ADC,SBC,MLU*)
+      memop: ARRAY 4, 4 OF CHAR; (*memory instr.*)
 
   PROCEDURE WriteReg*(VAR W: Texts.Writer; r: LONGINT);
   BEGIN Texts.Write(W, " ");
@@ -15,26 +18,41 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
     END
   END WriteReg;
 
+  PROCEDURE WriteMnemo0(VAR W: Texts.Writer; u, op, x: LONGINT);
+  BEGIN
+    IF u = 1 THEN
+      IF op = 0 THEN Texts.WriteString(W, specmov[x]);
+      ELSIF (8 <= op) & (op <= 10) THEN Texts.WriteString(W, specop[op-8])
+      ELSE Texts.Write(W, "'")
+      END
+    ELSE Texts.WriteString(W, mnemo0[op])
+    END
+  END WriteMnemo0;
+
+  PROCEDURE WriteRegB(VAR W: Texts.Writer; op, b: LONGINT);
+  BEGIN IF op = 0 THEN Texts.WriteString(W, "    ")
+    ELSE WriteReg(W, b)
+    END
+  END WriteRegB;
+
   PROCEDURE Opcode*(VAR W: Texts.Writer; w: LONGINT);
-    VAR k, op, u, a, b, c: LONGINT;
+    VAR k, op, u, v, a, b, c: LONGINT;
   BEGIN
       k := w DIV 40000000H MOD 4;
       a := w DIV 1000000H MOD 10H;
       b := w DIV 100000H MOD 10H;
       op := w DIV 10000H MOD 10H;
-      u := w DIV 20000000H MOD 2;
+      u := w DIV 10000000H MOD 4; v := u MOD 2; u := u DIV 2;
       IF k = 0 THEN
-        Texts.WriteString(W, mnemo0[op]);
-        IF u = 1 THEN Texts.Write(W, "'") END ;
-        WriteReg(W, a); WriteReg(W, b); WriteReg(W, w MOD 10H)
+        WriteMnemo0(W, u, op, 2*k+v);
+        WriteReg(W, a); WriteRegB(W, op, b); WriteReg(W, w MOD 10H)
       ELSIF k = 1 THEN
-        Texts.WriteString(W, mnemo0[op]);
-        IF u = 1 THEN Texts.Write(W, "'") END ;
-        WriteReg(W, a); WriteReg(W, b); w := w MOD 10000H;
+        WriteMnemo0(W, u, op, 2*k+v);
+        WriteReg(W, a); WriteRegB(W, op, b); w := w MOD 10000H;
         IF w >= 8000H THEN w := w - 10000H END ;
         Texts.WriteInt(W, w, 8)
       ELSIF k = 2 THEN  (*LDR/STR*)
-        IF u = 1 THEN Texts.WriteString(W, "STR") ELSE Texts.WriteString(W, "LDR") END ;
+        Texts.WriteString(W, memop[2*u + v]);
         WriteReg(W, a); WriteReg(W, b); w := w MOD 100000H;
         IF w >= 80000H THEN w := w - 100000H END ;
         Texts.WriteInt(W, w, 8)
@@ -84,6 +102,20 @@ BEGIN
   mnemo1[7] := "   ";
   mnemo1[11] := "   ";
   mnemo1[12] := "   ";
+
+  specmov[0] := "MVH";
+  specmov[1] := "MVF";
+  specmov[2] := "MVS";
+  specmov[3] := "MVS";
+
+  specop[0] := "ADC";
+  specop[1] := "SBC";
+  specop[2] := "MLU";
+
+  memop[0] := "LDR";
+  memop[1] := "LDB";
+  memop[2] := "STR";
+  memop[3] := "STB";
 END Disasm.
 
 (* vim:set ts=2 sw=2 et: *)
