@@ -41,6 +41,44 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     RETURN ret
   END Flags;
 
+  PROCEDURE DivMod(a, b: LONGINT; VAR q, r: LONGINT);
+  BEGIN q := a DIV b; r := a - q * b
+  END DivMod;
+
+  PROCEDURE Mul32(a, b: LONGINT; VAR hi, lo: LONGINT; unsigned: BOOLEAN);
+    VAR hiA, loA, hiB, loB: LONGINT;
+        p0, p1, p2: LONGINT;
+        hiP1, loP1: LONGINT;
+        loPart, hiPart: LONGINT;
+        carry: LONGINT;
+  BEGIN
+    DivMod(a, 65536, hiA, loA);
+    DivMod(b, 65536, hiB, loB);
+
+    IF unsigned THEN
+      IF loA < 0 THEN loA := loA + 65536 END;
+      IF loB < 0 THEN loB := loB + 65536 END
+    END;
+
+    p0 := loA * loB;             (*fits in 32 bits*)
+    p1 := hiA * loB + loA * hiB; (*fits in 32 bits*)
+    p2 := hiA * hiB;             (*fits in 32 bits*)
+
+    (*Now assemble the 64-bit result from p0, p1, p2*)
+
+    (*Step 1: low 32 bits*)
+    hiP1 := p1 DIV 65536; loP1 := p1 - hiP1 * 65536;
+    loPart := p0 + loP1 * 65536;
+
+    (*Detect carry from low part*)
+    IF loPart < p0 THEN carry := 1 ELSE carry := 0 END;
+
+    lo := loPart;
+
+    (*Step 2: high 32 bits*)
+    hi := p2 + hiP1 + carry;
+  END Mul32;
+
   PROCEDURE Execute*(VAR M: ARRAY OF LONGINT; pc: LONGINT;
       VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
@@ -85,7 +123,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                  IF ODD(ASH(IR,-29)) & ~Y THEN DEC(A) END;
                  Y := ~(B < C);
                  V := (Sign(B) # Sign(C)) & (Sign(B) # Sign(A)); |
-            MUL: A := B * C |
+            MUL: Mul32(B, C, H, A, ODD(ASH(IR,-29))); |
             Div: A := B DIV C; H := B MOD C |
             FAD: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) + SYSTEM.VAL(REAL, C)) |
             FSB: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) - SYSTEM.VAL(REAL, C)) |
