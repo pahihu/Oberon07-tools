@@ -79,6 +79,14 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     hi := p2 + hiP1 + carry;
   END Mul32;
 
+  PROCEDURE SplitReal(r: REAL; VAR s, e, m: LONGINT);
+    VAR ur: LONGINT;
+  BEGIN ur := SYSTEM.VAL(LONGINT, r);
+    m := ur MOD 800000H; ur := ur DIV 800000H;
+    e := ur MOD 100H; ur := ur DIV 100H;
+    IF ODD(ur) THEN e := 1 ELSE e := 0 END
+  END SplitReal;
+
   PROCEDURE Execute*(VAR M: ARRAY OF LONGINT; pc: LONGINT;
       VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
