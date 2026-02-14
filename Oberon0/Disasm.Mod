@@ -85,24 +85,15 @@ BEGIN
   mnemo0[13] := "FSB";
   mnemo0[14] := "FML";
   mnemo0[15] := "FDV";
-  mnemo1[0] := " MI";
-  mnemo1[8] := " PL";
-  mnemo1[1] := " EQ";
-  mnemo1[9] := " NE";
-  mnemo1[2] := " LS";
-  mnemo1[10] := " HI";
-  mnemo1[5] := " LT";
-  mnemo1[13] := " GE";
-  mnemo1[6] := " LE";
-  mnemo1[14] := " GT";
-  mnemo1[15] := " NO";
+  mnemo1[0] := " MI"; mnemo1[8] := " PL";
+  mnemo1[1] := " EQ"; mnemo1[9] := " NE";
+  mnemo1[2] := " CS"; mnemo1[10] := " CC";
+  mnemo1[3] := " VS"; mnemo1[11] := " VC";
+  mnemo1[4] := " LS"; mnemo1[12] := " HI";
+  mnemo1[5] := " LT"; mnemo1[13] := " GE";
+  mnemo1[6] := " LE"; mnemo1[14] := " GT";
+  mnemo1[7] := "   "; mnemo1[15] := " NO";
   
-  mnemo1[3] := "   ";
-  mnemo1[4] := "   ";
-  mnemo1[7] := "   ";
-  mnemo1[11] := "   ";
-  mnemo1[12] := "   ";
-
   specmov[0] := "MVH";
   specmov[1] := "MVF";
   specmov[2] := "MVS";

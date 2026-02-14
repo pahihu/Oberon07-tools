@@ -87,13 +87,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     IF ODD(ur) THEN e := 1 ELSE e := 0 END
   END SplitReal;
 
-  PROCEDURE Execute*(VAR M: ARRAY OF LONGINT; pc: LONGINT;
+  PROCEDURE Execute*(VAR M: ARRAY OF LONGINT; entry, pc: LONGINT;
       VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
       badr, adr, A, B, C: LONGINT;
       MemSize: LONGINT;
       cond: BOOLEAN;
-  BEGIN PC := pc (*0*); R[13] := pc * 4; R[14] := Sys.Short(LEN(M)*4);
+  BEGIN PC := entry (*0*); R[13] := pc * 4; R[14] := Sys.Short(LEN(M)*4);
     REPEAT (*interpretation cycle*)
       IR := M[PC]; RISCEmu.Status(W, PC, IR, R, H, N, Z, Y, V); INC(PC);
       a := IR DIV 1000000H MOD 10H;
