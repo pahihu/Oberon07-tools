@@ -2,7 +2,7 @@ MODULE TestOberon0;
   VAR n: INTEGER;
     a: ARRAY 10 OF INTEGER;
 
-  PROCEDURE perm(k: INTEGER);
+  PROCEDURE perm*(k: INTEGER);
     VAR i, x: INTEGER;
   BEGIN
     IF k = 0 THEN i := 0;

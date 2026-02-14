@@ -425,6 +425,16 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   BEGIN load(x); Put1(Mov, RH, 0, -60); Put2(Stw, x.r, RH, 0); DEC(RH)
   END LED ;
 
+  PROCEDURE SysGet*(VAR x, y: Item);
+  BEGIN load(x); Put2(Ldw, RH-1, RH-1, 0);
+    load(y); Put2(Stw, RH-2, RH-1, 0);
+    DEC(RH, 2); invalSB
+  END SysGet;
+
+  PROCEDURE SysPut*(VAR x, y: Item);
+  BEGIN load(x); load(y); Put2(Stw, RH-1, RH-2, 0); DEC(RH, 2); invalSB
+  END SysPut;
+
   PROCEDURE Open*;
   BEGIN curlev := 0; pc := 0; RH := 0; fixlist := 0; fixorgD := 0
   END Open;

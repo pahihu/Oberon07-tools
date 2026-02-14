@@ -10,9 +10,8 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     topScope, universe, dummy: OSG.Object;
     expression: PROCEDURE (VAR x: OSG.Item);  (*to avoid forward reference*)
     W: Texts.Writer;
-    cmd: ARRAY 32 OF CHAR;
 
-    doDecode: BOOLEAN;
+    expertMode, doDecode: BOOLEAN;
   
   PROCEDURE NewObj(VAR obj: OSG.Object; class: INTEGER);
     VAR new, x: OSG.Object;
@@ -214,17 +213,22 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     VAR x, y: OSG.Item;
   BEGIN
     IF pno = 0 THEN  OSG.OpenInput
-    ELSIF pno IN {1, 2, 3, 5} THEN
+    ELSIF pno IN {1, 2, 3, 5, 6, 7} THEN
       IF sym = OSS.lparen THEN OSS.Get(sym); expression(x);
         IF pno = 1 THEN OSG.ReadInt(x);
-        ELSIF pno = 2 THEN
-          IF sym = OSS.comma THEN OSS.Get(sym); expression(y); OSG.WriteInt(x, y) ELSE OSS.Mark("no comma") END
+        ELSIF (pno = 2) OR (pno = 6) OR (pno = 7) THEN
+          IF sym = OSS.comma THEN OSS.Get(sym); expression(y);
+            IF pno = 2 THEN OSG.WriteInt(x, y)
+            ELSIF pno = 6 THEN OSG.SysGet(x, y)
+            ELSIF pno = 7 THEN OSG.SysPut(x, y)
+            END
+          ELSE OSS.Mark("no comma") END
         ELSIF pno = 3 THEN OSG.WriteChar(x)
         ELSIF pno = 5 THEN OSG.LED(x)
-            END ;
-            IF sym = OSS.rparen THEN OSS.Get(sym) ELSE OSS.Mark("no rparen") END
-          ELSE OSS.Mark(" missing lparen")
-          END
+        END ;
+        IF sym = OSS.rparen THEN OSS.Get(sym) ELSE OSS.Mark("no rparen") END
+      ELSE OSS.Mark(" missing lparen")
+      END
     ELSIF pno = 4 THEN  OSG.WriteLn
     ELSE OSS.Mark("undef proc")
     END
@@ -425,7 +429,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
         ELSE FPSection(parblksize, nofpar);
           WHILE sym = OSS.semicolon DO OSS.Get(sym); FPSection(parblksize, nofpar) END ;
           IF sym = OSS.rparen THEN OSS.Get(sym) ELSE OSS.Mark(")?") END ;
-          IF proc.comd THEN OSS.Mark("no params allowed") END
+          IF proc.comd & ~expertMode THEN OSS.Mark("no params allowed") END
         END
       END ;
       locblksize := parblksize; proc.type := NIL; proc.dsc := topScope.next; proc.nofpar := nofpar;
@@ -479,10 +483,12 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END Module;
 
   PROCEDURE Option(VAR S: Texts.Scanner);
-  BEGIN doDecode := FALSE;
+  BEGIN doDecode := FALSE; expertMode := FALSE;
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
-      IF (S.class = Texts.Name) & (S.s[0] = "d") THEN doDecode := TRUE END
+      IF (S.class = Texts.Name) & (S.s[0] = "d") THEN doDecode := TRUE
+      ELSIF (S.class = Texts.Name) & (S.s[0] = "x") THEN expertMode := TRUE
+      END
     END
   END Option;
   
@@ -496,7 +502,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
       ELSE Texts.WriteString(W, " cannot open "); Texts.WriteString(W, S.s);
         Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
       END
-    ELSE Texts.WriteString(W, "usage: OSP.Compile module [/d]");
+    ELSE Texts.WriteString(W, "usage: OSP.Compile module [/dx]");
       Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
     END
   END Compile;
@@ -509,7 +515,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END enter;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: OSP Compile module [/d]");
+  BEGIN Texts.WriteString(W, "usage: OSP Compile module [/dx]");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
   
@@ -527,6 +533,8 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Oberon-0 Compiler OSP  9.5.2017
   enter("WriteChar", OSG.SProc, 3, NIL);
   enter("WriteLn", OSG.SProc, 4, NIL);
   enter("LED", OSG.SProc, 5, NIL);
+  enter("GET", OSG.SProc, 6, NIL);
+  enter("PUT", OSG.SProc, 7, NIL);
   enter("BOOLEAN", OSG.Typ, 0, OSG.boolType);
   enter("INTEGER", OSG.Typ, 1, OSG.intType);
   universe := topScope;

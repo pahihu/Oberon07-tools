@@ -1,0 +1,26 @@
+MODULE IO;
+  PROCEDURE OpenInput*;
+  BEGIN
+  END OpenInput;
+  
+  PROCEDURE ReadInt*(VAR x: INTEGER);
+  BEGIN GET(-1,x)
+  END ReadInt;
+
+  PROCEDURE eot*(VAR x: BOOLEAN);
+  BEGIN GET(-2,x)
+  END eot;
+  
+  PROCEDURE WriteChar*(x: INTEGER);
+  BEGIN PUT(-2,x)
+  END WriteChar;
+  
+  PROCEDURE WriteInt*(x, y: INTEGER);
+  BEGIN PUT(-1,x)
+  END WriteInt;
+  
+  PROCEDURE WriteLn*;
+  BEGIN PUT(-3,1)
+  END WriteLn;
+  
+END IO.
