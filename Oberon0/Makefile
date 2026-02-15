@@ -12,7 +12,7 @@ BINS=$(MODS:.Mod=$(EXE))
 	$(O2C) $(DYNEXPORT) $(O2CFLAGS) $(basename $@) | $(O2EF)
 
 %.rsc: %.Mod.txt
-	./OSP Compile $<
+	./OSP Compile $</x
 
 %.dump: %.rsc
 	./ORTool0 DecObj $< > $@
@@ -27,6 +27,7 @@ clean:
 	$(RM) Oberon.Log
 
 ###
+IO.rsc: OSP$(EXE) IO.Mod.txt
 TestOberon0.rsc: OSP$(EXE) TestOberon0.Mod.txt
 TestOberon0.dump: ORTool0$(EXE) TestOberon0.rsc
 include Makefile.dep

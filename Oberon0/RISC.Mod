@@ -150,7 +150,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             R[a] := A; N := A < 0; Z := A = 0
           ELSE (*input*)
             IF adr = -1 THEN (*ReadInt*) In.LongInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
-            ELSIF adr = -2 THEN (*eot*)  Z := In.Done = FALSE (*S.class # Texts.Int*)
+            ELSIF adr = -2 THEN (*eot*)  IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
             END 
           END
         ELSE

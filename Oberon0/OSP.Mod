@@ -211,9 +211,10 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
 
   PROCEDURE StandProc(pno: LONGINT);
     VAR x, y: OSG.Item;
-  BEGIN
+        pset: SET;
+  BEGIN pset := {1, 2, 3, 5}; IF expertMode THEN pset := pset + {6, 7} END;
     IF pno = 0 THEN  OSG.OpenInput
-    ELSIF pno IN {1, 2, 3, 5, 6, 7} THEN
+    ELSIF pno IN pset THEN
       IF sym = OSS.lparen THEN OSS.Get(sym); expression(x);
         IF pno = 1 THEN OSG.ReadInt(x);
         ELSIF (pno = 2) OR (pno = 6) OR (pno = 7) THEN
@@ -474,12 +475,11 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
       IF ~OSS.error THEN
         OSG.Close(modid, 1, dc, topScope); Texts.WriteString(W, "code generated "); Texts.WriteString(W, modid);
         Texts.WriteInt(W, OSG.pc, 6); Texts.WriteInt(W, dc, 6); Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
-        IF doDecode THEN OSG.Decode
-        END
       END ;
       CloseScope
     ELSE OSS.Mark("MODULE?")
-    END
+    END;
+    IF doDecode THEN OSG.Decode END
   END Module;
 
   PROCEDURE Option(VAR S: Texts.Scanner);

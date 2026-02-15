@@ -43,10 +43,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   BEGIN Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Ln;
 
-  PROCEDURE FixGlobals(L, globalFrame: LONGINT);
+  PROCEDURE FixGlobals(modbase: INTEGER; L, globalFrame: LONGINT);
     VAR L1: LONGINT;
   BEGIN Texts.WriteString(W, " fixing globals "); Ln;
-    WHILE L # 0 DO
+    L := L + modbase;
+    WHILE (L - modbase) # 0 DO
       Texts.WriteInt(W, L, 4); Texts.Write(W, TAB); Texts.WriteHex(W, code[L]); Ln;
       L1 := code[L] MOD 10000H;
       code[L] := (code[L] DIV 10000H) * 10000H + globalFrame;
@@ -61,11 +62,12 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     RETURN i
   END FindMod;
 
-  PROCEDURE FixImports(L: LONGINT; nimps: INTEGER; imps: ARRAY OF Import);
+  PROCEDURE FixImports(modbase: INTEGER; L: LONGINT; nimps: INTEGER; imps: ARRAY OF Import);
     VAR L1: LONGINT;
         mno, eno: LONGINT;
   BEGIN Texts.WriteString(W, " fixing imports "); Ln;
-    WHILE L # 0 DO
+    L := L + modbase;
+    WHILE (L - modbase) # 0 DO
       Texts.WriteInt(W, L, 4); Texts.Write(W, TAB); Texts.WriteHex(W, code[L]); Ln;
       L1 := code[L] MOD 1000H; (*F7106001*)
       mno := (code[L] DIV 1000H) MOD 1000H;
@@ -197,8 +199,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         Files.ReadInt(R, data); Texts.WriteString(W, "entry = "); Texts.WriteInt(W, data, 8); Texts.WriteLn(W); entry := data;
         Files.Read(R, ch);
         IF ch = "O" THEN
-          FixGlobals(modbase + fixorgD, ncode*4);
-          FixImports(modbase + fixlist, nimps, imps);
+          FixGlobals(modbase, fixorgD, ncode*4);
+          FixImports(modbase, fixlist, nimps, imps);
+          INC(nmods)
         ELSE Texts.WriteString(W, "format eror"); Texts.WriteLn(W)
         END
       (* Sync(R); *)
@@ -211,7 +214,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
           Texts.WriteString(W, " code + data > "); Texts.WriteInt(W, MaxCode, 0); Texts.WriteLn(W)
         ELSE
           (*call last entry*)
-          RISC.Execute(code, entry DIV 4, ncode, S, W)
+          RISC.Execute(code, modbase + entry DIV 4, ncode, S, W)
         END
     END
   END DecObj;
