@@ -65,6 +65,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   PROCEDURE FixImports(modbase: INTEGER; L: LONGINT; nimps: INTEGER; imps: ARRAY OF Import);
     VAR L1: LONGINT;
         mno, eno: LONGINT;
+        adr, disp: LONGINT;
   BEGIN Texts.WriteString(W, " fixing imports "); Ln;
     L := L + modbase;
     WHILE (L - modbase) # 0 DO
@@ -82,7 +83,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         IF mno = nmods THEN Texts.WriteString(W, " not found ");
         ELSE
           IF eno < mods[mno].nexports THEN
-            code[L] := (code[L] DIV 1000000H) * 1000000H + exports[mods[mno].expoffs + eno];
+            adr := exports[mods[mno].expoffs + eno];
+            disp := ((L+1)*4 - adr + 1000000H) MOD 1000000H;
+            code[L] := (code[L] DIV 1000000H) * 1000000H + disp;
           ELSE Texts.WriteString(W, " invalid eno ");
           END
         END
