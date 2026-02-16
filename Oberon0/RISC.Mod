@@ -1,5 +1,5 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
-  IMPORT SYSTEM, Texts, Oberon, Sys := System, In, RISCEmu;
+  IMPORT SYSTEM, Texts, Oberon, Sys := System, In, RISCEmu, WA := WAddress;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -24,11 +24,11 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
 
   PROCEDURE InsertByte(m, val, pos: LONGINT): LONGINT;
     VAR hi, lo: LONGINT;
-  BEGIN pos := 8*pos; lo := m MOD ASH(100H, pos);
+  BEGIN pos := 8*pos; lo := m MOD Sys.Ash(100H, pos);
     IF pos = 24 THEN hi := 0
-    ELSE hi := m DIV ASH(100H, pos+8)
+    ELSE hi := m DIV Sys.Ash(100H, pos+8)
     END;
-    RETURN hi + ASH(val, pos) + lo
+    RETURN hi + Sys.Ash(val, pos) + lo
   END InsertByte;
 
   PROCEDURE Flags(): LONGINT;
@@ -87,13 +87,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     IF ODD(ur) THEN e := 1 ELSE e := 0 END
   END SplitReal;
 
-  PROCEDURE Execute*(VAR M: ARRAY OF LONGINT; entry, pc: LONGINT;
+  PROCEDURE Execute*(VAR M: ARRAY OF LONGINT; entry, pc: WA.ADDR;
       VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
       badr, adr, A, B, C: LONGINT;
       MemSize: LONGINT;
       cond: BOOLEAN;
-  BEGIN PC := entry (*0*); R[13] := pc * 4; R[14] := Sys.Short(LEN(M)*4);
+  BEGIN PC := entry.a (*0*); R[13] := pc.ToBytes(); R[14] := Sys.Short(LEN(M)*4);
     REPEAT (*interpretation cycle*)
       IR := M[PC]; RISCEmu.Status(W, PC, IR, R, H, N, Z, Y, V); INC(PC);
       a := IR DIV 1000000H MOD 10H;
@@ -109,7 +109,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         CASE op OF
             MOV: IF ~ODD(ASH(IR, -29)) THEN A := C (*u=0*)
                  ELSE (*u=1*)
-                   IF ODD(ASH(IR, -30)) THEN (*F1*) A := ASH(C, 16);
+                   IF ODD(ASH(IR, -30)) THEN (*F1*) A := Sys.Ash(C, 16);
                    ELSIF ~ODD(ASH(IR, -28)) THEN A := H (*F0,v=0*)
                    ELSE A := Flags() (*F0,v=1*)
                    END
@@ -145,11 +145,11 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           IF adr >= 0 THEN (*load*)
             A := M[adr];
             IF ODD(ASH(IR,-28)) THEN (*v: byte access*)
-              A := ASH(A, -8*(badr MOD 4)) MOD 100H
+              A := Sys.Ash(A, -8*(badr MOD 4)) MOD 100H
             END;
             R[a] := A; N := A < 0; Z := A = 0
           ELSE (*input*)
-            IF adr = -1 THEN (*ReadInt*) In.LongInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
+            IF adr = -1 THEN (*ReadInt*) Sys.InInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
             ELSIF adr = -2 THEN (*eot*)  IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
             END 
           END

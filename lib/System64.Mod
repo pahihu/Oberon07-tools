@@ -1,5 +1,5 @@
 MODULE System;
-  IMPORT SYSTEM, Files;
+  IMPORT SYSTEM, Files, In;
 
   TYPE
     Integer* = INTEGER;
@@ -8,6 +8,14 @@ MODULE System;
     INT32* = INTEGER;
     INT64* = LONGINT;
     Byte* = INT16; (*[0,255]*)
+
+  PROCEDURE Ash*(x,y: LONGINT): Integer;
+  BEGIN RETURN SHORT(ASH(x,y))
+  END Ash;
+
+  PROCEDURE InInt*(VAR x: Integer);
+  BEGIN In.Int(x);
+  END InInt;
 
   PROCEDURE AddrToInt*(x: Address): Integer;
   BEGIN RETURN SHORT(x)

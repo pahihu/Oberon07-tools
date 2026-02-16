@@ -18,7 +18,7 @@ BINS=$(MODS:.Mod=$(EXE))
 	./ORTool0 DecObj $< > $@
 
 
-all: $(BINS) TestOberon0.dump
+all: $(BINS) IO.dump TestOberon0.dump
 
 clean:
 	$(RM) sym/* obj/*

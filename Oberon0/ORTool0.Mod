@@ -1,5 +1,5 @@
 MODULE ORTool0;  (*NW 18.2.2013*)
-  IMPORT Files := Files07, Texts, Oberon, Sys := System, Disasm, RISC;
+  IMPORT Files := Files07, Texts, Oberon, Sys := System, Disasm, RISC, RISCEmu, WA := WAddress;
 
   CONST TAB = 9X;
     MaxCode = 8192;
@@ -13,7 +13,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
     Module = RECORD
       name: ARRAY 32 OF CHAR;
-      key, base, ndata: INTEGER;
+      key, ndata: INTEGER;
+      base: WA.ADDR;
       nexports: INTEGER;
       expoffs: INTEGER; (*idx.into exports[]*)
     END;
@@ -26,12 +27,13 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   VAR W: Texts.Writer;
     Form: INTEGER;  (*result of ReadType*)
     code: ARRAY MaxCode OF LONGINT;
-    ncode: INTEGER;
-    doExecute: BOOLEAN;
+    wcode: WA.ADDR;
+    execute, debug: BOOLEAN;
     mods: ARRAY MaxModules OF Module;
     nmods: LONGINT;
     exports: ARRAY MaxExports OF LONGINT; (*addr. of exported procs*)
     nexports: LONGINT;
+    verbose: BOOLEAN;
 
   PROCEDURE Read(VAR R: Files.Rider; VAR n: INTEGER);
     VAR b: Sys.Byte;
@@ -39,19 +41,46 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END Read;
   
   (* ---------------------------------------------------*)
+
+  PROCEDURE String(s: ARRAY OF CHAR);
+  BEGIN Texts.WriteString(W, s)
+  END String;
+
+  PROCEDURE Int(x, y: LONGINT);
+  BEGIN Texts.WriteInt(W, x, y)
+  END Int;
+
+  PROCEDURE Hex(x: LONGINT);
+  BEGIN Texts.WriteHex(W, x)
+  END Hex;
+
+  PROCEDURE Char(x: CHAR);
+  BEGIN Texts.Write(W, x)
+  END Char;
+
+  PROCEDURE Tab;
+  BEGIN Char(TAB)
+  END Tab;
+
+  PROCEDURE Space;
+  BEGIN Char(" ")
+  END Space;
+
   PROCEDURE Ln;
   BEGIN Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Ln;
 
-  PROCEDURE FixGlobals(modbase: INTEGER; L, globalFrame: LONGINT);
+  (* ---------------------------------------------------*)
+
+  PROCEDURE FixGlobals(modbase, L: WA.ADDR; globalFrame: LONGINT);
     VAR L1: LONGINT;
-  BEGIN Texts.WriteString(W, " fixing globals "); Ln;
-    L := L + modbase;
-    WHILE (L - modbase) # 0 DO
-      Texts.WriteInt(W, L, 4); Texts.Write(W, TAB); Texts.WriteHex(W, code[L]); Ln;
-      L1 := code[L] MOD 10000H;
-      code[L] := (code[L] DIV 10000H) * 10000H + globalFrame;
-      L := L - L1;
+  BEGIN String(" fixing globals "); Ln;
+    L.Inc(modbase);
+    WHILE (L.a - modbase.a) # 0 DO
+      Int(L.a, 4); Tab; Hex(code[L.a]); Ln;
+      L1 := code[L.a] MOD 10000H;
+      code[L.a] := (code[L.a] DIV 10000H) * 10000H + globalFrame;
+      L.DecBy(L1)
     END
   END FixGlobals;
 
@@ -62,37 +91,45 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     RETURN i
   END FindMod;
 
-  PROCEDURE FixImports(modbase: INTEGER; L: LONGINT; nimps: INTEGER; imps: ARRAY OF Import);
+  PROCEDURE FixImports(modbase, L: WA.ADDR; nimps: INTEGER; imps: ARRAY OF Import);
     VAR L1: LONGINT;
         mno, eno: LONGINT;
         adr, disp: LONGINT;
-  BEGIN Texts.WriteString(W, " fixing imports "); Ln;
-    L := L + modbase;
-    WHILE (L - modbase) # 0 DO
-      Texts.WriteInt(W, L, 4); Texts.Write(W, TAB); Texts.WriteHex(W, code[L]); Ln;
-      L1 := code[L] MOD 1000H; (*F7106001*)
-      mno := (code[L] DIV 1000H) MOD 1000H;
+        Lp1, wdisp: WA.ADDR;
+  BEGIN String(" fixing imports "); Ln;
+    L.Inc(modbase);
+    WHILE (L.a - modbase.a) # 0 DO
+      Int(L.a, 4); Tab; Hex(code[L.a]); Tab;
+      L1 := code[L.a] MOD 1000H; (*F7106001*)
+      mno := (code[L.a] DIV 1000H) MOD 1000H;
       eno := mno MOD 100H; mno := (mno DIV 100H) MOD 10H;
       ASSERT(0 < mno, 10); ASSERT(0 < eno, 20);
-      Texts.WriteString(W, " fix import "); Texts.WriteInt(W, mno, 0);
-      Texts.Write(W, ":"); Texts.WriteInt(W, eno, 0); Texts.Write(W, " ");
+      Int(mno, 0); Char(":"); Int(eno, 0);
+      Space;
       DEC(mno);
       IF mno < nimps THEN
-        Texts.WriteString(W, imps[mno].name);
+        String(imps[mno].name);
         mno := FindMod(imps[mno]);
-        IF mno = nmods THEN Texts.WriteString(W, " not found ");
+        IF mno = nmods THEN String(" not found ");
         ELSE
           IF eno < mods[mno].nexports THEN
             adr := exports[mods[mno].expoffs + eno];
-            disp := ((L+1)*4 - adr + 1000000H) MOD 1000000H;
-            code[L] := (code[L] DIV 1000000H) * 1000000H + disp;
-          ELSE Texts.WriteString(W, " invalid eno ");
+            Lp1.FromWords(L.a+1); wdisp.FromBytes(Lp1.ToBytes() - adr);
+            disp := (1000000H - wdisp.a) MOD 1000000H;
+            String(" adr="); Int(adr, 4);
+            IF verbose THEN
+              String(" L+1="); Int(Lp1.a, 4);
+              String(" disp="); Int(wdisp.ToBytes(), 4);
+              String(" disp="); Hex(disp)
+            END;
+            code[L.a] := (code[L.a] DIV 1000000H) * 1000000H + disp;
+          ELSE String(" invalid eno ");
           END
         END
-      ELSE Texts.WriteString(W, " invalid mno ");
+      ELSE String(" invalid mno ");
       END;
       Ln;
-      L := L - L1;
+      L.DecBy(L1)
     END
   END FixImports;
 
@@ -100,7 +137,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   PROCEDURE Sync(VAR R: Files.Rider);
     VAR ch: CHAR;
-  BEGIN Files.Read(R, ch); Texts.WriteString(W, "Sync "); Texts.Write(W, ch); Texts.WriteLn(W)
+  BEGIN Files.Read(R, ch); String("Sync "); Char(ch); Ln
   END Sync;
   
   PROCEDURE Write(VAR R: Files.Rider; x: INTEGER);
@@ -109,10 +146,15 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END Write;
 
   PROCEDURE Option(VAR S: Texts.Scanner);
-  BEGIN doExecute := FALSE;
+  BEGIN execute := FALSE; debug := FALSE;
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
-      IF (S.class = Texts.Name) & (S.s[0] = "x") THEN doExecute := TRUE END
+      IF S.class = Texts.Name THEN
+        CASE S.s[0] OF
+        "d": execute := TRUE; debug := TRUE |
+        "x": execute := TRUE
+        END
+      END
     END
   END Option;
   
@@ -121,7 +163,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       ch: CHAR;
       name: ARRAY 32 OF CHAR;
       entry, fixlist, fixorgD: LONGINT;
-      ndata, modbase: INTEGER;
+      wentry, wfixlist, wfixorgD: WA.ADDR;
+      ndata: LONGINT;
+      modbase, wdata: WA.ADDR;
       imps: ARRAY MaxImports OF Import;
       nimps: INTEGER;
       F: Files.File; R: Files.Rider;
@@ -129,109 +173,110 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   BEGIN ndata := 0; nimps := 0;
     Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     WHILE (S.class = Texts.Name) & (nmods < MaxModules) DO
-      Texts.WriteString(W, "decode "); Texts.WriteString(W, S.s); F := Files.Old(S.s);
+      String("decode "); String(S.s); F := Files.Old(S.s);
       IF F # NIL THEN Option(S);
-        Files.Set(R, F, 0); Files.ReadString(R, name); Texts.WriteLn(W); Texts.WriteString(W, name);
-        ncode := ncode + (ndata + 3) DIV 4; (*add global data*)
+        Files.Set(R, F, 0); Files.ReadString(R, name); Ln; String(name);
+        wdata.Aligned(ndata); wcode.Inc(wdata); (*add global data*)
         COPY(name, mods[nmods].name);
-        Files.ReadInt(R, key); Texts.WriteHex(W, key); Read(R, class); Texts.WriteInt(W, class, 4); (*version*)
+        Files.ReadInt(R, key); Hex(key); Read(R, class); Int(class, 4); (*version*)
         mods[nmods].key := key;
-        Files.ReadInt(R, size); Texts.WriteInt(W, size, 6); Texts.WriteLn(W);
-        Texts.WriteString(W, "imports:"); Texts.WriteLn(W); Files.ReadString(R, name);
+        Files.ReadInt(R, size); Int(size, 6); Ln;
+        String("imports:"); Ln; Files.ReadString(R, name);
         nimps := 0;
         WHILE name[0] # 0X DO
           (*XXX load imported modules here*)
-          Texts.Write(W, TAB); Texts.WriteString(W, name);
-          Files.ReadInt(R, key); Texts.WriteHex(W, key); Texts.WriteLn(W);
+          Tab; String(name);
+          Files.ReadInt(R, key); Hex(key); Ln;
           IF nimps < MaxImports THEN
             COPY(name, imps[nimps].name);
             imps[nimps].key := key; INC(nimps)
-          ELSE Texts.WriteString(W, " more than 16 imports "); Texts.WriteLn(W)
+          ELSE String(" more than 16 imports "); Ln
           END;
           Files.ReadString(R, name)
         END ;
       (* Sync(R); *)
-        Texts.WriteString(W, "type descriptors"); Texts.WriteLn(W);
+        String("type descriptors"); Ln;
         Files.ReadInt(R, n); n := n DIV 4; i := 0;
-        WHILE i < n DO Files.ReadInt(R, data); Texts.WriteHex(W, data); INC(i) END ;
-        Texts.WriteLn(W);
-        Texts.WriteString(W, "data"); Files.ReadInt(R, ndata); Texts.WriteInt(W, ndata, 6); Texts.WriteLn(W);
+        WHILE i < n DO Files.ReadInt(R, data); Hex(data); INC(i) END ;
+        Ln;
+        String("data"); Files.ReadInt(R, ndata); Int(ndata, 6); Ln;
         mods[nmods].ndata := ndata;
-        Texts.WriteString(W, "strings"); Texts.WriteLn(W);
+        String("strings"); Ln;
         Files.ReadInt(R, n); i := 0;
-        WHILE i < n DO Files.Read(R, ch); Texts.Write(W, ch); INC(i) END ;
-        Texts.WriteLn(W);
-        Texts.WriteString(W, "code"); Texts.WriteLn(W);
-        modbase := ncode; mods[nmods].base := modbase;
+        WHILE i < n DO Files.Read(R, ch); Char(ch); INC(i) END ;
+        Ln;
+        String("code"); Ln;
+        modbase.FromWords(wcode.a); mods[nmods].base := modbase;
         Files.ReadInt(R, n); i := 0;
         WHILE i < n DO
-          Files.ReadInt(R, data); Texts.WriteInt(W, modbase + i, 4); Texts.Write(W, TAB); Texts.WriteHex(W, data);
-          IF ncode < MaxCode THEN code[ncode] := data; INC(ncode)
-          ELSE doExecute := FALSE; Texts.WriteString(W, " code space full "); Texts.WriteLn(W)
+          Files.ReadInt(R, data); Int(modbase.a + i, 4); Tab; Hex(data);
+          IF wcode.a < MaxCode THEN code[wcode.a] := data; wcode.Next
+          ELSE execute := FALSE; String(" code space full "); Ln
           END;
-          Texts.Write(W, TAB); Disasm.Opcode(W, data); Texts.WriteLn(W); INC(i)
+          Tab; Disasm.Opcode(W, data); Ln; INC(i)
         END ;
       (* Sync(R); *)
-        Texts.WriteString(W, "commands:"); Texts.WriteLn(W);
+        String("commands:"); Ln;
         Files.ReadString(R, name);
         WHILE name[0] # 0X DO
-          Texts.Write(W, TAB); Texts.WriteString(W, name);
-          Files.ReadInt(R, adr); Texts.WriteInt(W, adr, 5); Texts.WriteLn(W);
+          Tab; String(name);
+          Files.ReadInt(R, adr); Int(adr, 5); Ln;
           Files.ReadString(R, name)
         END ;
       (* Sync(R); *)
         mods[nmods].expoffs := nexports;
-        Texts.WriteString(W, "entries"); Texts.WriteLn(W);
+        String("entries"); Ln;
         Files.ReadInt(R, n); i := 0;
         WHILE i < n DO
-          Files.ReadInt(R, adr); Texts.WriteInt(W, adr, 6); INC(i);
+          Files.ReadInt(R, adr); Int(adr, 6); INC(i);
           IF nexports < MaxExports THEN
-            exports[nexports] := modbase + adr; INC(nexports)
+            exports[nexports] := modbase.ToBytes() + adr; INC(nexports)
           END
         END ;
         mods[nmods].nexports := n;
-        Texts.WriteLn(W);
+        Ln;
       (* Sync(R); *)
-        Texts.WriteString(W, "pointer refs"); Texts.WriteLn(W); Files.ReadInt(R, adr);
-        WHILE adr # -1 DO Texts.WriteInt(W, adr, 6); Files.ReadInt(R, adr) END ;
-        Texts.WriteLn(W);
+        String("pointer refs"); Ln; Files.ReadInt(R, adr);
+        WHILE adr # -1 DO Int(adr, 6); Files.ReadInt(R, adr) END ;
+        Ln;
       (* Sync(R); *)
-        Files.ReadInt(R, data); Texts.WriteString(W, "fixP  = "); Texts.WriteInt(W, data, 8); Texts.WriteLn(W); fixlist := data;
-        Files.ReadInt(R, data); Texts.WriteString(W, "fixD  = "); Texts.WriteInt(W, data, 8); Texts.WriteLn(W); fixorgD := data;
-        Files.ReadInt(R, data); Texts.WriteString(W, "fixT  = "); Texts.WriteInt(W, data, 8); Texts.WriteLn(W);
-        Files.ReadInt(R, data); Texts.WriteString(W, "entry = "); Texts.WriteInt(W, data, 8); Texts.WriteLn(W); entry := data;
+        Files.ReadInt(R, data); String("fixP  = "); Int(data, 8); Ln; fixlist := data;
+        Files.ReadInt(R, data); String("fixD  = "); Int(data, 8); Ln; fixorgD := data;
+        Files.ReadInt(R, data); String("fixT  = "); Int(data, 8); Ln;
+        Files.ReadInt(R, data); String("entry = "); Int(data, 8); Ln; entry := data;
         Files.Read(R, ch);
         IF ch = "O" THEN
-          FixGlobals(modbase, fixorgD, ncode*4);
-          FixImports(modbase, fixlist, nimps, imps);
+          wfixorgD.FromWords(fixorgD); wfixlist.FromWords(fixlist);
+          FixGlobals(modbase, wfixorgD, wcode.ToBytes());
+          FixImports(modbase, wfixlist, nimps, imps);
           INC(nmods)
-        ELSE Texts.WriteString(W, "format eror"); Texts.WriteLn(W)
+        ELSE String("format eror"); Ln
         END
       (* Sync(R); *)
-      ELSE Texts.WriteString(W, " not found"); Texts.WriteLn(W)
+      ELSE String(" not found"); Ln
       END ;
       Texts.Append(Oberon.Log, W.buf); Texts.Scan(S)
     END;
-    IF doExecute THEN
-        IF ncode + ndata > MaxCode THEN
-          Texts.WriteString(W, " code + data > "); Texts.WriteInt(W, MaxCode, 0); Texts.WriteLn(W)
+    IF execute THEN
+        IF wcode.a + wdata.a > MaxCode THEN
+          String(" code + data > "); Int(MaxCode, 0); Ln
         ELSE
           (*call last entry*)
-          RISC.Execute(code, modbase + entry DIV 4, ncode, S, W)
+          wentry.FromBytes(entry); wentry.Inc(modbase);
+          RISCEmu.verbose := debug;
+          RISC.Execute(code, wentry, wcode, S, W)
         END
     END
   END DecObj;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: ORTool0 DecObj <filename> [/x]");
-    Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+  BEGIN String("usage: ORTool0 DecObj <filename> [/x]"); Ln
   END Help;
 
-BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "ORTool 18.2.2013");
-  Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
   nmods := 0; nexports := 0;
 
-  Oberon.Run
+  verbose := FALSE; Oberon.Run
 END ORTool0.
 
 (* vim:set ts=2 sw=2 et: *)

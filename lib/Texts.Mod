@@ -206,6 +206,10 @@ MODULE Texts;
     VAR i: LONGINT;
   BEGIN i := 0; WHILE s[i] # 0X DO Write (W, s[i]); INC(i) END
   END WriteString;
+
+  PROCEDURE WriteBoolean* (VAR W: Writer; x: BOOLEAN);
+  BEGIN IF x THEN WriteString(W, "TRUE") ELSE WriteString(W, "FALSE") END
+  END WriteBoolean;
   
   PROCEDURE WriteInt* (VAR W: Writer; x, n: LONGINT);
     VAR i: INTEGER; x0: LONGINT;
