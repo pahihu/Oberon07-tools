@@ -1,0 +1,13 @@
+MODULE Infinite;
+  PROCEDURE TestWhile*;
+  BEGIN WHILE TRUE DO END
+  END TestWhile;
+
+  PROCEDURE TestUntil*;
+  BEGIN REPEAT UNTIL FALSE
+  END TestUntil;
+
+BEGIN TestUntil; HALT
+END Infinite.
+
+(* vim:set ts=2 sw=2 et: *)

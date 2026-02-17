@@ -34,7 +34,6 @@ MODULE RISCEmu; (* Phu 13.2.2026 *)
     VAR i: INTEGER;
   BEGIN
     IF verbose THEN
-      Texts.WriteString(W, " verbose="); Texts.WriteBoolean(W, verbose); Texts.WriteLn(W);
       Texts.WriteInt(W, PC, 4); Texts.Write(W, TAB); Texts.WriteHex(W, IR); Texts.Write(W, TAB);
       Disasm.Opcode(W, IR); Ln(W);
       Out(W, "  PC", PC); Out(W, "   H", H); (*PC,H*)

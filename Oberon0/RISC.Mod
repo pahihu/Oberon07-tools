@@ -93,7 +93,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       badr, adr, A, B, C: LONGINT;
       MemSize: LONGINT;
       cond: BOOLEAN;
-  BEGIN PC := entry.a (*0*); R[13] := pc.ToBytes(); R[14] := Sys.Short(LEN(M)*4);
+  BEGIN PC := entry.ToWords() (*0*); R[13] := pc.ToBytes(); R[14] := Sys.Short(LEN(M)*4);
     REPEAT (*interpretation cycle*)
       IR := M[PC]; RISCEmu.Status(W, PC, IR, R, H, N, Z, Y, V); INC(PC);
       a := IR DIV 1000000H MOD 10H;
@@ -177,7 +177,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           END
         END
       END
-    UNTIL PC = 0;
+    UNTIL IR = 0E7FFFFFFH; (* B -1 *)
     Texts.Append(Oberon.Log, W.buf)
   END Execute;
 END RISC.

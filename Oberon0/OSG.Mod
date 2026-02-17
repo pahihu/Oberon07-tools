@@ -435,6 +435,10 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
   BEGIN load(x); load(y); Put2(Stw, y.r, x.r, 0); DEC(RH, 2); invalSB
   END SysPut;
 
+  PROCEDURE Halt*;
+  BEGIN Put3(BC, 7, -1)
+  END Halt;
+
   PROCEDURE Open*;
   BEGIN curlev := 0; pc := 0; RH := 0; fixlist := 0; fixorgD := 0
   END Open;

@@ -75,12 +75,12 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   PROCEDURE FixGlobals(modbase, L: WA.ADDR; globalFrame: LONGINT);
     VAR L1: LONGINT;
   BEGIN String(" fixing globals "); Ln;
-    L.Inc(modbase);
-    WHILE (L.a - modbase.a) # 0 DO
-      Int(L.a, 4); Tab; Hex(code[L.a]); Ln;
-      L1 := code[L.a] MOD 10000H;
-      code[L.a] := (code[L.a] DIV 10000H) * 10000H + globalFrame;
-      L.DecBy(L1)
+    L.IncBy(modbase);
+    WHILE (L.ToWords() - modbase.ToWords()) # 0 DO
+      Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Ln;
+      L1 := code[L.ToWords()] MOD 10000H;
+      code[L.ToWords()] := (code[L.ToWords()] DIV 10000H) * 10000H + globalFrame;
+      L.Dec(L1)
     END
   END FixGlobals;
 
@@ -97,11 +97,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         adr, disp: LONGINT;
         Lp1, wdisp: WA.ADDR;
   BEGIN String(" fixing imports "); Ln;
-    L.Inc(modbase);
-    WHILE (L.a - modbase.a) # 0 DO
-      Int(L.a, 4); Tab; Hex(code[L.a]); Tab;
-      L1 := code[L.a] MOD 1000H; (*F7106001*)
-      mno := (code[L.a] DIV 1000H) MOD 1000H;
+    L.IncBy(modbase);
+    WHILE (L.ToWords() - modbase.ToWords()) # 0 DO
+      Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Tab;
+      L1 := code[L.ToWords()] MOD 1000H; (*F7106001*)
+      mno := (code[L.ToWords()] DIV 1000H) MOD 1000H;
       eno := mno MOD 100H; mno := (mno DIV 100H) MOD 10H;
       ASSERT(0 < mno, 10); ASSERT(0 < eno, 20);
       Int(mno, 0); Char(":"); Int(eno, 0);
@@ -114,22 +114,22 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         ELSE
           IF eno < mods[mno].nexports THEN
             adr := exports[mods[mno].expoffs + eno];
-            Lp1.FromWords(L.a+1); wdisp.FromBytes(Lp1.ToBytes() - adr);
-            disp := (1000000H - wdisp.a) MOD 1000000H;
+            Lp1.FromWords(L.ToWords()+1); wdisp.FromBytes(Lp1.ToBytes() - adr);
+            disp := (1000000H - wdisp.ToWords()) MOD 1000000H;
             String(" adr="); Int(adr, 4);
             IF verbose THEN
-              String(" L+1="); Int(Lp1.a, 4);
+              String(" L+1="); Int(Lp1.ToWords(), 4);
               String(" disp="); Int(wdisp.ToBytes(), 4);
               String(" disp="); Hex(disp)
             END;
-            code[L.a] := (code[L.a] DIV 1000000H) * 1000000H + disp;
+            code[L.ToWords()] := (code[L.ToWords()] DIV 1000000H) * 1000000H + disp;
           ELSE String(" invalid eno ");
           END
         END
       ELSE String(" invalid mno ");
       END;
       Ln;
-      L.DecBy(L1)
+      L.Dec(L1)
     END
   END FixImports;
 
@@ -176,7 +176,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       String("decode "); String(S.s); F := Files.Old(S.s);
       IF F # NIL THEN Option(S);
         Files.Set(R, F, 0); Files.ReadString(R, name); Ln; String(name);
-        wdata.Aligned(ndata); wcode.Inc(wdata); (*add global data*)
+        wdata.Aligned(ndata); wcode.IncBy(wdata); (*add global data*)
         COPY(name, mods[nmods].name);
         Files.ReadInt(R, key); Hex(key); Read(R, class); Int(class, 4); (*version*)
         mods[nmods].key := key;
@@ -206,11 +206,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         WHILE i < n DO Files.Read(R, ch); Char(ch); INC(i) END ;
         Ln;
         String("code"); Ln;
-        modbase.FromWords(wcode.a); mods[nmods].base := modbase;
+        modbase := wcode; mods[nmods].base := modbase;
         Files.ReadInt(R, n); i := 0;
         WHILE i < n DO
-          Files.ReadInt(R, data); Int(modbase.a + i, 4); Tab; Hex(data);
-          IF wcode.a < MaxCode THEN code[wcode.a] := data; wcode.Next
+          Files.ReadInt(R, data); Int(modbase.ToWords() + i, 4); Tab; Hex(data);
+          IF wcode.ToWords() < MaxCode THEN code[wcode.ToWords()] := data; wcode.Next
           ELSE execute := FALSE; String(" code space full "); Ln
           END;
           Tab; Disasm.Opcode(W, data); Ln; INC(i)
@@ -258,11 +258,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       Texts.Append(Oberon.Log, W.buf); Texts.Scan(S)
     END;
     IF execute THEN
-        IF wcode.a + wdata.a > MaxCode THEN
+        IF wcode.ToWords() + wdata.ToWords() > MaxCode THEN
           String(" code + data > "); Int(MaxCode, 0); Ln
         ELSE
           (*call last entry*)
-          wentry.FromBytes(entry); wentry.Inc(modbase);
+          wentry.FromBytes(entry); wentry.IncBy(modbase);
           RISCEmu.verbose := debug;
           RISC.Execute(code, wentry, wcode, S, W)
         END

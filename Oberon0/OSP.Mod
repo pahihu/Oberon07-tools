@@ -11,7 +11,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
     expression: PROCEDURE (VAR x: OSG.Item);  (*to avoid forward reference*)
     W: Texts.Writer;
 
-    expertMode, doDecode: BOOLEAN;
+    extendedMode, doDecode: BOOLEAN;
   
   PROCEDURE NewObj(VAR obj: OSG.Object; class: INTEGER);
     VAR new, x: OSG.Object;
@@ -212,7 +212,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   PROCEDURE StandProc(pno: LONGINT);
     VAR x, y: OSG.Item;
         pset: SET;
-  BEGIN pset := {1, 2, 3, 5}; IF expertMode THEN pset := pset + {6, 7} END;
+  BEGIN pset := {1, 2, 3, 5}; IF extendedMode THEN pset := pset + {6, 7} END;
     IF pno = 0 THEN  OSG.OpenInput
     ELSIF pno IN pset THEN
       IF sym = OSS.lparen THEN OSS.Get(sym); expression(x);
@@ -231,6 +231,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
       ELSE OSS.Mark(" missing lparen")
       END
     ELSIF pno = 4 THEN  OSG.WriteLn
+    ELSIF extendedMode & (pno = 8) THEN OSG.Halt
     ELSE OSS.Mark("undef proc")
     END
   END StandProc;
@@ -430,7 +431,7 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
         ELSE FPSection(parblksize, nofpar);
           WHILE sym = OSS.semicolon DO OSS.Get(sym); FPSection(parblksize, nofpar) END ;
           IF sym = OSS.rparen THEN OSS.Get(sym) ELSE OSS.Mark(")?") END ;
-          IF proc.comd & ~expertMode THEN OSS.Mark("no params allowed") END
+          IF proc.comd & ~extendedMode THEN OSS.Mark("no params allowed") END
         END
       END ;
       locblksize := parblksize; proc.type := NIL; proc.dsc := topScope.next; proc.nofpar := nofpar;
@@ -483,11 +484,11 @@ MODULE OSP; (* NW 23.9.93 / 9,5.2017   OSPX*)
   END Module;
 
   PROCEDURE Option(VAR S: Texts.Scanner);
-  BEGIN doDecode := FALSE; expertMode := FALSE;
+  BEGIN doDecode := FALSE; extendedMode := FALSE;
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
       IF (S.class = Texts.Name) & (S.s[0] = "d") THEN doDecode := TRUE
-      ELSIF (S.class = Texts.Name) & (S.s[0] = "x") THEN expertMode := TRUE
+      ELSIF (S.class = Texts.Name) & (S.s[0] = "x") THEN extendedMode := TRUE
       END
     END
   END Option;
@@ -535,6 +536,7 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Oberon-0 Compiler OSP  9.5.2017
   enter("LED", OSG.SProc, 5, NIL);
   enter("GET", OSG.SProc, 6, NIL);
   enter("PUT", OSG.SProc, 7, NIL);
+  enter("HALT", OSG.SProc, 8, NIL);
   enter("BOOLEAN", OSG.Typ, 0, OSG.boolType);
   enter("INTEGER", OSG.Typ, 1, OSG.intType);
   universe := topScope;
