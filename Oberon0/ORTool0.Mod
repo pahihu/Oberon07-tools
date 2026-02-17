@@ -81,7 +81,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     IF L.ToWords() # 0 THEN
       gf := GF.ToBytes();
       String(" fixing globals, globalFrame="); Int(gf, 5); Ln;
-      code[GF.ToWords()] := gf + 4;
+      (*embed the GF ptr in the code section*)
+      code[wcode.ToWords()] := gf; gf := wcode.ToBytes(); wcode.Next;
       L.IncBy(modbase);
       WHILE (L.ToWords() - modbase.ToWords()) # 0 DO
         Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Ln;
@@ -89,7 +90,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         code[L.ToWords()] := (code[L.ToWords()] DIV 10000H) * 10000H + gf;
         L.Dec(L1)
       END;
-      GF.Inc(1 + (ndata+3) DIV 4)
+      GF.Inc((ndata+3) DIV 4)
     END
   END FixGlobals;
 
