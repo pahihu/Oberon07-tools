@@ -4,24 +4,24 @@ MODULE IO;
   END OpenInput;
   
   PROCEDURE ReadInt*(VAR x: INTEGER);
-  BEGIN GET(-1,x)
+  BEGIN GET(-4,x)
   END ReadInt;
 
   PROCEDURE eot*;
     VAR x: INTEGER;
-  BEGIN GET(-2,x)
+  BEGIN GET(-8,x)
   END eot;
   
   PROCEDURE WriteChar*(x: INTEGER);
-  BEGIN PUT(-2,x)
+  BEGIN PUT(-8,x)
   END WriteChar;
   
   PROCEDURE WriteInt*(x, y: INTEGER);
-  BEGIN PUT(-1,x)
+  BEGIN PUT(-4,x)
   END WriteInt;
   
   PROCEDURE WriteLn*;
-  BEGIN PUT(-3,1)
+  BEGIN PUT(-12,1)
   END WriteLn;
   
 END IO.

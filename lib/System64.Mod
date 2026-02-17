@@ -2,11 +2,11 @@ MODULE System;
   IMPORT SYSTEM, Files, In;
 
   TYPE
-    Integer* = INTEGER;
-    Address* = LONGINT;
     INT16* = SHORTINT;
     INT32* = INTEGER;
     INT64* = LONGINT;
+    Integer* = INT32;
+    Address* = INT64;
     Byte* = INT16; (*[0,255]*)
 
   PROCEDURE Ash*(x,y: LONGINT): Integer;

@@ -155,6 +155,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           END
         ELSE
           IF adr >= 0 THEN (*store*)
+            ASSERT(adr >= pc.ToWords()); (*read-only code*)
             IF ODD(ASH(IR,-28)) THEN (*v: byte access*)
               M[adr] := InsertByte(M[adr], R[a] MOD 100H, badr MOD 4)
             ELSE M[adr] := R[a];
@@ -176,10 +177,12 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           ELSE PC := R[IR MOD 10H] DIV 4
           END
         END
-      END
-    UNTIL IR = 0E7FFFFFFH; (* B -1 *)
+      END;
+    UNTIL IR = -18000001H; (* B -1 *)
     Texts.Append(Oberon.Log, W.buf)
   END Execute;
+
+BEGIN In.Open
 END RISC.
 
 (* vim:set ts=2 sw=2 et: *)

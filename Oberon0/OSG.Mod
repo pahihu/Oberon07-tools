@@ -427,7 +427,7 @@ MODULE OSG; (* NW 19.12.94 / 20.10.07 / OSGX  9.5.2017*)
 
   PROCEDURE SysGet*(VAR x, y: Item);
   BEGIN load(x); Put2(Ldw, x.r, x.r, 0);
-    load(y); Put2(Stw, x.r, y.r, 0);
+    loadAdr(y); Put2(Stw, x.r, y.r, 0);
     DEC(RH, 2); invalSB
   END SysGet;
 

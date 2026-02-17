@@ -2,10 +2,10 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   IMPORT Files := Files07, Texts, Oberon, Sys := System, Disasm, RISC, RISCEmu, WA := WAddress;
 
   CONST TAB = 9X;
-    MaxCode = 8192;
     MaxModules = 8;
     MaxExports = 64;
     MaxImports = 16;
+    MaxMem = 8192;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -26,7 +26,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   VAR W: Texts.Writer;
     Form: INTEGER;  (*result of ReadType*)
-    code: ARRAY MaxCode OF LONGINT;
+    MaxCode: INTEGER;
+    GF: WA.ADDR;
+    code: ARRAY MaxMem OF LONGINT;
     wcode: WA.ADDR;
     execute, debug: BOOLEAN;
     mods: ARRAY MaxModules OF Module;
@@ -72,15 +74,22 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   (* ---------------------------------------------------*)
 
-  PROCEDURE FixGlobals(modbase, L: WA.ADDR; globalFrame: LONGINT);
+  PROCEDURE FixGlobals(modbase, L: WA.ADDR; ndata: LONGINT);
     VAR L1: LONGINT;
-  BEGIN String(" fixing globals "); Ln;
-    L.IncBy(modbase);
-    WHILE (L.ToWords() - modbase.ToWords()) # 0 DO
-      Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Ln;
-      L1 := code[L.ToWords()] MOD 10000H;
-      code[L.ToWords()] := (code[L.ToWords()] DIV 10000H) * 10000H + globalFrame;
-      L.Dec(L1)
+        gf: LONGINT;
+  BEGIN
+    IF L.ToWords() # 0 THEN
+      gf := GF.ToBytes();
+      String(" fixing globals, globalFrame="); Int(gf, 5); Ln;
+      code[GF.ToWords()] := gf + 4;
+      L.IncBy(modbase);
+      WHILE (L.ToWords() - modbase.ToWords()) # 0 DO
+        Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Ln;
+        L1 := code[L.ToWords()] MOD 10000H;
+        code[L.ToWords()] := (code[L.ToWords()] DIV 10000H) * 10000H + gf;
+        L.Dec(L1)
+      END;
+      GF.Inc(1 + (ndata+3) DIV 4)
     END
   END FixGlobals;
 
@@ -176,7 +185,6 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       String("decode "); String(S.s); F := Files.Old(S.s);
       IF F # NIL THEN Option(S);
         Files.Set(R, F, 0); Files.ReadString(R, name); Ln; String(name);
-        wdata.Aligned(ndata); wcode.IncBy(wdata); (*add global data*)
         COPY(name, mods[nmods].name);
         Files.ReadInt(R, key); Hex(key); Read(R, class); Int(class, 4); (*version*)
         mods[nmods].key := key;
@@ -247,7 +255,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         Files.Read(R, ch);
         IF ch = "O" THEN
           wfixorgD.FromWords(fixorgD); wfixlist.FromWords(fixlist);
-          FixGlobals(modbase, wfixorgD, wcode.ToBytes());
+          FixGlobals(modbase, wfixorgD, ndata);
           FixImports(modbase, wfixlist, nimps, imps);
           INC(nmods)
         ELSE String("format eror"); Ln
@@ -258,8 +266,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       Texts.Append(Oberon.Log, W.buf); Texts.Scan(S)
     END;
     IF execute THEN
-        IF wcode.ToWords() + wdata.ToWords() > MaxCode THEN
-          String(" code + data > "); Int(MaxCode, 0); Ln
+        IF wcode.ToWords() > MaxCode THEN
+          String(" code > "); Int(MaxCode, 0); Ln
         ELSE
           (*call last entry*)
           wentry.FromBytes(entry); wentry.IncBy(modbase);
@@ -275,6 +283,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
   nmods := 0; nexports := 0;
+  wcode.FromWords(0);
+  MaxCode := 2048; GF.FromWords(2048);
 
   verbose := FALSE; Oberon.Run
 END ORTool0.

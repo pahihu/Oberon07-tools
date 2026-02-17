@@ -7,7 +7,7 @@ MODULE Infinite;
   BEGIN REPEAT UNTIL FALSE
   END TestUntil;
 
-BEGIN TestUntil; HALT
+BEGIN WriteChar(65); WriteLn; HALT
 END Infinite.
 
 (* vim:set ts=2 sw=2 et: *)
