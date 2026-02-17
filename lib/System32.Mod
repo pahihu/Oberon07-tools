@@ -9,11 +9,11 @@ MODULE System;
     Address* = INT32;
     Byte* = INT16; (*[0,255]*)
 
-  PROCEDURE Ash(x,y: LONGINT): Integer;
+  PROCEDURE Ash*(x,y: LONGINT): Integer;
   BEGIN RETURN ASH(x,y)
   END Ash;
 
-  PROCEDURE InInt(VAR x: Integer);
+  PROCEDURE InInt*(VAR x: Integer);
   BEGIN In.LongInt(x)
   END InInt;
 

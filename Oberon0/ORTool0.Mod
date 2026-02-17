@@ -82,12 +82,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       gf := GF.ToBytes();
       String(" fixing globals, globalFrame="); Int(gf, 5); Ln;
       (*embed the GF ptr in the code section*)
-      code[wcode.ToWords()] := gf; gf := wcode.ToBytes(); wcode.Next;
       L.IncBy(modbase);
       WHILE (L.ToWords() - modbase.ToWords()) # 0 DO
         Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Ln;
         L1 := code[L.ToWords()] MOD 10000H;
-        code[L.ToWords()] := (code[L.ToWords()] DIV 10000H) * 10000H + gf;
+        code[L.ToWords()] := 4C000000H + gf; (*MOV SB,imm*)
         L.Dec(L1)
       END;
       GF.Inc((ndata+3) DIV 4)
@@ -255,9 +254,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         Files.ReadInt(R, data); String("entry = "); Int(data, 8); Ln; entry := data;
         Files.Read(R, ch);
         IF ch = "O" THEN
-          wfixorgD.FromWords(fixorgD); wfixlist.FromWords(fixlist);
-          FixGlobals(modbase, wfixorgD, ndata);
-          FixImports(modbase, wfixlist, nimps, imps);
+          IF execute THEN
+            wfixorgD.FromWords(fixorgD); wfixlist.FromWords(fixlist);
+            FixGlobals(modbase, wfixorgD, ndata);
+            FixImports(modbase, wfixlist, nimps, imps);
+          END;
           INC(nmods)
         ELSE String("format eror"); Ln
         END
@@ -279,7 +280,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END DecObj;
 
   PROCEDURE Help*;
-  BEGIN String("usage: ORTool0 DecObj <filename> [/x]"); Ln
+  BEGIN String("usage: ORTool0 DecObj <file.rsc>... [/xd]"); Ln
   END Help;
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;

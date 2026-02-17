@@ -21,9 +21,8 @@ MODULE Permutation;
   PROCEDURE Permutations*;
     VAR i: INTEGER;
   BEGIN OpenInput; n := 0;
-    WHILE n < 3 DO ReadInt(a[n]); n := n+1 END ;
-    (*perm(n)*)
-    i := 0; WHILE i < n DO WriteInt(a[i], 5); i := i+1 END;
+    WHILE ~eot() DO ReadInt(a[n]); n := n+1 END ;
+    perm(n)
   END Permutations;
 
 BEGIN Permutations; HALT

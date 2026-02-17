@@ -127,5 +127,7 @@ MODULE TestOberon0;
     END
   END Powers;
 
-BEGIN Permutations; HALT
+BEGIN (*Permutations; MagicSquares; PrimeNumbers;*)
+  (*Fractions;*) Powers;
+HALT
 END TestOberon0.
