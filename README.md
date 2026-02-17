@@ -11,7 +11,7 @@ The original sources depend on the assumption, that `SIZE(INTEGER) = 4`. Hence I
 ***
 
 The directories:
-- `Oberon0/` source code from [Compiler Construction](https://people.inf.ethz.ch/wirth/CompilerConstruction/index.html). `OSP` in extended mode allows exported procedures with parameters, HALT procedure, GET/PUT to access memory. `IO.Mod.txt` contains the source code for the IO module, it can be executed using `ORTool0` with integrated RISC simulator.
+- `Oberon0/` source code from [Compiler Construction](https://people.inf.ethz.ch/wirth/CompilerConstruction/index.html). `OSP` in extended mode allows exported procedures with parameters, HALT procedure, GET/PUT to access memory. `IO.Mod.txt` contains the source code for the IO module, it can be executed using `ORTool0` with the integrated RISC5 simulator.
 - `Oberon07/` ORP, ORTool, ORL, ORX, Depends.
 - `Oberon07/PO2013/` sources of [Project Oberon 2013](https://people.inf.ethz.ch/wirth/ProjectOberon/index.html).
 - `Oberon07/riscw/` Windows 64bit binary of Peter De Wachter's [oberon-risc-emu](https://github.com/pdewacht/oberon-risc-emu).
