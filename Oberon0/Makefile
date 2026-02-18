@@ -21,7 +21,7 @@ BINS=$(MODS:.Mod=$(EXE))
 all: $(BINS) IO.dump TestOberon0.dump Permutation.dump
 
 run: ORTool0$(EXE) IO.rsc TestOberon0.rsc
-	./ORTool0 DecObj IO.rsc TestOberon0.rsc/x
+	./ORTool0 Execute IO.rsc TestOberon0.rsc
 
 clean:
 	$(RM) sym/* obj/*

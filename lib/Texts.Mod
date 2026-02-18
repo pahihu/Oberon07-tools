@@ -183,6 +183,10 @@ MODULE Texts;
   BEGIN NEW(W.buf); W.buf.cap := 64; W.buf.len := 0; NEW(W.buf.s, W.buf.cap);
     Files.Set(W.rider, Files.New(""), 0)
   END OpenWriter;
+
+  PROCEDURE ClearWriter* (VAR W: Writer);
+  BEGIN W.buf.len := 0
+  END ClearWriter;
   
   PROCEDURE Write* (VAR W: Writer; ch: CHAR);
     VAR s: StringPtr;
