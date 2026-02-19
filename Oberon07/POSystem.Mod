@@ -315,7 +315,7 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
 BEGIN Texts.OpenWriter(W);
   Kernel.OpenImage("RISC.img");
   IF Kernel.res # Kernel.done THEN
-    Texts.WriteString(W, " cannot open RISC5.img");
+    Texts.WriteString(W, " cannot open RISC.img");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   ELSE
     Files.Init;
