@@ -18,7 +18,7 @@ BINS=$(MODS:.Mod=$(EXE))
 	./ORTool0 DecObj $< > $@
 
 
-all: $(BINS) IO.dump TestOberon0.dump Permutation.dump
+all: $(BINS) IO.dump TestOberon0.dump Permutation.dump Fib.dump
 
 run: ORTool0$(EXE) IO.rsc TestOberon0.rsc
 	./ORTool0 Execute IO.rsc TestOberon0.rsc
@@ -34,6 +34,7 @@ IO.rsc: OSP$(EXE) IO.Mod.txt
 TestOberon0.rsc: OSP$(EXE) TestOberon0.Mod.txt
 TestOberon0.dump: ORTool0$(EXE) TestOberon0.rsc
 Permutation.rsc: OSP$(EXE) Permutation.Mod.txt
+Fib.rsc: OSP$(EXE) Fib.Mod.txt
 include Makefile.dep
 
 # vim:set ts=4 sw=4 noet:

@@ -1,0 +1,19 @@
+MODULE Fib;
+  VAR ret: INTEGER;
+    sp: INTEGER;
+    S: ARRAY 32 OF INTEGER;
+
+  PROCEDURE fib(x: INTEGER);
+    VAR tmp: INTEGER;
+  BEGIN IF x < 2 THEN ret := x
+    ELSE
+      fib(x-1); (*push*) sp := sp+1; S[sp] := ret;
+      fib(x-2); ret := ret+S[sp]; sp := sp-1
+    END
+  END fib;
+
+BEGIN OpenInput; ReadInt(ret);
+  IF ret < 32 THEN fib(ret); WriteInt(ret,0); WriteLn
+  ELSE WriteChar(64)
+  END; HALT
+END Fib.

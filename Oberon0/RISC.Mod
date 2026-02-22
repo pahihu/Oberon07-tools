@@ -15,6 +15,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     N, Z, Y, V: BOOLEAN;  (*condition flags*)
     R: ARRAY 16 OF LONGINT;
     H: LONGINT;  (*aux register for division*)
+    cnt: LONGINT; (*number of instr.*)
 
   PROCEDURE Sign(a: LONGINT): INTEGER;
     VAR ret: INTEGER;
@@ -177,12 +178,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           ELSE PC := R[IR MOD 10H] DIV 4
           END
         END
-      END;
-    UNTIL IR = -18000001H; (* B -1 *)
+      END; INC(cnt)
+    UNTIL IR = -18000001H; (*HALT B -1*)
+    Texts.WriteString(W, "#instr="); Texts.WriteInt(W, cnt, 0); Texts.WriteLn(W);
     Texts.Append(Oberon.Log, W.buf)
   END Execute;
 
-BEGIN In.Open
+BEGIN cnt := 0; In.Open
 END RISC.
 
 (* vim:set ts=2 sw=2 et: *)
