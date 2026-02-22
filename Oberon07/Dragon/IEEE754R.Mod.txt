@@ -1,0 +1,29 @@
+MODULE IEEE754R; (*jr 16.7.2024*)
+
+(*
+Right, the same question can be asked for FLT(n).
+
+The limits of FLOOR and FLT are not described in the Oberon report, as 
+it is implementation dependent.
+Even the number of bytes of an INTEGER is not defined in Oberon; however,
+you can detect the implementation limit with SYSTEM.SIZE(INTEGER).
+
+Only BYTE is defined in Oberon to hold values from 0..255.
+
+The Verilog implementation of FLT(n) works for n < 2^24. So, for all 
+INTEGER n > 2^24, FLT returns wrong results.
+*)
+
+  IMPORT Out;
+  
+  CONST pi = 40490FDBR; (* pi is between 40490FDAR and 40490FDBR, closer to the latter *)
+
+  PROCEDURE Test*;
+  BEGIN
+    Out.Real(40000001R, 12);
+    Out.RealFix(40000001R, 12, 7)
+    IF FLT(2) = 40000000R THEN Out.String(“FLT okay”) END;
+    IF 3.14159265 = pi THEN Out.String(“compiler okay”) ELSE Out.String("compiler bad“) END;
+  END Test;
+  
+END IEEE754R.

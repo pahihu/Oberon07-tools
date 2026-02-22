@@ -1,0 +1,31 @@
+MODULE Out;
+  IMPORT Texts, Oberon;
+  
+  VAR W: Texts.Writer;
+  
+  PROCEDURE String*(s: ARRAY OF CHAR);
+  BEGIN Texts.WriteString(W, s)
+  END String;
+
+  PROCEDURE Int*(x, y: INTEGER);
+  BEGIN Texts.WriteInt(W, x, y)
+  END Int;
+
+  PROCEDURE Real*(x:REAL; y: INTEGER);
+  BEGIN Texts.WriteReal(W, x, y)
+  END Real;
+
+  PROCEDURE RealFix*(x:REAL; y,z: INTEGER);
+  BEGIN Texts.WriteRealFix(W, x, y, z)
+  END RealFix;
+  
+  PROCEDURE Hex*(x: INTEGER);
+  BEGIN Texts.WriteHex(W, x)
+  END Hex;
+
+  PROCEDURE Ln*;
+  BEGIN Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+  END Ln;
+  
+BEGIN Texts.OpenWriter(W)
+END Out.

@@ -1,0 +1,23 @@
+MODULE Multiplication; (*hk 16.7.2024*)
+(* 14.1.2023 "REAL I/O in module Texts, https://github.com/hansklav/Oberon-REAL-IO. *)
+  IMPORT Out;
+
+  PROCEDURE Test*;
+    VAR r: REAL;
+  BEGIN
+    r := 1.45052123;
+    Out.RealFix( r*1.3788146, 14, 7); Out.Hex(ORD(r*1.3788146)); Out.Ln;
+    Out.RealFix( r*1.3788147, 14, 7); Out.Hex(ORD(r*1.3788147)); Out.Ln;
+    Out.RealFix( r*1.3788148, 14, 7); Out.Hex(ORD(r*1.3788148)); Out.Ln;
+    Out.Ln;
+    Out.Real( r*1.3788146, 14);       Out.Hex(ORD(r*1.3788146)); Out.Ln;
+    Out.Real( r*1.3788147, 14);       Out.Hex(ORD(r*1.3788147)); Out.Ln;
+    Out.Real( r*1.3788148, 14);       Out.Hex(ORD(r*1.3788148)); Out.Ln;
+    Out.Ln;
+    Out.RealFix( FLT(2), 14, 7);      Out.Hex(ORD(FLT(2))); Out.Ln;
+    Out.RealFix( FLT(7), 14, 7);      Out.Hex(ORD(FLT(7))); Out.Ln;
+    Out.RealFix( 2.0, 14, 7);         Out.Hex(ORD(2.0));    Out.Ln;
+    Out.RealFix( 7.0, 14, 7);         Out.Hex(ORD(7.0));    Out.Ln
+  END Test;
+
+END Multiplication.Test

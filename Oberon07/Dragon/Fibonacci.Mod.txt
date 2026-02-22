@@ -1,0 +1,16 @@
+MODULE Fibonacci;
+  IMPORT Out, SYSTEM;
+
+  PROCEDURE fib(n: INTEGER): INTEGER;
+    VAR ret: INTEGER;
+  BEGIN IF n < 2 THEN ret := n
+    ELSE ret := fib(n-1) + fib(n-2)
+    END;
+    RETURN ret
+  END fib;
+
+  PROCEDURE Do*;
+  BEGIN Out.Int(fib(23), 0)
+  END Do;
+
+END Fibonacci.
