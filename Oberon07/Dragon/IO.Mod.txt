@@ -1,0 +1,29 @@
+MODULE IO;
+  IMPORT SYSTEM;
+
+  PROCEDURE OpenInput*;
+  BEGIN
+  END OpenInput;
+  
+  PROCEDURE ReadInt*(VAR x: INTEGER);
+  BEGIN SYSTEM.GET(-4,x)
+  END ReadInt;
+
+  PROCEDURE eot*(): INTEGER;
+    VAR x: INTEGER;
+  BEGIN SYSTEM.GET(-8,x); RETURN x
+  END eot;
+  
+  PROCEDURE WriteChar*(x: INTEGER);
+  BEGIN SYSTEM.PUT(-8,x)
+  END WriteChar;
+  
+  PROCEDURE WriteInt*(x, y: INTEGER);
+  BEGIN SYSTEM.PUT(-4,x)
+  END WriteInt;
+  
+  PROCEDURE WriteLn*;
+  BEGIN SYSTEM.PUT(-12,1)
+  END WriteLn;
+  
+END IO.

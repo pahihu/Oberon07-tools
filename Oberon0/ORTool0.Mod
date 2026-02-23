@@ -115,7 +115,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       WHILE (L.ToWords() - modbase.ToWords()) # 0 DO
         Tab; Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Ln;
         L1 := code[L.ToWords()] MOD 10000H;
-        code[L.ToWords()] := 4C000000H + gf; (*MOV SB,imm*)
+        code[L.ToWords()] := (code[L.ToWords()] DIV 1000000H - 40H) * 1000000H + gf; (*LDR => MOV reg,imm*)
         L.Dec(L1)
       END;
       GF.Inc((ndata+3) DIV 4)

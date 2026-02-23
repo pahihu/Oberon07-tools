@@ -1,0 +1,21 @@
+MODULE Fib;
+  IMPORT IO;
+  VAR n: INTEGER;
+
+  PROCEDURE fib(x: INTEGER): INTEGER;
+    VAR ret: INTEGER;
+  BEGIN IF x < 2 THEN ret := x
+    ELSE ret := fib(x-1) + fib(x-2)
+    END;
+    RETURN ret
+  END fib;
+
+  PROCEDURE HALT;
+  BEGIN REPEAT UNTIL FALSE;
+  END HALT;
+
+BEGIN IO.OpenInput; IO.ReadInt(n);
+  IF n < 32 THEN n := fib(n); IO.WriteInt(n,0); IO.WriteLn
+  ELSE IO.WriteChar(64)
+  END; HALT
+END Fib.
