@@ -17,24 +17,51 @@ MODULE ObForth;
       Current: INTEGER;
       Base: LONGINT;
       DoIt: PROCEDURE (VAR s:ARRAY OF CHAR);
+      S: ARRAY 32 OF CHAR;
 
-  PROCEDURE Hex(x: LONGINT);
-    VAR s: ARRAY 32 OF CHAR;
-        i, j, d: LONGINT;
+  PROCEDURE Dot;
+    VAR s: ARRAY 128 OF CHAR;
+        x, i, j, d: LONGINT;
         ch: CHAR;
-  BEGIN i := 0;
+        sign: BOOLEAN;
+  BEGIN x := VFC.DPop();
+    i := 0; sign := FALSE; IF x < 0 THEN sign := TRUE; x := -x END;
     REPEAT
-      d := x MOD 10H; x := x DIV 10H;
-      IF d < 0 THEN d := d + 16 END; (*XXX temporary fix*)
-      IF d > 9 THEN ch := CHR(ORD("A") + d - 10) ELSE ch := CHR(ORD("0") + d) END;
-      s[i] := ch; INC(i);
+      d := x MOD Base; x := x DIV Base;
+      IF d > 9 THEN d := ORD("A")+d-10 ELSE d := ORD("0") + d END;
+      s[i] := CHR(d); INC(i);
     UNTIL x = 0;
-    DEC(i);
-    FOR j := 0 TO i DIV 2 DO
+    IF sign THEN s[i] := "-"; INC(i) END;
+    DEC(i); FOR j := 0 TO i DIV 2 DO
       ch := s[j]; s[j] := s[i-j]; s[i-j] := ch
     END;
     s[i+1] := 0X;
-    Out.String(s);
+    Out.String(s); Out.Char(" ")
+  END Dot;
+
+  PROCEDURE IsNumber(VAR s: ARRAY OF CHAR; VAR x: LONGINT): BOOLEAN;
+    VAR done: BOOLEAN;
+        i, b, d: LONGINT;
+        sign: BOOLEAN;
+        ch: CHAR;
+  BEGIN done := TRUE; b := Base; sign := FALSE;
+    i := 0; x := 0;
+    IF s[i] = "-" THEN sign := TRUE; INC(i) END;
+    IF s[i] = "$" THEN b := 16; INC(i) END;
+    WHILE (s[i] # 0X) & done DO
+      ch := s[i]; INC(i);
+      IF ch > "@" THEN d := ORD(ch) - ORD("A") ELSE d := ORD(ch) - ORD("0") END;
+      IF (0 <= d) & (d < b) THEN x := b * x + d
+      ELSE done := FALSE
+      END;
+    END;
+    IF sign THEN x := -x END;
+    RETURN done
+  END IsNumber;
+
+  PROCEDURE Hex(x: LONGINT);
+    VAR sav: LONGINT;
+  BEGIN sav := Base; Base := 16; VFC.DPush(x); Dot; Base := sav
   END Hex;
 
   PROCEDURE Dump(w: Word);
@@ -122,49 +149,6 @@ MODULE ObForth;
     RETURN ret;
   END Find;
 
-  PROCEDURE Dot;
-    VAR s: ARRAY 128 OF CHAR;
-        x, i, j, d: LONGINT;
-        ch: CHAR;
-        sign: BOOLEAN;
-  BEGIN x := VFC.DPop();
-    i := 0; sign := FALSE; IF x < 0 THEN sign := TRUE; x := -x END;
-    REPEAT
-      d := x MOD Base;
-      IF d < 0 THEN INC(d, Base) END;
-      IF d > 9 THEN ch := CHR(ORD("A")+d-10) ELSE ch := CHR(ORD("0") + d) END;
-      s[i] := ch; INC(i);
-      x := x DIV Base;
-    UNTIL x = 0;
-    IF sign THEN s[i] := "-"; INC(i) END;
-    DEC(i);
-    FOR j := 0 TO i DIV 2 DO
-      ch := s[j]; s[j] := s[i-j]; s[i-j] := ch
-    END;
-    s[i+1] := 0X;
-    Out.String(s); Out.Char(" ")
-  END Dot;
-
-  PROCEDURE IsNumber(VAR s: ARRAY OF CHAR; VAR x: LONGINT): BOOLEAN;
-    VAR done: BOOLEAN;
-        i, b, d: LONGINT;
-        sign: BOOLEAN;
-        ch: CHAR;
-  BEGIN done := TRUE; b := Base; sign := FALSE;
-    i := 0; x := 0;
-    IF s[i] = "-" THEN sign := TRUE; INC(i) END;
-    IF s[i] = "$" THEN b := 16; INC(i) END;
-    WHILE (s[i] # 0X) & done DO
-      ch := s[i]; INC(i);
-      IF ch > "@" THEN d := ORD(ch) - ORD("A") ELSE d := ORD(ch) - ORD("0") END;
-      IF (0 <= d) & (d < b) THEN x := b * x + d
-      ELSE done := FALSE
-      END;
-    END;
-    IF sign THEN x := -x END;
-    RETURN done
-  END IsNumber;
-
   PROCEDURE Interpret(VAR s: ARRAY OF CHAR);
     VAR w: Word;
         x: LONGINT;
@@ -172,7 +156,7 @@ MODULE ObForth;
     Dump(w);
     IF w # NIL THEN VFC.Execute(w.cfa)
     ELSIF IsNumber(s, x) THEN VFC.DPush(x)
-    ELSE Out.String(s); Out.String(" ?")
+    ELSE Out.String(s); Out.String("? ")
     END
   END Interpret;
 
@@ -185,14 +169,13 @@ MODULE ObForth;
       w := Find(Dict[Forth], s);
       IF w # NIL THEN Comma(w.cfa)
       ELSIF IsNumber(s, x) THEN Comma(VFC.OpLit); Comma(x)
-      ELSE Out.String(s); Out.String(" ?")
+      ELSE Out.String(s); Out.String("? ")
       END
     END
   END Compile;
 
   PROCEDURE Colon;
-    VAR s: ARRAY 32 OF CHAR;
-  BEGIN Parse(s); Header(s); DoIt := Compile;
+  BEGIN Parse(S); Header(S); DoIt := Compile;
   END Colon;
 
   PROCEDURE Exit;
@@ -240,16 +223,24 @@ MODULE ObForth;
   BEGIN Comma(VFC.OpNext); VFC.Comma
   END Next;
 
+  PROCEDURE Constant;
+  BEGIN Parse(S); Header(S); Comma(VFC.OpLit); VFC.Comma; Comma(VFC.OpExit)
+  END Constant;
+
+  PROCEDURE Variable;
+  BEGIN Parse(S); Header(S); Comma(VFC.OpLit);
+    Comma(VFC.dictPtr+1); Comma(VFC.OpExit); Comma(0)
+  END Variable;
+
   PROCEDURE Test;
-    VAR s: ARRAY 32 OF CHAR;
-        w: Word;
+    VAR w: Word;
         x: LONGINT;
   BEGIN DoIt := Interpret;
-    NextChar; Parse(s);
-    WHILE s # "BYE" DO
-      Out.String(s); Out.Ln;
-      DoIt(s);
-      Parse(s)
+    NextChar; Parse(S);
+    WHILE S # "BYE" DO
+      Out.String(S); Out.Ln;
+      DoIt(S);
+      Parse(S)
     END
   END Test;
 
@@ -278,6 +269,9 @@ MODULE ObForth;
     Define("-", VFC.OpSub);
     Define("*", VFC.OpMul);
     Define("/", VFC.OpDiv);
+    Define("<", VFC.OpLess);
+    Define("=", VFC.OpEqual);
+    Define(">", VFC.OpGreater);
     Define("MOD", VFC.OpMod);
     Define("AND", VFC.OpAnd);
     Define("OR", VFC.OpOr);
@@ -289,6 +283,8 @@ MODULE ObForth;
     Define("DROP", VFC.OpDrop);
     Define("KEY", VFC.OpKey);
     Define("EMIT", VFC.OpEmit);
+    DefProc("CONSTANT", Constant);
+    DefProc("VARIABLE", Variable);
 
     DefProc(":", Colon);
     DefProc(".", Dot)

@@ -10,6 +10,7 @@ MODULE VFC;
     OpDup* = 13; OpSwap* = 14; OpOver* = 15; OpDrop* = 16; OpRPush* = 17; OpRFetch* = 18; OpRPop* = 19;
     OpKey* = 20; OpEmit* = 21;
     Op0Branch* = 22; OpBranch* = 23; OpNext* = 24; OpExit* = 25;
+    OpLess* = 26; OpEqual* = 27; OpGreater* = 28;
     OpLast* = 31;
 
   TYPE
@@ -113,10 +114,13 @@ MODULE VFC;
         | OpRPop: Push(T); T := RPop()
         | OpKey: (*IO*) Push(T); In.Char(ch); T := ORD(ch)
         | OpEmit: Out.Char(CHR(T MOD 100H)); T := Pop()
-        | Op0Branch: IF T = 0 THEN P := M[P] ELSE INC(P) END
+        | Op0Branch: IF T = 0 THEN P := M[P] ELSE INC(P) END; T := Pop();
         | OpBranch: P := M[P]
-        | OpNext: W := R[rp]; DEC(W); IF W # 0 THEN P := M[P] ELSE W := RPop(); INC(P) END
+        | OpNext: W := R[rp]; DEC(W); IF W # 0 THEN R[rp] := W; P := M[P] ELSE W := RPop(); INC(P) END
         | OpExit: P := RPop()
+        | OpLess: W := Pop(); IF W < T THEN T := -1 ELSE T := 0 END
+        | OpEqual: W := Pop(); IF W = T THEN T := -1 ELSE T := 0 END
+        | OpGreater: W := Pop(); IF W > T THEN T := -1 ELSE T := 0 END
         ELSE
           IF (OpLast < op) & (op < MaxMem) THEN RPush(P); P := op
           ELSE proc := SYSTEM.VAL(Procedure,op); proc

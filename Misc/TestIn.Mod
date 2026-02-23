@@ -18,7 +18,7 @@ BEGIN Out.Open; In.Open;
         Out.String (" cannot read integer ");
       ELSE
         Out.String ("i=["); Out.Int (i, 0); Out.String ("]"); Out.Ln;
-        Out.String ("i MOD 10H="); Out.Int (-i MOD 10H, 0); Out.Ln;
+        Out.String ("i MOD 10H="); Out.Int ((-i) MOD 10H, 0); Out.Ln;
         Out.String ("i Mod 10H="); Out.Int (Mod(-i, 10H), 0); Out.Ln;
       END;
     END
