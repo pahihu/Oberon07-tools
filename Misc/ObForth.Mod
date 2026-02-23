@@ -1,6 +1,8 @@
 MODULE ObForth;
   IMPORT SYSTEM, Out, Unix, CharInfo, VFC;
 
+  CONST Forth = 0; Macro = 1;
+
   TYPE
     String = POINTER TO ARRAY OF CHAR;
     Word = POINTER TO WordDesc;
@@ -11,9 +13,10 @@ MODULE ObForth;
     END;
 
   VAR ch: CHAR;
-      dictPtr: LONGINT;
-      current, macro: Word;
-      base: LONGINT;
+      Dict: ARRAY 2 OF Word;
+      Current: INTEGER;
+      Base: LONGINT;
+      DoIt: PROCEDURE (VAR s:ARRAY OF CHAR);
 
   PROCEDURE Hex(x: LONGINT);
     VAR s: ARRAY 32 OF CHAR;
@@ -54,23 +57,23 @@ MODULE ObForth;
 
   (* ---------------------------------------------------------------- *)
 
-  PROCEDURE Next;
+  PROCEDURE NextChar;
   BEGIN IF Unix.feof(Unix.stdin) # 0 THEN ch := 0X
     ELSE ch := CHR(Unix.fgetc(Unix.stdin))
     END
-  END Next;
+  END NextChar;
 
   PROCEDURE IsDelim(ch: CHAR): BOOLEAN;
   BEGIN RETURN CharInfo.IsSpace(ch) OR CharInfo.IsControl(ch)
   END IsDelim;
 
   PROCEDURE Skip;
-  BEGIN WHILE IsDelim(ch) DO Next END
+  BEGIN WHILE IsDelim(ch) DO NextChar END
   END Skip;
 
   PROCEDURE Scan(VAR s: ARRAY OF CHAR);
     VAR i: INTEGER;
-  BEGIN i := 0; WHILE ~IsDelim(ch) DO s[i] := ch; INC(i); Next END; s[i] := 0X
+  BEGIN i := 0; WHILE ~IsDelim(ch) DO s[i] := ch; INC(i); NextChar END; s[i] := 0X
   END Scan;
 
   PROCEDURE Parse(VAR s: ARRAY OF CHAR);
@@ -82,18 +85,33 @@ MODULE ObForth;
   BEGIN i := 0; WHILE (i < LEN(s)) & (s[i] # 0X) DO INC(i) END; RETURN i
   END Length;
 
-  PROCEDURE Define(s: ARRAY OF CHAR; op: LONGINT);
+  PROCEDURE Comma(x: LONGINT);
+  BEGIN VFC.DPush(x); VFC.Comma
+  END Comma;
+
+  PROCEDURE CommaProc(x: VFC.Procedure);
+  BEGIN VFC.DPushProc(x); VFC.Comma
+  END CommaProc;
+
+  PROCEDURE Header(VAR s: ARRAY OF CHAR);
     VAR d: Word;
-  BEGIN NEW(d); NEW(d.name, Length(s) + 1); COPY(s, d.name^); d.link := current;
-    d.cfa := dictPtr;
-    Out.String("DEFINE "); Out.String(s); Out.Char(" "); Hex(op); Out.String(" @ "); Out.Int(dictPtr, 0); Out.Ln;
-    VFC.Put(dictPtr, op); VFC.Put(dictPtr+1, VFC.OpExit); INC(dictPtr, 2);
-    current := d
+  BEGIN NEW(d); NEW(d.name, Length(s) + 1); COPY(s, d.name^); d.link := Dict[Current];
+    d.cfa := VFC.dictPtr; Dict[Current] := d;
+    Out.String("HEADER "); Out.String(s); Out.String(" @ "); Out.Int(VFC.dictPtr, 0)
+  END Header;
+
+  PROCEDURE Define(s: ARRAY OF CHAR; op: LONGINT);
+  BEGIN Header(s); Out.String(" op="); Hex(op); Out.Ln;
+    Comma(op); Comma(VFC.OpExit);
   END Define;
 
-  PROCEDURE DefineProc(s: ARRAY OF CHAR; op: VFC.Procedure);
-  BEGIN Define(s, SYSTEM.VAL(LONGINT,op))
-  END DefineProc;
+  PROCEDURE DefProc(s: ARRAY OF CHAR; op: VFC.Procedure);
+  BEGIN Header(s); CommaProc(op); Comma(VFC.OpExit)
+  END DefProc;
+
+  PROCEDURE DefMacro(s: ARRAY OF CHAR; op: LONGINT);
+  BEGIN Header(s); Comma(VFC.OpLit); Comma(op); CommaProc(VFC.Comma); Comma(VFC.OpExit)
+  END DefMacro;
 
   PROCEDURE Find(dict: Word; VAR s: ARRAY OF CHAR): Word;
     VAR ret: Word;
@@ -112,11 +130,11 @@ MODULE ObForth;
   BEGIN x := VFC.DPop();
     i := 0; sign := FALSE; IF x < 0 THEN sign := TRUE; x := -x END;
     REPEAT
-      d := x MOD base;
-      IF d < 0 THEN INC(d, base) END;
+      d := x MOD Base;
+      IF d < 0 THEN INC(d, Base) END;
       IF d > 9 THEN ch := CHR(ORD("A")+d-10) ELSE ch := CHR(ORD("0") + d) END;
       s[i] := ch; INC(i);
-      x := x DIV base;
+      x := x DIV Base;
     UNTIL x = 0;
     IF sign THEN s[i] := "-"; INC(i) END;
     DEC(i);
@@ -132,14 +150,14 @@ MODULE ObForth;
         i, b, d: LONGINT;
         sign: BOOLEAN;
         ch: CHAR;
-  BEGIN done := TRUE; b := base; sign := FALSE;
+  BEGIN done := TRUE; b := Base; sign := FALSE;
     i := 0; x := 0;
     IF s[i] = "-" THEN sign := TRUE; INC(i) END;
     IF s[i] = "$" THEN b := 16; INC(i) END;
     WHILE (s[i] # 0X) & done DO
       ch := s[i]; INC(i);
       IF ch > "@" THEN d := ORD(ch) - ORD("A") ELSE d := ORD(ch) - ORD("0") END;
-      IF (0 < d) & (d < b) THEN x := b * x + d
+      IF (0 <= d) & (d < b) THEN x := b * x + d
       ELSE done := FALSE
       END;
     END;
@@ -147,29 +165,138 @@ MODULE ObForth;
     RETURN done
   END IsNumber;
 
+  PROCEDURE Interpret(VAR s: ARRAY OF CHAR);
+    VAR w: Word;
+        x: LONGINT;
+  BEGIN w := Find(Dict[Forth], s);
+    Dump(w);
+    IF w # NIL THEN VFC.Execute(w.cfa)
+    ELSIF IsNumber(s, x) THEN VFC.DPush(x)
+    ELSE Out.String(s); Out.String(" ?")
+    END
+  END Interpret;
+
+  PROCEDURE Compile(VAR s: ARRAY OF CHAR);
+    VAR w: Word;
+        x: LONGINT;
+  BEGIN w := Find(Dict[Macro], s);
+    IF w # NIL THEN VFC.Execute(w.cfa)
+    ELSE
+      w := Find(Dict[Forth], s);
+      IF w # NIL THEN Comma(w.cfa)
+      ELSIF IsNumber(s, x) THEN Comma(VFC.OpLit); Comma(x)
+      ELSE Out.String(s); Out.String(" ?")
+      END
+    END
+  END Compile;
+
+  PROCEDURE Colon;
+    VAR s: ARRAY 32 OF CHAR;
+  BEGIN Parse(s); Header(s); DoIt := Compile;
+  END Colon;
+
+  PROCEDURE Exit;
+  BEGIN Comma(VFC.OpExit)
+  END Exit;
+
+  PROCEDURE Semis;
+  BEGIN Exit; DoIt := Interpret;
+  END Semis;
+
+  PROCEDURE Begin;
+  BEGIN VFC.Here;
+  END Begin;
+
+  PROCEDURE Again;
+  BEGIN Comma(VFC.OpBranch); VFC.Comma;
+  END Again;
+
+  PROCEDURE If;
+  BEGIN Comma(VFC.Op0Branch); VFC.Here; Comma(0)
+  END If;
+
+  PROCEDURE Else;
+  BEGIN Comma(VFC.OpBranch); VFC.Here; Comma(0); VFC.Swap;
+    VFC.Here; VFC.Swap; VFC.Store
+  END Else;
+
+  PROCEDURE Then;
+  BEGIN VFC.Here; VFC.Swap; VFC.Store
+  END Then;
+
+  PROCEDURE While;
+  BEGIN If
+  END While;
+
+  PROCEDURE Repeat;
+  BEGIN VFC.Swap; Again; Then;
+  END Repeat;
+
+  PROCEDURE For;
+  BEGIN Comma(VFC.OpRPush); VFC.Here
+  END For;
+
+  PROCEDURE Next;
+  BEGIN Comma(VFC.OpNext); VFC.Comma
+  END Next;
+
   PROCEDURE Test;
     VAR s: ARRAY 32 OF CHAR;
         w: Word;
         x: LONGINT;
-  BEGIN Next; Parse(s);
+  BEGIN DoIt := Interpret;
+    NextChar; Parse(s);
     WHILE s # "BYE" DO
       Out.String(s); Out.Ln;
-      w := Find(current, s);
-      Dump(w);
-      IF w # NIL THEN VFC.Execute(w.cfa)
-      ELSIF IsNumber(s, x) THEN VFC.DPush(x)
-      ELSE Out.String(s); Out.String(" ?")
-      END;
+      DoIt(s);
       Parse(s)
     END
   END Test;
 
   PROCEDURE InitDict;
-  BEGIN Define("+", VFC.OpAdd); DefineProc(".", Dot)
+  BEGIN
+    Current := Macro;
+    DefProc(";", Semis);
+    DefProc("EXIT", Exit);
+    DefMacro(">R", VFC.OpRPush);
+    DefMacro("I", VFC.OpRFetch);
+    DefMacro("R>", VFC.OpRPop);
+    DefProc("BEGIN", Begin);
+    DefProc("AGAIN", Again);
+    DefProc("IF", If);
+    DefProc("ELSE", Else);
+    DefProc("THEN", Then);
+    DefProc("WHILE", While);
+    DefProc("REPEAT", Repeat);
+    DefProc("FOR", For);
+    DefProc("NEXT", Next);
+
+    Current := Forth;
+    Define("@", VFC.OpFetch);
+    Define("!", VFC.OpStore);
+    Define("+", VFC.OpAdd);
+    Define("-", VFC.OpSub);
+    Define("*", VFC.OpMul);
+    Define("/", VFC.OpDiv);
+    Define("MOD", VFC.OpMod);
+    Define("AND", VFC.OpAnd);
+    Define("OR", VFC.OpOr);
+    Define("XOR", VFC.OpXor);
+    Define("INVERT", VFC.OpInvert);
+    Define("DUP", VFC.OpDup);
+    Define("SWAP", VFC.OpSwap);
+    Define("OVER", VFC.OpOver);
+    Define("DROP", VFC.OpDrop);
+    Define("KEY", VFC.OpKey);
+    Define("EMIT", VFC.OpEmit);
+
+    DefProc(":", Colon);
+    DefProc(".", Dot)
   END InitDict;
 
-BEGIN base := 10; dictPtr := 4; current := NIL; macro := NIL;
-  InitDict; DumpDict(current); Test
+BEGIN Dict[Forth] := NIL; Dict[Macro] := NIL; InitDict; DumpDict(Dict[Forth]);
+  Base := 10;
+  Test
 END ObForth.
 
 (* vim:set ts=2 sw=2 et: *)

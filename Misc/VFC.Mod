@@ -9,23 +9,26 @@ MODULE VFC;
     OpAnd* = 9; OpOr* = 10; OpXor* = 11; OpInvert* = 12;
     OpDup* = 13; OpSwap* = 14; OpOver* = 15; OpDrop* = 16; OpRPush* = 17; OpRFetch* = 18; OpRPop* = 19;
     OpKey* = 20; OpEmit* = 21;
-    Op0Branch* = 22; OpBranch* = 23; OpCall* = 24; OpNext* = 25; OpExit* = 26;
+    Op0Branch* = 22; OpBranch* = 23; OpNext* = 24; OpExit* = 25;
+    OpLast* = 31;
 
   TYPE
     Procedure* = PROCEDURE;
     WORD* = LONGINT;
 
-  VAR T*, sp, rp: WORD;
+  VAR T, sp, rp: WORD;
       S, R: ARRAY MaxStack OF WORD;
       M: ARRAY MaxMem OF WORD;
+      dictPtr-: WORD;
+      execLvl: WORD;
 
-  PROCEDURE Put*(a, v: WORD);
-  BEGIN M[a] := v
-  END Put;
-
-  PROCEDURE Get*(a: WORD): WORD;
-  BEGIN RETURN M[a]
+  PROCEDURE Get*(x: WORD): WORD;
+  BEGIN RETURN M[x]
   END Get;
+
+  PROCEDURE Put*(x, y: WORD);
+  BEGIN M[x] := y
+  END Put;
 
   PROCEDURE Push*(x: WORD);
   BEGIN INC(sp); S[sp] := x
@@ -45,6 +48,18 @@ MODULE VFC;
   BEGIN x := T; T := Pop(); RETURN x
   END DPop;
 
+  PROCEDURE Here*;
+  BEGIN DPush(dictPtr)
+  END Here;
+
+  PROCEDURE Comma*;
+  BEGIN M[dictPtr] := DPop(); INC(dictPtr)
+  END Comma;
+
+  PROCEDURE DPushProc*(x: Procedure);
+  BEGIN DPush(SYSTEM.VAL(WORD,x))
+  END DPushProc;
+
   PROCEDURE RPush(x: WORD);
   BEGIN INC(rp); R[rp] := x
   END RPush;
@@ -53,6 +68,16 @@ MODULE VFC;
     VAR x: WORD;
   BEGIN x := R[rp]; DEC(rp); RETURN x
   END RPop;
+
+  PROCEDURE Swap*;
+    VAR W: WORD;
+  BEGIN W := S[sp]; S[sp] := T; T := W
+  END Swap;
+
+  PROCEDURE Store*;
+    VAR W: WORD;
+  BEGIN W := Pop(); M[T] := W; T := Pop()
+  END Store;
 
   PROCEDURE Run*(pc: WORD);
     VAR op, P: WORD;
@@ -68,7 +93,7 @@ MODULE VFC;
       CASE op OF
           OpHalt: done := TRUE
         | OpFetch: (*memory*) T := M[T]
-        | OpStore: W := Pop(); M[W] := T; T := Pop()
+        | OpStore: W := Pop(); M[T] := W; T := Pop()
         | OpLit: Push(T); T := M[P]; INC(P)
         | OpAdd: (*arithmetic*) W := Pop(); T := W + T
         | OpSub: W := Pop(); T := W - T
@@ -88,22 +113,29 @@ MODULE VFC;
         | OpRPop: Push(T); T := RPop()
         | OpKey: (*IO*) Push(T); In.Char(ch); T := ORD(ch)
         | OpEmit: Out.Char(CHR(T MOD 100H)); T := Pop()
-        | Op0Branch: IF T = 0 THEN P := P + M[P] ELSE INC(P) END
-        | OpBranch: P := P + M[P]
-        | OpCall: RPush(P); P := M[P];
+        | Op0Branch: IF T = 0 THEN P := M[P] ELSE INC(P) END
+        | OpBranch: P := M[P]
         | OpNext: W := R[rp]; DEC(W); IF W # 0 THEN P := M[P] ELSE W := RPop(); INC(P) END
         | OpExit: P := RPop()
-        ELSE proc := SYSTEM.VAL(Procedure,op); proc
+        ELSE
+          IF (OpLast < op) & (op < MaxMem) THEN RPush(P); P := op
+          ELSE proc := SYSTEM.VAL(Procedure,op); proc
+          END
       END
     END
   END Run;
 
   PROCEDURE Execute*(cfa: WORD);
-    VAR LM: ARRAY 4 OF WORD;
-  BEGIN M[0] := OpCall; M[1] := cfa; M[2] := OpHalt; Run(0)
+    VAR a: WORD;
+  BEGIN ASSERT(execLvl >= 0);
+    INC(execLvl);
+      a := MaxMem - 2*execLvl;
+      M[a] := cfa; M[a+1] := OpHalt; Run(a);
+    DEC(execLvl);
   END Execute;
 
-BEGIN sp := 0; rp := 0; T := 0
+BEGIN sp := 0; rp := 0; T := 0;
+  execLvl := 0; dictPtr := OpLast+1
 END VFC.
 
 (* vim:set ts=2 sw=2 et: *)
