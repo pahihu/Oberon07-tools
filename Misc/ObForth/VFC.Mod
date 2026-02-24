@@ -22,6 +22,7 @@ MODULE VFC;
       M: ARRAY MaxMem OF WORD;
       dictPtr-: WORD;
       execLvl: WORD;
+      debug-: BOOLEAN;
 
   PROCEDURE Get*(x: WORD): WORD;
   BEGIN RETURN M[x]
@@ -88,9 +89,11 @@ MODULE VFC;
         proc: Procedure;
   BEGIN P := pc; done := FALSE;
     WHILE ~done DO
-      Out.String(" P="); Out.Int(P, 4);
       op := M[P]; INC(P);
-      Out.String(" op="); Out.Int(op, 0); Out.Ln;
+      IF debug THEN
+        Out.String(" P="); Out.Int(P-1, 4);
+        Out.String(" op="); Out.Int(op, 0); Out.Ln;
+      END;
       CASE op OF
           OpHalt: done := TRUE
         | OpFetch: (*memory*) T := M[T]
@@ -138,8 +141,13 @@ MODULE VFC;
     DEC(execLvl);
   END Execute;
 
+  PROCEDURE SetDebug*(flag: BOOLEAN);
+  BEGIN debug := flag
+  END SetDebug;
+
 BEGIN sp := 0; rp := 0; T := 0;
-  execLvl := 0; dictPtr := OpLast+1
+  execLvl := 0; dictPtr := OpLast+1;
+  debug := FALSE
 END VFC.
 
 (* vim:set ts=2 sw=2 et: *)

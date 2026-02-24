@@ -21,6 +21,12 @@ BEGIN Out.Open; In.Open;
         Out.String ("i MOD 10H="); Out.Int ((-i) MOD 10H, 0); Out.Ln;
         Out.String ("i Mod 10H="); Out.Int (Mod(-i, 10H), 0); Out.Ln;
       END;
+      Out.String ("Enter a string: "); In.String (s);
+      IF ~In.Done THEN
+        Out.String (" cannot read string ");
+      ELSE
+        Out.String ("s=["); Out.String (s); Out.String ("]"); Out.Ln;
+      END
     END
 END TestInt.
 
