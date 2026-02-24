@@ -11,11 +11,26 @@ BINS=$(MODS:.Mod=$(EXE))
 %$(EXE): %.Mod
 	$(O2C) $(DYNEXPORT) $(O2CFLAGS) $(basename $@) | $(O2EF)
 
-all: $(BINS)
+all:
+	@-echo "select compiler: make org (NW) or make numcase (AP)"
+
+compiler: $(BINS)
+
+org: setup-org compiler
+numcase: setup-numcase compiler
+
+setup-org: clean
+	ln -s ORG.NW.Mod ORG.Mod
+	ln -s ORP.NW.Mod ORP.Mod
+
+setup-numcase: clean
+	ln -s ORG.AP.Mod ORG.Mod
+	ln -s ORP.AP.Mod ORP.Mod
 
 clean:
 	$(RM) sym/* obj/*
 	$(RM) $(BINS) ORL32$(EXE)
 	$(RM) Oberon.Log
+	$(RM) ORG.Mod ORP.Mod
 
 # vim:set ts=4 sw=4 noet:

@@ -1,5 +1,5 @@
 MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code generator for RISC / AP 13.12.24*)
-  IMPORT SYSTEM, Files, ORS, ORB;
+  IMPORT SYSTEM, Files := Files07, ORS, ORB, BIF07, Sys := System;
   (*Code generator for Oberon compiler for RISC processor.
      Procedural interface to Parser ORP; result in array "code".
      Procedure Close writes code-files*)
@@ -18,7 +18,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     BR = 0; BLR = 1; BC = 2; BL = 3;
     MI = 0; PL = 8; EQ = 1; NE = 9; CS = 2; CC = 10; LT = 5; GE = 13; LE = 6; GT = 14;
 
-    TYPE Item* = RECORD
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+    Item* = RECORD
       mode*: INTEGER;
       type*: ORB.Type;
       obj*: ORB.Object;
@@ -523,7 +526,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Singleton*(VAR x: Item);  (* x := {x} *)
   BEGIN
-    IF x.mode = ORB.Const THEN x.a := LSL(1, x.a)
+    IF x.mode = ORB.Const THEN x.a := BIF07.LSL(1, x.a)
     ELSE load(x); Put1(Mov, RH, 0, 1); Put0(Lsl, x.r, RH,  x.r)
     END
   END Singleton;
@@ -531,12 +534,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Set*(VAR x, y: Item);   (* x := {x .. y} *)
   BEGIN
     IF (x.mode = ORB.Const) & ( y.mode = ORB.Const) THEN
-      IF x.a <= y.a THEN x.a := LSL(2, y.a) - LSL(1, x.a) ELSE x.a := 0 END
+      IF x.a <= y.a THEN x.a := BIF07.LSL(2, y.a) - BIF07.LSL(1, x.a) ELSE x.a := 0 END
     ELSE
-      IF (x.mode = ORB.Const) & (x.a <= 16) THEN x.a := LSL(-1, x.a)
+      IF (x.mode = ORB.Const) & (x.a <= 16) THEN x.a := BIF07.LSL(-1, x.a)
       ELSE load(x); Put1(Mov, RH, 0, -1); Put0(Lsl, x.r, RH, x.r)
       END ;
-      IF (y.mode = ORB.Const) & (y.a < 16) THEN Put1(Mov, RH, 0, LSL(-2, y.a)); y.mode := Reg; y.r := RH; incR
+      IF (y.mode = ORB.Const) & (y.a < 16) THEN Put1(Mov, RH, 0, BIF07.LSL(-2, y.a)); y.mode := Reg; y.r := RH; incR
       ELSE load(y); Put1(Mov, RH, 0, -2); Put0(Lsl, y.r, RH, y.r)
       END ;
       IF x.mode = ORB.Const THEN
@@ -882,7 +885,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     VAR op, zr: LONGINT;
   BEGIN loadAdr(x); zr := RH; Put2(Ldr, RH, x.r, 0); incR;
     IF inorex = 0 THEN op := Ior ELSE op := Ann END ;
-    IF y.mode = ORB.Const THEN Put1a(op, zr, zr, LSL(1, y.a))
+    IF y.mode = ORB.Const THEN Put1a(op, zr, zr, BIF07.LSL(1, y.a))
     ELSE load(y); Put1(Mov, RH, 0, 1); Put0(Lsl, y.r, RH, y.r); Put0(op, zr, zr, y.r); DEC(RH)
     END ;
     Put2(Str, zr, x.r, 0); DEC(RH, 2)
@@ -1054,7 +1057,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Header*;
   BEGIN entry := pc*4;
-    IF version = 0 THEN code[0] := 0E7000000H-1 + pc;  Put1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
+    IF version = 0 THEN code[0] := Sys.BinOr(0E7000000H-1, pc);  Put1a(Mov, SP, 0, StkOrg0)  (*RISC-0*)
     ELSE Put1(Sub, SP, SP, 4); Put2(Str, LNK, SP, 0)
     END
   END Header;

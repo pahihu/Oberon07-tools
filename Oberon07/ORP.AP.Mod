@@ -1,5 +1,5 @@
 MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 / AP 13.12.24*)
-  IMPORT Texts, Oberon, ORS, ORB, ORG;
+  IMPORT Texts, Oberon, ORS, ORB, ORG, BIF07, Sys := System;
   (*Author: Niklaus Wirth, 2014.
     Parser of Oberon-RISC compiler. Uses Scanner ORS to obtain symbols (tokens),
     ORB for definition of data structures and for handling import and export, and
@@ -8,7 +8,10 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
 
   CONST NofCases = 256;
 
-  TYPE PtrBase = POINTER TO PtrBaseDesc;
+  TYPE
+    LONGINT = Sys.INT32;
+    INTEGER = Sys.INT32;
+    PtrBase = POINTER TO PtrBaseDesc;
     PtrBaseDesc = RECORD  (*list of names of pointer base types*)
       name: ORS.Ident; type: ORB.Type; next: PtrBase
     END ;
@@ -736,7 +739,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     END ;
     obj := first;
     WHILE obj # NIL DO
-      INC(nofpar); obj.class := cl; obj.type := tp; obj.rdo := rdo; obj.lev := level; obj.val := adr;
+      INC(nofpar); obj.class := SHORT(cl); obj.type := tp; obj.rdo := rdo; obj.lev := level; obj.val := adr;
       adr := adr + parsize; obj := obj.next
     END ;
     IF adr >= 52 THEN ORS.Mark("too many parameters") END
@@ -862,7 +865,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         Type(tp);
         ORB.NewObj(obj, id, ORB.Typ); obj.type := tp; obj.expo := expo; obj.lev := level;
         IF tp.typobj = NIL THEN tp.typobj := obj END ;
-        IF expo & (obj.type.form = ORB.Record) THEN obj.exno := exno; INC(exno) ELSE obj.exno := 0 END ;
+        IF expo & (obj.type.form = ORB.Record) THEN obj.exno := SHORT(exno); INC(exno) ELSE obj.exno := 0 END ;
         IF tp.form = ORB.Record THEN
           ptbase := pbsList;  (*check whether this is base of a pointer type; search and fixup*)
           WHILE ptbase # NIL DO
@@ -883,7 +886,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
           obj.type := tp; obj.lev := level;
           IF tp.size > 1 THEN varsize := (varsize + 3) DIV 4 * 4 (*align*) END ;
           obj.val := varsize; varsize := varsize + obj.type.size;
-          IF obj.expo THEN obj.exno := exno; INC(exno) END ;
+          IF obj.expo THEN obj.exno := SHORT(exno); INC(exno) END ;
           obj := obj.next
         END ;
         Check(ORS.semicolon, "; missing")
@@ -914,7 +917,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       NEW(type); type.form := ORB.Proc; type.size := ORG.WordSize;
       proc.type := type; proc.val := -1; proc.lev := level; 
       CheckExport(proc.expo);
-      IF proc.expo THEN proc.exno := exno; INC(exno) END ;
+      IF proc.expo THEN proc.exno := SHORT(exno); INC(exno) END ;
       ORB.OpenScope; INC(level); type.base := ORB.noType;
       ProcedureType(type, parblksize);  (*formal parameter list*)
       Check(ORS.semicolon, "no ;"); locblksize := parblksize; 
@@ -1020,35 +1023,25 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       T: Texts.Text;
       S: Texts.Scanner;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
-    IF S.class = Texts.Char THEN
-      IF S.c = "@" THEN
-        Option(S); Oberon.GetSelection(T, beg, end, time);
-        IF time >= 0 THEN ORS.Init(T, beg); Module END
-      ELSIF S.c = "^" THEN
-        Option(S); Oberon.GetSelection(T, beg, end, time);
-        IF time >= 0 THEN
-          Texts.OpenScanner(S, T, beg); Texts.Scan(S);
-          IF S.class = Texts.Name THEN
-            Texts.WriteString(W, S.s); NEW(T); Texts.Open(T, S.s);
-            IF T.len > 0 THEN ORS.Init(T, 0); Module END
-          END
-        END
-      END
-    ELSE 
-      WHILE S.class = Texts.Name DO
-        NEW(T); Texts.Open(T, S.s);
-        IF T.len > 0 THEN Option(S); ORS.Init(T, 0); Module
-        ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
-          Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
-        END ;
-        IF (T.len # 0) & (ORS.errcnt = 0) THEN Texts.Scan(S) ELSE S.class := 0 END
-      END
-    END ;
-    Oberon.Collect(0)
+    WHILE S.class = Texts.Name DO
+      NEW(T); Texts.Open(T, S.s);
+      IF T.len > 0 THEN Option(S); ORS.Init(T, 0); Module
+      ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
+        Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+      END ;
+      IF (T.len # 0) & (ORS.errcnt = 0) THEN Texts.Scan(S) ELSE S.class := 0 END
+    END
   END Compile;
+
+  PROCEDURE Help*;
+  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/s]...");
+    Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+  END Help;
 
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Compiler  8.3.2020 / AP 13.12.24");
   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   NEW(dummy); dummy.class := ORB.Var; dummy.type := ORB.intType;
-  expression := expression0; Type := Type0; FormalType := FormalType0
+  expression := expression0; Type := Type0; FormalType := FormalType0;
+
+  Oberon.Run
 END ORP.
