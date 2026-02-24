@@ -2,7 +2,7 @@ MODULE ObForth;
   IMPORT VFC, SYSTEM, Out, Timer, Unix;
 
   CONST Forth = 0; Macro = 1;
-    TAB = 9X; CR = 0DX; LF = 0AX;
+    TAB = 9X; CR = 0DX; LF = 0AX; MaxLine = 83;
 
   TYPE
     String = POINTER TO ARRAY OF CHAR;
@@ -13,38 +13,37 @@ MODULE ObForth;
       cfa: LONGINT;
     END;
 
-  VAR ch: CHAR;
-      Dict: ARRAY 2 OF Word;
+  VAR Dict: ARRAY 2 OF Word;
       Current: INTEGER;
       Base: LONGINT;
       DoIt: PROCEDURE (VAR s:ARRAY OF CHAR);
       S: ARRAY 32 OF CHAR;
       debug: BOOLEAN;
-      TIB: ARRAY 83 OF CHAR;
+      TIB: ARRAY MaxLine OF CHAR;
       INN: LONGINT;
       T: Timer.Timer;
 
   (* -------------------------- NUmber I/O -------------------------- *)
 
-  PROCEDURE Dot;
+  PROCEDURE Print(x, y, base: LONGINT);
     VAR s: ARRAY 128 OF CHAR;
-        x, i, j, d: LONGINT;
+        i, j, d: LONGINT;
         ch: CHAR;
         sign: BOOLEAN;
-  BEGIN x := VFC.DPop();
-    i := 0; sign := FALSE; IF x < 0 THEN sign := TRUE; x := -x END;
+  BEGIN i := 0; sign := FALSE; IF x < 0 THEN sign := TRUE; x := -x END;
     REPEAT
-      d := x MOD Base; x := x DIV Base;
+      d := x MOD base; x := x DIV base;
       IF d > 9 THEN d := ORD("A")+d-10 ELSE d := ORD("0") + d END;
       s[i] := CHR(d); INC(i);
     UNTIL x = 0;
     IF sign THEN s[i] := "-"; INC(i) END;
     DEC(i); FOR j := 0 TO i DIV 2 DO
       ch := s[j]; s[j] := s[i-j]; s[i-j] := ch
-    END;
-    s[i+1] := 0X;
+    END; INC(i);
+    WHILE i < y DO s[i] := " "; INC(i) END;
+    s[i] := 0X;
     Out.String(s); Out.Char(" ")
-  END Dot;
+  END Print;
 
   PROCEDURE IsNumber(VAR s: ARRAY OF CHAR; VAR x: LONGINT): BOOLEAN;
     VAR done: BOOLEAN;
@@ -55,6 +54,7 @@ MODULE ObForth;
     i := 0; x := 0;
     IF s[i] = "-" THEN sign := TRUE; INC(i) END;
     IF s[i] = "$" THEN b := 16; INC(i) END;
+    IF s[i] = "#" THEN b := 10; INC(i) END;
     WHILE (s[i] # 0X) & done DO
       ch := s[i]; INC(i);
       IF ch > "@" THEN d := ORD(ch) - ORD("A") ELSE d := ORD(ch) - ORD("0") END;
@@ -67,8 +67,7 @@ MODULE ObForth;
   END IsNumber;
 
   PROCEDURE Hex(x: LONGINT);
-    VAR sav: LONGINT;
-  BEGIN sav := Base; Base := 16; VFC.DPush(x); Dot; Base := sav
+  BEGIN Print(x, 0, 16)
   END Hex;
 
   (* ------------------------- Debug helpers ------------------------ *)
@@ -102,26 +101,28 @@ MODULE ObForth;
   END Key;
 
   PROCEDURE X;
+    VAR ch: CHAR;
   BEGIN Out.String("OK ");
     ch := Key(); INN := 0;
     WHILE (INN < 80) & (ch # CR) & (ch # LF) DO
+      IF ch = TAB THEN ch := " " END;
       TIB[INN] := ch; INC(INN); ch := Key()
     END;
     TIB[INN] := 20X; TIB[INN+1] := 0FFX; TIB[INN+2] := 20X;
-    ch := TIB[0]; INN := 1;
+    INN := 0
   END X;
 
   PROCEDURE Skip;
-  BEGIN WHILE (ch = " ") OR (ch = TAB) DO ch := TIB[INN]; INC(INN) END
+  BEGIN WHILE TIB[INN] = " " DO INC(INN) END
   END Skip;
 
-  PROCEDURE Scan(VAR s: ARRAY OF CHAR);
+  PROCEDURE Scan(VAR s: ARRAY OF CHAR; delim: CHAR);
     VAR i: INTEGER;
-  BEGIN i := 0; WHILE (ch # " ") & (ch # TAB) DO s[i] := ch; INC(i); ch := TIB[INN]; INC(INN) END; s[i] := 0X
+  BEGIN i := 0; WHILE TIB[INN] # delim DO s[i] := TIB[INN]; INC(i); INC(INN) END; s[i] := 0X
   END Scan;
 
   PROCEDURE Parse(VAR s: ARRAY OF CHAR);
-  BEGIN Skip; Scan(s)
+  BEGIN Skip; Scan(s, " ")
   END Parse;
 
   PROCEDURE Length(VAR s: ARRAY OF CHAR): LONGINT;
@@ -201,63 +202,71 @@ MODULE ObForth;
 
   (* ------------------------- Control words ------------------------ *)
 
-  PROCEDURE Colon;
+  PROCEDURE FColon;
   BEGIN Parse(S); Header(S); DoIt := Compile;
-  END Colon;
+  END FColon;
 
-  PROCEDURE Exit;
+  PROCEDURE FExit;
   BEGIN Comma(VFC.OpExit)
-  END Exit;
+  END FExit;
 
-  PROCEDURE Semis;
-  BEGIN Exit; DoIt := Interpret;
-  END Semis;
+  PROCEDURE FSemis;
+  BEGIN FExit; DoIt := Interpret;
+  END FSemis;
 
-  PROCEDURE Begin;
+  PROCEDURE FHere;
   BEGIN VFC.Here;
-  END Begin;
+  END FHere;
 
-  PROCEDURE Again;
+  PROCEDURE FAgain;
   BEGIN Comma(VFC.OpBranch); VFC.Comma;
-  END Again;
+  END FAgain;
 
-  PROCEDURE If;
+  PROCEDURE FIf;
   BEGIN Comma(VFC.Op0Branch); VFC.Here; Comma(0)
-  END If;
+  END FIf;
 
-  PROCEDURE Else;
+  PROCEDURE FElse;
   BEGIN Comma(VFC.OpBranch); VFC.Here; Comma(0); VFC.Swap;
     VFC.Here; VFC.Swap; VFC.Store
-  END Else;
+  END FElse;
 
-  PROCEDURE Then;
+  PROCEDURE FThen;
   BEGIN VFC.Here; VFC.Swap; VFC.Store
-  END Then;
+  END FThen;
 
-  PROCEDURE While;
-  BEGIN If
-  END While;
+  PROCEDURE FWhile;
+  BEGIN FIf
+  END FWhile;
 
-  PROCEDURE Repeat;
-  BEGIN VFC.Swap; Again; Then;
-  END Repeat;
+  PROCEDURE FRepeat;
+  BEGIN VFC.Swap; FAgain; FThen;
+  END FRepeat;
 
-  PROCEDURE For;
+  PROCEDURE FFor;
   BEGIN Comma(VFC.OpRPush); VFC.Here
-  END For;
+  END FFor;
 
-  PROCEDURE Next;
+  PROCEDURE FNext;
   BEGIN Comma(VFC.OpNext); VFC.Comma
-  END Next;
+  END FNext;
 
-  PROCEDURE Constant;
+  PROCEDURE FConstant;
   BEGIN Parse(S); Header(S); Comma(VFC.OpLit); VFC.Comma; Comma(VFC.OpExit)
-  END Constant;
+  END FConstant;
 
-  PROCEDURE Variable;
+  PROCEDURE FCreate;
   BEGIN Parse(S); Header(S); Comma(VFC.OpLit);
-    Comma(VFC.dictPtr+1); Comma(VFC.OpExit); Comma(0)
-  END Variable;
+    Comma(VFC.dictPtr+2); Comma(VFC.OpExit)
+  END FCreate;
+
+  PROCEDURE FAllot;
+  BEGIN VFC.Allot(VFC.DPop())
+  END FAllot;
+
+  PROCEDURE FVariable;
+  BEGIN FCreate; Comma(0)
+  END FVariable;
 
   PROCEDURE FCounter;
   BEGIN Timer.Start(T); VFC.DPush(0)
@@ -267,6 +276,52 @@ MODULE ObForth;
     VAR W: LONGINT;
   BEGIN W := VFC.DPop(); VFC.DPush(Timer.Elapsed(T))
   END FTimer;
+
+  PROCEDURE FLParen;
+    VAR s: ARRAY MaxLine OF CHAR;
+  BEGIN Scan(s, ")"); INC(INN)
+  END FLParen;
+
+  PROCEDURE FDecimal;
+  BEGIN Base := 10
+  END FDecimal;
+
+  PROCEDURE FHex;
+  BEGIN Base := 16
+  END FHex;
+
+  PROCEDURE FEmit;
+    VAR ch: CHAR;
+  BEGIN ch := CHR(VFC.DPop() MOD 100H); Out.Char(ch)
+  END FEmit;
+
+  PROCEDURE FKey;
+  BEGIN VFC.DPush(ORD(Key()))
+  END FKey;
+
+  PROCEDURE FDot;
+    VAR x: LONGINT;
+  BEGIN x := VFC.DPop(); Print(x, 0, Base)
+  END FDot;
+
+  PROCEDURE FDotR;
+    VAR x,y: LONGINT;
+  BEGIN y := VFC.DPop(); x := VFC.DPop(); Print(x, y, Base)
+  END FDotR;
+
+  PROCEDURE FWords;
+    VAR w: Word;
+  BEGIN w := Dict[Current];
+    WHILE w # NIL DO Out.String(w.name^); Out.Char(" "); w := w.link END
+  END FWords;
+
+  PROCEDURE FForth;
+  BEGIN Current := Forth
+  END FForth;
+
+  PROCEDURE FMacro;
+  BEGIN Current := Macro
+  END FMacro;
 
   (* --------------------------- Main loop -------------------------- *)
 
@@ -287,68 +342,101 @@ MODULE ObForth;
     VAR FFX: ARRAY 2 OF CHAR;
   BEGIN
     Current := Macro;
-    DefProc(";", Semis);
-    DefProc("EXIT", Exit);
+    DefProc(";", FSemis);
+    DefProc("EXIT", FExit);
     DefMacro(">R", VFC.OpRPush);
     DefMacro("I", VFC.OpRFetch);
     DefMacro("R>", VFC.OpRPop);
-    DefProc("BEGIN", Begin);
-    DefProc("AGAIN", Again);
-    DefProc("IF", If);
-    DefProc("ELSE", Else);
-    DefProc("THEN", Then);
-    DefProc("WHILE", While);
-    DefProc("REPEAT", Repeat);
-    DefProc("FOR", For);
-    DefProc("NEXT", Next);
+    DefProc("BEGIN", FHere);
+    DefProc("AGAIN", FAgain);
+    DefProc("IF", FIf);
+    DefProc("ELSE", FElse);
+    DefProc("THEN", FThen);
+    DefProc("WHILE", FWhile);
+    DefProc("REPEAT", FRepeat);
+    DefProc("FOR", FFor);
+    DefProc("NEXT", FNext);
 
-    DefMacro("@", VFC.OpFetch);
-    DefMacro("!", VFC.OpStore);
+    DefProc("(", FLParen);
+
     DefMacro("+", VFC.OpAdd);
     DefMacro("-", VFC.OpSub);
     DefMacro("*", VFC.OpMul);
     DefMacro("/", VFC.OpDiv);
+    DefMacro("MOD", VFC.OpMod);
+    DefMacro("MIN", VFC.OpMin);
+    DefMacro("MAX", VFC.OpMax);
+
     DefMacro("<", VFC.OpLess);
     DefMacro("=", VFC.OpEqual);
     DefMacro(">", VFC.OpGreater);
-    DefMacro("MOD", VFC.OpMod);
+
     DefMacro("AND", VFC.OpAnd);
     DefMacro("OR", VFC.OpOr);
     DefMacro("XOR", VFC.OpXor);
-    DefMacro("INVERT", VFC.OpInvert);
+    DefMacro("NEGATE", VFC.OpNegate);
+    DefMacro("ABS", VFC.OpAbs);
+    DefMacro("NOT", VFC.OpNot);
+
     DefMacro("DUP", VFC.OpDup);
+    DefMacro("DROP", VFC.OpDrop);
     DefMacro("SWAP", VFC.OpSwap);
     DefMacro("OVER", VFC.OpOver);
-    DefMacro("DROP", VFC.OpDrop);
+
+    DefMacro("@", VFC.OpFetch);
+    DefMacro("!", VFC.OpStore);
+
+
 
     Current := Forth;
-    Define("@", VFC.OpFetch);
-    Define("!", VFC.OpStore);
     Define("+", VFC.OpAdd);
     Define("-", VFC.OpSub);
     Define("*", VFC.OpMul);
     Define("/", VFC.OpDiv);
+    Define("MOD", VFC.OpMod);
+    Define("MIN", VFC.OpMin);
+    Define("MAX", VFC.OpMax);
+
     Define("<", VFC.OpLess);
     Define("=", VFC.OpEqual);
     Define(">", VFC.OpGreater);
-    Define("MOD", VFC.OpMod);
+
     Define("AND", VFC.OpAnd);
     Define("OR", VFC.OpOr);
     Define("XOR", VFC.OpXor);
-    Define("INVERT", VFC.OpInvert);
+    Define("NEGATE", VFC.OpNegate);
+    Define("ABS", VFC.OpAbs);
+    Define("NOT", VFC.OpNot);
+
     Define("DUP", VFC.OpDup);
+    Define("DROP", VFC.OpDrop);
     Define("SWAP", VFC.OpSwap);
     Define("OVER", VFC.OpOver);
-    Define("DROP", VFC.OpDrop);
-    Define("KEY", VFC.OpKey);
-    Define("EMIT", VFC.OpEmit);
-    DefProc("CONSTANT", Constant);
-    DefProc("VARIABLE", Variable);
 
-    DefProc(":", Colon);
-    DefProc(".", Dot);
+    DefProc("DECIMAL", FDecimal);
+    DefProc("HEX", FHex);
+    DefProc(".", FDot);
+    DefProc(".R", FDotR);
+    DefProc("EMIT", FEmit);
+    DefProc("CR", Out.Ln);
+    DefProc("KEY", FKey);
+
+    DefProc("VARIABLE", FVariable);
+    DefProc("CONSTANT", FConstant);
+    DefProc("CREATE", FCreate);
+    DefProc("ALLOT", FAllot);
+    DefProc(",", VFC.Comma);
+    Define("@", VFC.OpFetch);
+    Define("!", VFC.OpStore);
+
+    DefProc(":", FColon);
     DefProc("COUNTER", FCounter);
     DefProc("TIMER", FTimer);
+    DefProc("(", FLParen);
+    DefProc("HERE", FHere);
+    DefProc("WORDS", FWords);
+    DefProc("FORTH", FForth);
+    DefProc("MACRO", FMacro);
     FFX[0] := 0FFX; FFX[1] := 0X; DefProc(FFX, X);
   END InitDict;
 

@@ -3,7 +3,7 @@
 
 O2C=o2c
 O2EF=o2ef
-O2CFLAGS=-M
+O2CFLAGS=-MOsR
 
 MODS=ObForth.Mod
 BINS=$(MODS:.Mod=$(EXE))

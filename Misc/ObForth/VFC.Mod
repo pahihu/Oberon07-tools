@@ -6,12 +6,12 @@ MODULE VFC;
     OpHalt* = 0;
     OpFetch* = 1; OpStore* = 2; OpLit* = 3;
     OpAdd* = 4; OpSub* = 5; OpMul* = 6; OpDiv* = 7; OpMod* = 8;
-    OpAnd* = 9; OpOr* = 10; OpXor* = 11; OpInvert* = 12;
+    OpAnd* = 9; OpOr* = 10; OpXor* = 11; OpNegate* = 12;
     OpDup* = 13; OpSwap* = 14; OpOver* = 15; OpDrop* = 16; OpRPush* = 17; OpRFetch* = 18; OpRPop* = 19;
-    OpKey* = 20; OpEmit* = 21;
-    Op0Branch* = 22; OpBranch* = 23; OpNext* = 24; OpExit* = 25;
-    OpLess* = 26; OpEqual* = 27; OpGreater* = 28;
-    OpLast* = 31;
+    Op0Branch* = 20; OpBranch* = 21; OpNext* = 22; OpExit* = 23;
+    OpLess* = 24; OpEqual* = 25; OpGreater* = 26;
+    OpMin* = 27; OpMax* = 28; OpAbs* = 29; OpNot* = 30; OpMulDiv* = 31;
+    OpLast* = OpMulDiv;
 
   TYPE
     Procedure* = PROCEDURE;
@@ -54,6 +54,10 @@ MODULE VFC;
   BEGIN DPush(dictPtr)
   END Here;
 
+  PROCEDURE Allot*(n: WORD);
+  BEGIN INC(dictPtr, n)
+  END Allot;
+
   PROCEDURE Comma*;
   BEGIN M[dictPtr] := DPop(); INC(dictPtr)
   END Comma;
@@ -83,7 +87,7 @@ MODULE VFC;
 
   PROCEDURE Run*(pc: WORD);
     VAR op, P: WORD;
-        W: WORD;
+        W, X: WORD;
         done: BOOLEAN;
         ch: CHAR;
         proc: Procedure;
@@ -107,7 +111,7 @@ MODULE VFC;
         | OpAnd: (*logic*) W := Pop(); T := Logic.And(W, T)
         | OpOr: W := Pop(); T := Logic.Or(W, T)
         | OpXor: W := Pop(); T := Logic.Xor(W, T)
-        | OpInvert: T := Logic.Not(T)
+        | OpNegate: T := Logic.Not(T)
         | OpDup: (*stack*) Push(T)
         | OpSwap: W := S[sp]; S[sp] := T; T := W
         | OpOver: W := S[sp]; Push(T); T := W
@@ -115,8 +119,6 @@ MODULE VFC;
         | OpRPush: RPush(T); T := Pop()
         | OpRFetch: Push(T); T := R[rp]
         | OpRPop: Push(T); T := RPop()
-        | OpKey: (*IO*) Push(T); In.Char(ch); T := ORD(ch)
-        | OpEmit: Out.Char(CHR(T MOD 100H)); T := Pop()
         | Op0Branch: IF T = 0 THEN P := M[P] ELSE INC(P) END; T := Pop();
         | OpBranch: P := M[P]
         | OpNext: W := R[rp]; DEC(W); IF W # 0 THEN R[rp] := W; P := M[P] ELSE W := RPop(); INC(P) END
@@ -124,9 +126,14 @@ MODULE VFC;
         | OpLess: W := Pop(); IF W < T THEN T := -1 ELSE T := 0 END
         | OpEqual: W := Pop(); IF W = T THEN T := -1 ELSE T := 0 END
         | OpGreater: W := Pop(); IF W > T THEN T := -1 ELSE T := 0 END
+        | OpMin: W := Pop(); IF W < T THEN T := W END
+        | OpMax: W := Pop(); IF W > T THEN T := W END
+        | OpAbs: IF T < 0 THEN T := -T END
+        | OpNot: IF T = 0 THEN T := -1 ELSE T := 0 END
+        | OpMulDiv: W := Pop(); X := Pop(); T := (W * X) DIV T
         ELSE
-          IF (OpLast < op) & (op < MaxMem) THEN RPush(P); P := op
-          ELSE proc := SYSTEM.VAL(Procedure,op); proc
+          IF (OpLast < op) & (op < MaxMem) THEN RPush(P); P := op (*call Forth*)
+          ELSE proc := SYSTEM.VAL(Procedure,op); proc (*native*)
           END
       END
     END
