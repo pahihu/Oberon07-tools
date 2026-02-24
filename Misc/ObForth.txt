@@ -93,6 +93,69 @@
       
   REPEAT w := curWord.code[IP]; INC(IP); w.cfa(w) UNTIL FALSE;
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; THREADING
+;;;
+; ITC   11
+; NEXT=4
+; DOCOL=5
+; SEMIS=2
+SEMIS:
+  LDW IP SP 0
+  ADD SP SP 4
+ITC_NEXT:
+  LDW W IP 0
+  ADD IP IP 4
+  LDW X W 0
+  B   X
+
+ITC_DOCOL:
+  SUB SP SP 4   ; push IP
+  STW IP SP 0
+  MOV IP    4   ; IP = W + 4
+  ADD IP W  0
+  B   ITC_NEXT
+
+
+; DTC   10
+; NEXT=3
+; INLINE_CODE=1
+; ENTER=4
+; SEMIS=2
+DTC_SEMIS:
+  LDW IP SP 0
+  ADD SP SP 4
+DTC_NEXT:
+  LDW W IP 0
+  ADD IP IP 4
+  B   W
+
+INLINE_CODE:
+  BL  ENTER
+ENTER:
+  SUB SP SP 4
+  STW IP SP 0
+  MOV IP LNK
+  B DTC_NEXT
+
+
+; STC   6
+; CALL  1
+; ENTER 2
+; SEMIS 3
+  BL  WORD
+
+ENTER:
+  SUB SP SP 4
+  STW LNK SP 0
+
+SEMIS:
+  LDW LNK SP 0
+  ADD SP SP 4
+  B LNK
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
 : MOVE ( n s d) push a! for r@+ a!+ next ;
