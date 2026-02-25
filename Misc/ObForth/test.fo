@@ -1,10 +1,12 @@
-: FIB ( n-m) DUP 2 < IF EXIT THEN 1- DUP FIB SWAP 1- FIB + ;
-: BENCH ( n-ms) COUNTER SWAP FIB DROP (TIMER) ;
+: ? ( a)   @ . ;
+: +! ( n a)   DUP >R @ + R> ! ;
+: FIB ( n-m)   DUP 2 < IF EXIT THEN 1- DUP FIB SWAP 1- FIB + ;
+: BENCH ( n-ms)   COUNTER SWAP FIB DROP (TIMER) ;
+: TIMER ( u)   (TIMER) . ;
 
-: TEST
-   30 0
-   BEGIN DUP 1000 < WHILE
-      DROP 1+ DUP BENCH
-   REPEAT  CR . . ;
+: TEST ( -)   30 0
+   BEGIN  DUP 1000 <
+   WHILE  DROP 1+ DUP BENCH
+   REPEAT CR . . ;
 
 TEST BYE
