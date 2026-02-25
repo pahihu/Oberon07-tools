@@ -11,7 +11,8 @@ MODULE VFC;
     Op0Branch* = 20; OpBranch* = 21; OpNext* = 22; OpExit* = 23;
     OpLess* = 24; OpEqual* = 25; OpGreater* = 26;
     OpMin* = 27; OpMax* = 28; OpAbs* = 29; OpNot* = 30; OpMulDiv* = 31;
-    OpLast* = OpMulDiv;
+    OpInc* = 32; OpDec* = 33;
+    OpLast* = OpDec;
 
   TYPE
     Procedure* = PROCEDURE;
@@ -131,8 +132,10 @@ MODULE VFC;
         | OpAbs: IF T < 0 THEN T := -T END
         | OpNot: IF T = 0 THEN T := -1 ELSE T := 0 END
         | OpMulDiv: W := Pop(); X := Pop(); T := (W * X) DIV T
+        | OpInc: INC(T)
+        | OpDec: DEC(T)
         ELSE
-          IF (OpLast < op) & (op < MaxMem) THEN RPush(P); P := op (*call Forth*)
+          IF op < MaxMem THEN RPush(P); P := op (*call Forth*)
           ELSE proc := SYSTEM.VAL(Procedure,op); proc (*native*)
           END
       END

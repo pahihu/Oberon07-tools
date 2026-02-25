@@ -2,7 +2,7 @@ MODULE ObForth;
   IMPORT VFC, SYSTEM, Out, Timer, Unix;
 
   CONST Forth = 0; Macro = 1;
-    TAB = 9X; CR = 0DX; LF = 0AX; MaxLine = 83;
+    NUL = 0FFX; TAB = 9X; CR = 0DX; LF = 0AX; MaxLine = 83;
 
   TYPE
     String = POINTER TO ARRAY OF CHAR;
@@ -108,8 +108,9 @@ MODULE ObForth;
       IF ch = TAB THEN ch := " " END;
       TIB[INN] := ch; INC(INN); ch := Key()
     END;
-    TIB[INN] := 20X; TIB[INN+1] := 0FFX; TIB[INN+2] := 20X;
-    INN := 0
+    TIB[INN] := 20X; TIB[INN+1] := NUL; TIB[INN+2] := 20X;
+    INN := 0;
+    IF debug THEN Out.Ln; Out.String("X=["); Out.String(TIB); Out.String("]"); END
   END X;
 
   PROCEDURE Skip;
@@ -118,7 +119,8 @@ MODULE ObForth;
 
   PROCEDURE Scan(VAR s: ARRAY OF CHAR; delim: CHAR);
     VAR i: INTEGER;
-  BEGIN i := 0; WHILE TIB[INN] # delim DO s[i] := TIB[INN]; INC(i); INC(INN) END; s[i] := 0X
+  BEGIN i := 0; WHILE TIB[INN] # delim DO s[i] := TIB[INN]; INC(i); INC(INN) END; s[i] := 0X;
+    IF debug THEN Out.Ln; Out.String("Scan=["); Out.String(s); Out.String("] "); END
   END Scan;
 
   PROCEDURE Parse(VAR s: ARRAY OF CHAR);
@@ -268,15 +270,6 @@ MODULE ObForth;
   BEGIN FCreate; Comma(0)
   END FVariable;
 
-  PROCEDURE FCounter;
-  BEGIN Timer.Start(T); VFC.DPush(0)
-  END FCounter;
-
-  PROCEDURE FTimer;
-    VAR W: LONGINT;
-  BEGIN W := VFC.DPop(); VFC.DPush(Timer.Elapsed(T))
-  END FTimer;
-
   PROCEDURE FLParen;
     VAR s: ARRAY MaxLine OF CHAR;
   BEGIN Scan(s, ")"); INC(INN)
@@ -309,12 +302,6 @@ MODULE ObForth;
   BEGIN y := VFC.DPop(); x := VFC.DPop(); Print(x, y, Base)
   END FDotR;
 
-  PROCEDURE FWords;
-    VAR w: Word;
-  BEGIN w := Dict[Current];
-    WHILE w # NIL DO Out.String(w.name^); Out.Char(" "); w := w.link END
-  END FWords;
-
   PROCEDURE FForth;
   BEGIN Current := Forth
   END FForth;
@@ -322,6 +309,21 @@ MODULE ObForth;
   PROCEDURE FMacro;
   BEGIN Current := Macro
   END FMacro;
+
+  PROCEDURE FCounter;
+  BEGIN Timer.Start(T); VFC.DPush(0)
+  END FCounter;
+
+  PROCEDURE FPTimer;
+    VAR W: LONGINT;
+  BEGIN W := VFC.DPop(); VFC.DPush(Timer.Elapsed(T))
+  END FPTimer;
+
+  PROCEDURE FWords;
+    VAR w: Word;
+  BEGIN w := Dict[Current];
+    WHILE w # NIL DO Out.String(w.name^); Out.Char(" "); w := w.link END
+  END FWords;
 
   (* --------------------------- Main loop -------------------------- *)
 
@@ -339,9 +341,10 @@ MODULE ObForth;
   (* -------------------------- Dictionary -------------------------- *)
 
   PROCEDURE InitDict;
-    VAR FFX: ARRAY 2 OF CHAR;
-  BEGIN
+    VAR NulStr: ARRAY 2 OF CHAR;
+  BEGIN NulStr[0] := NUL; NulStr[1] := 0X;
     Current := Macro;
+    DefProc(NulStr, X);
     DefProc(";", FSemis);
     DefProc("EXIT", FExit);
     DefMacro(">R", VFC.OpRPush);
@@ -385,10 +388,12 @@ MODULE ObForth;
 
     DefMacro("@", VFC.OpFetch);
     DefMacro("!", VFC.OpStore);
-
+    DefMacro("1+", VFC.OpInc);
+    DefMacro("1-", VFC.OpDec);
 
 
     Current := Forth;
+    DefProc(NulStr, X);
     Define("+", VFC.OpAdd);
     Define("-", VFC.OpSub);
     Define("*", VFC.OpMul);
@@ -429,15 +434,17 @@ MODULE ObForth;
     Define("@", VFC.OpFetch);
     Define("!", VFC.OpStore);
 
+    Define("1+", VFC.OpInc);
+    Define("1-", VFC.OpDec);
+
     DefProc(":", FColon);
     DefProc("COUNTER", FCounter);
-    DefProc("TIMER", FTimer);
+    DefProc("(TIMER)", FPTimer);
     DefProc("(", FLParen);
     DefProc("HERE", FHere);
     DefProc("WORDS", FWords);
     DefProc("FORTH", FForth);
     DefProc("MACRO", FMacro);
-    FFX[0] := 0FFX; FFX[1] := 0X; DefProc(FFX, X);
   END InitDict;
 
   (* ---------------------------------------------------------------- *)

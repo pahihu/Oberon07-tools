@@ -3,7 +3,8 @@
 
 O2C=o2c
 O2EF=o2ef
-O2CFLAGS=-MOsR
+# O2CFLAGS=-MOsR
+O2CFLAGS=-MOs
 
 MODS=ObForth.Mod
 BINS=$(MODS:.Mod=$(EXE))
@@ -13,6 +14,9 @@ BINS=$(MODS:.Mod=$(EXE))
 
 all: $(BINS)
 
+test: ObForth$(EXE) test.fo
+	./ObForth < test.fo
+
 clean:
 	$(RM) sym/* obj/*
 	$(RM) $(BINS)
@@ -21,4 +25,4 @@ clean:
 ###
 ObForth$(EXE): ObForth.Mod VFC.Mod Logic.Mod
 
-# vim:set ts=2 sw=2 et:
+# vim:set ts=2 sw=2 noet:
