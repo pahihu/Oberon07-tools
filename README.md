@@ -17,10 +17,10 @@ The directories:
 - `Oberon07/riscw/` Windows 64bit binary of Peter De Wachter's [oberon-risc-emu](https://github.com/pdewacht/oberon-risc-emu).
 - `Lola2/` [Lola-2 compiler](https://people.inf.ethz.ch/wirth/Lola/index.html) with patches from [Jörg Straube](https://lists.inf.ethz.ch/pipermail/oberon/).
 - `Lola2/risc5/` Lola-2 definition of RISC5 Computer.
+- `voc-O7/` port of [O7 ARMv6/v7(E)-M](https://github.com/aixp/O7) compiler from A.Shiryaev. `voc-O7/Micro/` and `voc-O7/Mobx/` directories contains the framework sources.
 - `Misc/` classic Hello World, Fibonacci series, Oberon-2 type sizes programs.
 - `Misc/Benchmark/` Pow! benchmark program.
 - `Misc/RayTest/` [Paul Graham's Common Lisp ray-tracer](https://paulgraham.com/acl.html) ported to Oberon-2.
-- `Misc/voc-O7/` port of [O7 ARMv6/v7(E)-M](https://github.com/aixp/O7) compiler from A.Shiryaev.
 - `Misc/ObForth/` Virtual Forth Computer from C.H.Ting.
 - `cedt/` Oberon-2 and Lola-2 syntax definitions for [Crimson Editor](http://www.crimsoneditor.com/).
 

@@ -1,0 +1,27 @@
+MODULE MobxLPC1114FBD48302Echo0;
+
+	(* Alexander Shiryaev, 2014.09 *)
+
+	IMPORT SYSTEM, TP0 := MicroLPC1114TPort0, ARMv6M := MicroARMv6M;
+
+	PROCEDURE Receive0 (id: CHAR; a: ARRAY OF CHAR; len: INTEGER);
+		VAR ok: BOOLEAN;
+	BEGIN
+		TP0.Send(id, SYSTEM.ADR(a), len, ok)
+	END Receive0;
+
+BEGIN
+	TP0.Init(19200, TP0.parityNone);
+	REPEAT
+		TP0.Receive(Receive0);
+		ARMv6M.WFI
+	UNTIL FALSE
+END MobxLPC1114FBD48302Echo0.
+
+O7ARMv6MP.Compile @/s
+
+O7ARMv6MLinker.Link LPC1114FBD48302 MobxLPC1114FBD48302Echo0 
+
+O7ARMv7MTool.DecHex MobxLPC1114FBD48302Echo0.hex 
+
+O7ARMv7MTool.DecBin MobxLPC1114FBD48302Echo0.bin 
