@@ -3,7 +3,7 @@ MODULE O7ARMv7MP; (*N. Wirth 1.7.97 / 8.2.2020	Oberon compiler for RISC in Obero
 	(* Translated for BlackBox by Alexander Shiryaev,
 		2016.05.07, 2017.09.26, 2019.10.21 *)
 
-	IMPORT ORS := O7S, ORB := O7B, ORG := O7ARMv7MG, Texts (*:= O7Texts*), Oberon (*:= O7Oberon*), Sys := System;
+	IMPORT ORS := O7S, ORB := O7B, ORG := O7ARMv7MG, Texts (*:= O7Texts*), Oberon (*:= O7Oberon*), Sys := System, RedirFiles;
 
 	(*Author: Niklaus Wirth, 2014.
 		Parser of Oberon-RISC compiler. Uses Scanner ORS to obtain symbols (tokens),
@@ -1011,5 +1011,6 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Oberon -> ARMv7-M Compiler  21.
 	Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
 	NEW(dummy); dummy.class := ORB.Var; dummy.type := ORB.intType;
 	expression := expression0; Type := Type0; FormalType := FormalType0;
+	RedirFiles.Init("~/.o7.red");
 	Oberon.Run
 END O7ARMv7MP.

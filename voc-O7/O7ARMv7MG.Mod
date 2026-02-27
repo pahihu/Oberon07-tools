@@ -45,7 +45,7 @@ http://infocenter.arm.com/help/topic/com.arm.doc.ddi0439d/DDI0439D_cortex_m4_pro
 			do not remove redundant cmps in Put3 (fixup problems)
 	*)
 
-	IMPORT SYSTEM, Files := Files07, ORS := O7S, ORB := O7B, ARMv6M := O7ARMv6M, ARMv7M := O7ARMv7M, Sys := System;
+	IMPORT SYSTEM, Files := Files07, ORS := O7S, ORB := O7B, ARMv6M := O7ARMv6M, ARMv7M := O7ARMv7M, Sys := System, RedirFiles;
 	(*Code generator for Oberon compiler for RISC processor.
 		 Procedural interface to Parser OSAP; result in array "code".
 		 Procedure Close writes code-files*)
@@ -2717,7 +2717,7 @@ http://infocenter.arm.com/help/topic/com.arm.doc.ddi0439d/DDI0439D_cortex_m4_pro
 	PROCEDURE Close* (VAR modid: ORS.Ident; key, nofent: LONGINT);
 		VAR obj: ORB.Object;
 			i, comsize, nofimps, nofptrs, size: LONGINT;
-			name: ORS.Ident;
+			name: ORS.IdentPath;
 			F: Files.File; R: Files.Rider;
 	BEGIN	(*exit code*)
 		FixRng(0, pc);
@@ -2738,7 +2738,7 @@ http://infocenter.arm.com/help/topic/com.arm.doc.ddi0439d/DDI0439D_cortex_m4_pro
 		size := varsize + strx + comsize + (pc + nofimps + nofent + nofptrs + 1)*4;	(*varsize includes type descriptors*)
 
 		ORB.MakeFileName(name, modid, ".a7m"); (*write code file*)
-		F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteLInt(R, key); Files.Write(R, CHR(version));
+		F := RedirFiles.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteLInt(R, key); Files.Write(R, CHR(version));
 		Files.WriteLInt(R, size);
 		obj := ORB.topScope.next;
 		WHILE (obj # NIL) & (obj.class = ORB.Mod) DO	(*imports*)

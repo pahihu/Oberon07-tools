@@ -39,6 +39,7 @@ MODULE O7S; (* NW 19.9.93 / 20.3.2017	Scanner in Oberon-07*)
 		module* = 69; eot = 70;
 
 	TYPE Ident* = ARRAY IdLen OF CHAR;
+	     IdentPath* = ARRAY 256 OF CHAR;
 
 	VAR ival-, slen-: LONGINT; (*results of Get*)
 		rval-: REAL;

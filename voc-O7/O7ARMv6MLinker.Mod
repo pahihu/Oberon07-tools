@@ -17,7 +17,7 @@ MODULE O7ARMv6MLinker;
 			modules ptrs table stored in RAM for fast GC work
 	*)
 
-	IMPORT SYSTEM, Sys := System, Files := Files07, Texts (*:= O7Texts*), Oberon (*:= O7Oberon*), ARMv6M := O7ARMv6M;
+	IMPORT SYSTEM, Sys := System, Files := Files07, Texts (*:= O7Texts*), Oberon (*:= O7Oberon*), ARMv6M := O7ARMv6M, RedirFiles;
 
 	TYPE
 		LONGINT = Sys.Integer;
@@ -29,6 +29,7 @@ MODULE O7ARMv6MLinker;
 
 	TYPE Module = POINTER TO ModDesc;
 		ModuleName = ARRAY 32 OF CHAR;
+		Path = ARRAY 256 OF CHAR;
 
 		ModDesc = RECORD
 			name: ModuleName;
@@ -104,32 +105,32 @@ MODULE O7ARMv6MLinker;
 
 	PROCEDURE ThisFile ((*IN*) VAR name: ARRAY OF CHAR): Files.File;
 		VAR i: INTEGER;
-			filename: ModuleName;
+			filename: Path;
 	BEGIN i := 0;
 		WHILE name[i] # 0X DO filename[i] := name[i]; INC(i) END ;
 		filename[i] := "."; filename[i+1] := "a"; filename[i+2] := "6";
 		filename[i+3] := "m"; filename[i+4] := 0X;
-		RETURN Files.Old(filename)
+		RETURN RedirFiles.Old(filename)
 	END ThisFile;
 
 	PROCEDURE NewHexFile ((*IN*) VAR name: ARRAY OF CHAR): Files.File;
 		VAR i: INTEGER;
-			filename: ModuleName;
+			filename: Path;
 	BEGIN i := 0;
 		WHILE name[i] # 0X DO filename[i] := name[i]; INC(i) END ;
 		filename[i] := "."; filename[i+1] := "h"; filename[i+2] := "e";
 		filename[i+3] := "x"; filename[i+4] := 0X;
-		RETURN Files.New(filename)
+		RETURN RedirFiles.New(filename)
 	END NewHexFile;
 
 	PROCEDURE NewBinFile ((*IN*) VAR name: ARRAY OF CHAR): Files.File;
 		VAR i: INTEGER;
-			filename: ModuleName;
+			filename: Path;
 	BEGIN i := 0;
 		WHILE name[i] # 0X DO filename[i] := name[i]; INC(i) END ;
 		filename[i] := "."; filename[i+1] := "b"; filename[i+2] := "i";
 		filename[i+3] := "n"; filename[i+4] := 0X;
-		RETURN Files.New(filename)
+		RETURN RedirFiles.New(filename)
 	END NewBinFile;
 
 	PROCEDURE error (n: INTEGER; (*IN*) VAR name: ARRAY OF CHAR);
@@ -1209,5 +1210,6 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OARMv6MLinker 7.3.2023");
 		20000H (* 128 KiB *), 8000H (* 32 KiB *));
 	EnterSAM("SAM3S4", "ABC", 35, 200H,
 		40000H (* 256 KiB *), 0C000H (* 48 KiB *));
+	RedirFiles.Init("~/.o7.red");
 	Oberon.Run
 END O7ARMv6MLinker.

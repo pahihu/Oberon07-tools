@@ -34,7 +34,7 @@ http://ecee.colorado.edu/ecen3000/labs/lab3/files/DDI0419C_arm_architecture_v6m_
 				register procedures	https://github.com/aixp/ProjectOberon2013/commit/873fe7ef74a2c41592f9904ad7c3893e4a368d58
 	*)
 
-	IMPORT SYSTEM, Files := Files07, ORS := O7S, ORB := O7B, ARMv6M := O7ARMv6M, Sys := System;
+	IMPORT SYSTEM, Files := Files07, ORS := O7S, ORB := O7B, ARMv6M := O7ARMv6M, Sys := System, RedirFiles;
 	(*Code generator for Oberon compiler for RISC processor.
 		 Procedural interface to Parser OSAP; result in array "code".
 		 Procedure Close writes code-files*)
@@ -2191,7 +2191,7 @@ http://www.inf.ethz.ch/personal/wirth/Oberon/Oberon.ARM.Compiler.pdf
 	PROCEDURE Close* (VAR modid: ORS.Ident; key, nofent: LONGINT);
 		VAR obj: ORB.Object;
 			i, comsize, nofimps, nofptrs, size: LONGINT;
-			name: ORS.Ident;
+			name: ORS.IdentPath;
 			F: Files.File; R: Files.Rider;
 	BEGIN	(*exit code*)
 		FixRng(0, pc);
@@ -2212,7 +2212,7 @@ http://www.inf.ethz.ch/personal/wirth/Oberon/Oberon.ARM.Compiler.pdf
 		size := varsize + strx + comsize + (pc + nofimps + nofent + nofptrs + 1)*4;	(*varsize includes type descriptors*)
 
 		ORB.MakeFileName(name, modid, ".a6m"); (*write code file*)
-		F := Files.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteLInt(R, key); Files.Write(R, CHR(version));
+		F := RedirFiles.New(name); Files.Set(R, F, 0); Files.WriteString(R, modid); Files.WriteLInt(R, key); Files.Write(R, CHR(version));
 		Files.WriteLInt(R, size);
 		obj := ORB.topScope.next;
 		WHILE (obj # NIL) & (obj.class = ORB.Mod) DO	(*imports*)

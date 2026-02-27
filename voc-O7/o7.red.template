@@ -1,0 +1,17 @@
+# This file belongs in ~/.o2c.red, it tells the compiler where to search for
+# files matching certain patterns, and where to place newly generated files.
+# Non-absolute paths are relative to the directory where the compiler, browser,
+# etc. is started.
+# NOTE: `~user/', `~/', `..' and `.' are allowed as part of the paths
+#       +RCS is only useful for module sources (*.Mod).
+
+# paths for sources
+*.Mod	= 
+	.;		# first search the current directory
+	~/Documents/Projects/Oberon/voc-O7/Micro/Files;
+	~/Documents/Projects/Oberon/voc-O7/Mobx/Files
+	+ RCS		# include RCS files in the search
+
+# places for the compiler generated files
+*.a7m, *.a6m = obj; ~/Documents/Projects/Oberon/voc-O7/Micro/Files/obj; ~/Documents/Projects/Oberon/voc-O7/Mobx/Files/obj
+*.smb = sym; ~/Documents/Projects/Oberon/voc-O7/Micro/Files/sym; ~/Documents/Projects/Oberon/voc-O7/Mobx/Files/sym

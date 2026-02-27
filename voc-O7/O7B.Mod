@@ -1,6 +1,6 @@
 MODULE O7B;	(*NW 25.6.2014  / 1.3.2019  in Oberon-07*)
 
-	IMPORT Sys := System, Files := Files07, ORS := O7S;
+	IMPORT Sys := System, Files := Files07, ORS := O7S, RedirFiles;
 	(*Definition of data types Object and Type, which together form the data structure
 		called "symbol table". Contains procedures for creation of Objects, and for search:
 		NewObj, this, thisimport, thisfield (and OpenScope, CloseScope).
@@ -127,7 +127,7 @@ MODULE O7B;	(*NW 25.6.2014  / 1.3.2019  in Oberon-07*)
 
 	(*------------------------------- Import ---------------------------------*)
 
-	PROCEDURE MakeFileName* (VAR FName: ORS.Ident; (*IN*) name, ext: ARRAY OF CHAR);
+	PROCEDURE MakeFileName* (VAR FName: ORS.IdentPath; (*IN*) name, ext: ARRAY OF CHAR);
 		VAR i, j: INTEGER;
 	BEGIN i := 0; j := 0;	(*assume name suffix less than 4 characters*)
 		WHILE (i < ORS.IdLen-5) & (name[i] > 0X) DO FName[i] := name[i]; INC(i) END ;
@@ -213,13 +213,14 @@ MODULE O7B;	(*NW 25.6.2014  / 1.3.2019  in Oberon-07*)
 		VAR key: LONGINT; class, k: INTEGER;
 			obj: Object; t: Type;
 			thismod: Object;
-			modname, fname: ORS.Ident;
+			modname: ORS.Ident;
+			fname: ORS.IdentPath;
 			F: Files.File; R: Files.Rider;
 	BEGIN
 		IF modid1 = "SYSTEM" THEN
 			thismod := ThisModule(modid, modid1, TRUE, key); DEC(nofmod);
 			thismod.lev := 0; thismod.dsc := system; thismod.rdo := TRUE
-		ELSE MakeFileName(fname, modid1, ".smb"); F := Files.Old(fname);
+		ELSE MakeFileName(fname, modid1, ".smb"); F := RedirFiles.Old(fname);
 			IF F # NIL THEN
 				Files.Set(R, F, 0); Files.ReadInt(R, key); Files.ReadInt(R, key); Files.ReadString(R, modname);
 				thismod := ThisModule(modid, modid1, TRUE, key); thismod.rdo := TRUE;
@@ -312,10 +313,10 @@ MODULE O7B;	(*NW 25.6.2014  / 1.3.2019  in Oberon-07*)
 	PROCEDURE Export* (VAR modid: ORS.Ident; VAR newSF: BOOLEAN; VAR key: LONGINT);
 		VAR x, sum, oldkey: LONGINT;
 			obj, obj0: Object;
-			filename: ORS.Ident;
+			filename: ORS.IdentPath;
 			F, F1: Files.File; R, R1: Files.Rider;
 	BEGIN Ref := Record + 1; MakeFileName(filename, modid, ".smb");
-		F := Files.New(filename);
+		F := RedirFiles.New(filename);
 		IF F # NIL THEN
 			Files.Set(R, F, 0);
 			Files.WriteLInt(R, 0); (*placeholder*)
