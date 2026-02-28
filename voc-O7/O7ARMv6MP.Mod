@@ -976,6 +976,8 @@ MODULE O7ARMv6MP; (*N. Wirth 1.7.97 / 8.2.2020	Oberon compiler for RISC in Obero
 		VAR beg, end, time: LONGINT;
 			T: Texts.Text;
 			S: Texts.Scanner;
+			fname: ARRAY 256 OF CHAR;
+			found: BOOLEAN;
 	BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos);
 		Texts.Scan(S);
 		IF S.class = Texts.Char THEN
@@ -996,7 +998,8 @@ MODULE O7ARMv6MP; (*N. Wirth 1.7.97 / 8.2.2020	Oberon compiler for RISC in Obero
 *)
 		ELSE
 			WHILE S.class = Texts.Name DO
-				NEW(T); Texts.Open(T, S.s);
+				COPY(S.s, fname); found := RedirFiles.FindOld(fname);
+				NEW(T); Texts.Open(T, fname);
 				IF T.len > 0 THEN Option(S); ORS.Init(T, 0); Module
 				ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
 					Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)

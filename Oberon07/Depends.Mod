@@ -184,7 +184,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
   END Scan;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: Depends Scan module[/v] ..."); EndLine
+  BEGIN Texts.WriteString(W, "usage: Depends Scan module[/rv] ..."); EndLine
   END Help;
 
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Depends Phu 4.2.26"); EndLine;
@@ -194,7 +194,6 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Depends Phu 4.2.26"); EndLine;
   cls[Texts.Real] := "Real";
   cls[5] := "LReal";
   cls[Texts.Char] := "Char";
-  RedirFiles.Init("~/.o7.red"); Oberon.Run
 END Depends.
 
 (* History

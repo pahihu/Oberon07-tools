@@ -1,6 +1,6 @@
 .SUFFIXES:
 .SUFFIXES: .Mod .smb .a6m
-VPATH=$(HOME)/Projects/Oberon/voc-O7/Micro/Files
+VPATH=$(O7DIR)/Micro/Files
 
 MCU=LPC1114FBD48302
 
@@ -10,7 +10,10 @@ OBJ=a6m
 
 SRCS=MobxLPC1114FBD48302Echo0.Mod
 OBJS=$(SRCS:.Mod=.a6m)
+BINS=$(SRCS:.Mod=.bin)
+HEXS=$(SRCS:.Mod=.hex)
 DBINS=$(SRCS:.Mod=.decbin)
+DHEXS=$(SRCS:.Mod=.dechex)
 
 %.smb %.a6m: %.Mod
 	O7ARMv6MP Compile $(notdir $<)
@@ -28,8 +31,12 @@ DBINS=$(SRCS:.Mod=.decbin)
 all: $(DBINS)
 
 clean:
-	$(RM) $(DBINS) $(OBJS)
+	$(RM) $(DHEXS) $(DBINS) $(HEXS) $(BINS) $(OBJS)
 	$(RM) sym/* obj/*
 	$(RM) Oberon.Log
 
+$(DBINS): $(BINS)
+###
 include Makefile.dep
+
+# vim:set ts=4 sw=4 noet:

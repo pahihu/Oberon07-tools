@@ -42,6 +42,7 @@ dot.env:
 	echo "export O2CARCH=$(O2CARCH)" >> .env
 	echo "export DYNEXPORT=\"$(DYNEXPORT)\"" >> .env
 	echo "export EXE=\"$(EXE)\"" >> .env
+	echo 'export O7DIR=$$DIR/voc-O7' >> .env
 	echo 'export PATH=$$DIR/Lola2:$$DIR/Oberon07:$$DIR/Oberon0::$$DIR/voc-O7:$$PATH' >> .env
 
 force:
