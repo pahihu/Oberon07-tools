@@ -1,0 +1,8 @@
+###
+MobxLPC1343Blink.$(OBJ) MobxLPC1343Blink.$(SYM): MicroLPC1343.$(SYM) MicroLPC1343System.$(SYM) MobxLPC1343Blink.$(MOD)
+MicroLPC1343.$(OBJ) MicroLPC1343.$(SYM): MicroLPC1343.$(MOD)
+MicroLPC1343System.$(OBJ) MicroLPC1343System.$(SYM): MicroLPC1343.$(SYM) MicroKernel0.$(SYM) MicroARMv7MTraps.$(SYM) MicroLPC1343System.$(MOD)
+MicroKernel0.$(OBJ) MicroKernel0.$(SYM): MicroKernel0.$(MOD)
+MicroARMv7MTraps.$(OBJ) MicroARMv7MTraps.$(SYM): MicroARMv7M.$(SYM) MicroKernel0.$(SYM) MicroARMv7MTraps.$(MOD)
+MicroARMv7M.$(OBJ) MicroARMv7M.$(SYM): MicroARMv7M.$(MOD)
+###

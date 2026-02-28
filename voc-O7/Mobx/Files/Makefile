@@ -1,31 +1,41 @@
 .SUFFIXES:
-.SUFFIXES: .Mod .smb .a6m
+.SUFFIXES: .Mod .smb .a6m .a7m
 VPATH=$(O7DIR)/Micro/Files
 
-MCU=LPC1114FBD48302
 
 MOD=Mod
 SYM=smb
-OBJ=a6m
+# ARMv6
+# OBJ=a6m
+# OXP=O7ARMv6MP
+# OXL=O7ARMv6MLinker
+# ARMv7[E]
+OBJ=a7m
+OXP=O7ARMv7MP
+OXL=O7ARMv7MLinker
+OXTOOL=O7ARMv7MTool
 
-SRCS=MobxLPC1114FBD48302Echo0.Mod
-OBJS=$(SRCS:.Mod=.a6m)
+# MCU=LPC1114FBD48302
+# SRCS=MobxLPC1114FBD48302Echo0.Mod
+MCU=LPC1343
+SRCS=MobxLPC1343Blink.Mod
+OBJS=$(SRCS:.Mod=.$(OBJ))
 BINS=$(SRCS:.Mod=.bin)
 HEXS=$(SRCS:.Mod=.hex)
 DBINS=$(SRCS:.Mod=.decbin)
 DHEXS=$(SRCS:.Mod=.dechex)
 
-%.smb %.a6m: %.Mod
-	O7ARMv6MP Compile $(notdir $<)
+%.smb %.$(OBJ): %.Mod
+	$(OXP) Compile $(notdir $<)
 
-%.bin: %.a6m
-	O7ARMv6MLinker Link $(MCU) $(basename $@)
+%.bin: %.$(OBJ)
+	$(OXL) Link $(MCU) $(basename $@)
 
 %.dechex: %.hex
-	O7ARMv7MTool DecHex $< > $@
+	$(OXTOOL) DecHex $< > $@
 
 %.decbin: %.bin
-	O7ARMv7MTool DecBin $< > $@
+	$(OXTOOL) DecBin $< > $@
 
 
 all: $(DBINS)
@@ -37,6 +47,7 @@ clean:
 
 $(DBINS): $(BINS)
 ###
-include Makefile.dep
+# include Echo0.dep
+include Blink.dep
 
 # vim:set ts=4 sw=4 noet:
