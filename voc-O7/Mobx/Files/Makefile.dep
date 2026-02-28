@@ -1,0 +1,9 @@
+###
+MobxLPC1114FBD48302Echo0.$(OBJ) MobxLPC1114FBD48302Echo0.$(SYM): MicroLPC1114TPort0.$(SYM) MicroARMv6M.$(SYM) MobxLPC1114FBD48302Echo0.$(MOD)
+MicroLPC1114TPort0.$(OBJ) MicroLPC1114TPort0.$(SYM): MicroLPC1100.$(SYM) MicroARMv6M.$(SYM) MicroLPC1100System.$(SYM) MicroLPC1114TPort0.$(MOD)
+MicroLPC1100.$(OBJ) MicroLPC1100.$(SYM): MicroLPC1100.$(MOD)
+MicroARMv6M.$(OBJ) MicroARMv6M.$(SYM): MicroARMv6M.$(MOD)
+MicroLPC1100System.$(OBJ) MicroLPC1100System.$(SYM): MicroLPC1100.$(SYM) MicroKernel0.$(SYM) MicroARMv6MTraps.$(SYM) MicroLPC1100System.$(MOD)
+MicroKernel0.$(OBJ) MicroKernel0.$(SYM): MicroKernel0.$(MOD)
+MicroARMv6MTraps.$(OBJ) MicroARMv6MTraps.$(SYM): MicroARMv6M.$(SYM) MicroKernel0.$(SYM) MicroARMv6MTraps.$(MOD)
+###

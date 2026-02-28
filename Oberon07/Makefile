@@ -14,7 +14,8 @@ BINS=$(MODS:.Mod=$(EXE))
 all:
 	@-echo "select compiler: make org (NW) or make numcase (AP)"
 
-compiler: $(BINS)
+compiler:
+	make $(BINS)
 
 org: setup-org compiler
 numcase: setup-numcase compiler
