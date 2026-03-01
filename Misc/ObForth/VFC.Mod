@@ -1,5 +1,5 @@
 MODULE VFC;
-  IMPORT SYSTEM, Logic, In, Out;
+  IMPORT SYSTEM, Logic, IO;
 
   CONST
     MaxStack = 64; MaxMem = 8192;
@@ -21,9 +21,9 @@ MODULE VFC;
   VAR T, sp, rp: WORD;
       S, R: ARRAY MaxStack OF WORD;
       M: ARRAY MaxMem OF WORD;
-      dictPtr-: WORD;
+      dictPtr*: WORD;
       execLvl: WORD;
-      debug-: BOOLEAN;
+      debug*: BOOLEAN;
 
   PROCEDURE Get*(x: WORD): WORD;
   BEGIN RETURN M[x]
@@ -96,8 +96,8 @@ MODULE VFC;
     WHILE ~done DO
       op := M[P]; INC(P);
       IF debug THEN
-        Out.String(" P="); Out.Int(P-1, 4);
-        Out.String(" op="); Out.Int(op, 0); Out.Ln;
+        IO.Type(" P="); IO.Print(P-1, 4, 10);
+        IO.Type(" op="); IO.Print(op, 0, 10); IO.Cr;
       END;
       CASE op OF
           OpHalt: done := TRUE

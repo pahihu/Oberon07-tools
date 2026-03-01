@@ -1,0 +1,17 @@
+MODULE Timer;
+  IMPORT SYSTEM;
+
+  CONST SysClkAdr = -20; (*TBD*)
+  TYPE Timer* = LONGINT;
+
+  PROCEDURE Start*(VAR t0: Timer);
+  BEGIN SYSTEM.GET(SysClkAdr, t0)
+  END Start;
+
+  PROCEDURE Elapsed*(VAR t0: Timer): LONGINT;
+    VAR t1: LONGINT;
+  BEGIN SYSTEM.GET(SysClkAdr, t1);
+    RETURN t1-t0
+  END Elapsed;
+
+END Timer.

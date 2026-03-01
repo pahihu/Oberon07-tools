@@ -1,0 +1,29 @@
+.SUFFIXES:
+.SUFFIXES: .Mod .Mod.txt .rsc .smb
+
+SRC=IO.Mod.txt Timer.Mod.txt Logic.Mod VFC.Mod ObForth.Mod
+OBJS=IO.rsc Timer.rsc Logic.rsc VFC.rsc ObForth.rsc
+SYMS=IO.smb Timer.smb Logic.smb VFC.smb ObForth.smb
+
+%.smb %.rsc: %.Mod
+	ORP Compile $</s
+
+%.dump: %.rsc
+	ORTool DecObj $< >$@
+
+all:: $(OBJS)
+
+clean:
+	$(RM) *.dump
+	$(RM) $(OBJS) $(SYMS)
+	$(RM) Oberon.Log
+
+IO.smb IO.rsc: IO.Mod.txt
+	ORP Compile $</s
+Timer.smb Timer.rsc: Timer.Mod.txt
+	ORP Compile $</s
+Logic.smb Logic.rsc: Logic.Mod
+VFC.smb VFC.rsc: Logic.smb IO.smb VFC.Mod
+ObForth.smb ObForth.rsc: VFC.smb IO.smb Timer.smb ObForth.Mod
+
+# vim:set ts=4 sw=4 noet:
