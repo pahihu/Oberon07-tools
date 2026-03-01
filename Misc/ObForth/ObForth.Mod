@@ -114,16 +114,20 @@ MODULE ObForth;
   BEGIN VFC.DPushProc(x); VFC.Comma
   END CommaProc;
 
-  PROCEDURE SysCopy(src: ARRAY OF CHAR; VAR dst: ARRAY OF CHAR);
-    VAR i: INTEGER;
-  BEGIN i := 0;
-    WHILE (i < LEN(dst)-1) & (src[i] # 0X) DO dst[i] := src[i]; INC(i) END;
-    dst[i] := 0X
-  END SysCopy;
+  PROCEDURE Pack(src: ARRAY OF CHAR; VAR dst: String);
+    VAR i, j: INTEGER;
+  BEGIN j := 1; i := 0;
+    WHILE (src[i] # 0X) DO
+      IF j < LEN(dst)-1 THEN dst[j] := src[i]; INC(j); END;
+      INC(i);
+    END;
+    WHILE j < LEN(dst) DO dst[j] := 0X; INC(j) END;
+    dst[0] := CHR(i)
+  END Pack;
 
   PROCEDURE Header(s: ARRAY OF CHAR);
     VAR d: Word;
-  BEGIN NEW(d); SysCopy(s, d.name); d.link := Dict[Current];
+  BEGIN NEW(d); Pack(s, d.name); d.link := Dict[Current];
     d.cfa := VFC.dictPtr; Dict[Current] := d;
     IF debug THEN IO.Type("HEADER "); IO.Type(s); IO.Type(" @ "); IO.Print(VFC.dictPtr, 0, 10) END
   END Header;
@@ -147,7 +151,7 @@ MODULE ObForth;
   BEGIN IO.Type(s); IO.Type("? "); IO.Cr; IO.Flush
   END Err;
 
-  PROCEDURE Find(dict: Word; VAR s: ARRAY OF CHAR): Word;
+  PROCEDURE Find(dict: Word; VAR s: String): Word;
     VAR ret: Word;
   BEGIN ret := NIL;
     WHILE (dict # NIL) & (ret = NIL) DO
@@ -159,7 +163,9 @@ MODULE ObForth;
   PROCEDURE Interpret(VAR s: ARRAY OF CHAR);
     VAR w: Word;
         x: LONGINT;
-  BEGIN w := Find(Dict[Forth], s);
+        P: String;
+  BEGIN Pack(s, P);
+    w := Find(Dict[Forth], P);
     IF debug THEN Dump(w) END;
     IF w # NIL THEN VFC.Execute(w.cfa)
     ELSIF IsNumber(s, x) THEN VFC.DPush(x)
@@ -170,10 +176,12 @@ MODULE ObForth;
   PROCEDURE Compile(VAR s: ARRAY OF CHAR);
     VAR w: Word;
         x: LONGINT;
-  BEGIN w := Find(Dict[Macro], s);
+        P: String;
+  BEGIN Pack(s, P);
+    w := Find(Dict[Macro], P);
     IF w # NIL THEN VFC.Execute(w.cfa)
     ELSE
-      w := Find(Dict[Forth], s);
+      w := Find(Dict[Forth], P);
       IF w # NIL THEN Comma(w.cfa)
       ELSIF IsNumber(s, x) THEN Comma(VFC.OpLit); Comma(x)
       ELSE Err(s)
@@ -298,10 +306,16 @@ MODULE ObForth;
   BEGIN W := VFC.DPop(); VFC.DPush(Timer.Elapsed(T))
   END FPTimer;
 
+  PROCEDURE PrintID(VAR s: String);
+    VAR i: INTEGER;
+  BEGIN i := 1; WHILE s[i] # 0X DO IO.Emit(s[i]); INC(i) END;
+    IF ORD(s[0]) > 6 THEN IO.Emit("$") END
+  END PrintID;
+
   PROCEDURE FWords;
     VAR w: Word;
   BEGIN w := Dict[Current];
-    WHILE w # NIL DO IO.Type(w.name); IO.Emit(" "); w := w.link END
+    WHILE w # NIL DO PrintID(w.name); IO.Emit(" "); w := w.link END
   END FWords;
 
   (* --------------------------- Main loop -------------------------- *)
@@ -369,6 +383,7 @@ MODULE ObForth;
     DefMacro("!", VFC.OpStore);
     DefMacro("1+", VFC.OpInc);
     DefMacro("1-", VFC.OpDec);
+    DefMacro("*/", VFC.OpMulDiv);
 
 
     Current := Forth;

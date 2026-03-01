@@ -5,7 +5,7 @@ O2C=o2c
 O2EF=o2ef
 O2CFLAGS=-M
 
-MODS=ORP.Mod ORTool.Mod ORX.Mod ORL.Mod O7Depends.Mod POSystem.Mod
+MODS=ORP.Mod ORTool.Mod ORX.Mod ORL.Mod ODepends.Mod O7Depends.Mod POSystem.Mod
 BINS=$(MODS:.Mod=$(EXE))
 
 %$(EXE): %.Mod

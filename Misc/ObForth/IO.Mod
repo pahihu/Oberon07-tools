@@ -1,29 +1,22 @@
 MODULE IO;
-  IMPORT CType, Unix;
+  IMPORT SerIO;
 
   CONST CR = 0DX; LF = 0AX;
 
-  VAR eof: BOOLEAN;
-
   PROCEDURE Open*;
-  BEGIN 
+  BEGIN SerIO.Open
   END Open;
 
   PROCEDURE IsEof*(): BOOLEAN;
-  BEGIN RETURN eof
+  BEGIN RETURN SerIO.IsEof()
   END IsEof;
   
   PROCEDURE Key*(): CHAR;
-    VAR ch: CHAR;
-  BEGIN IF Unix.feof(Unix.stdin) # 0 THEN eof := TRUE; ch := 0X
-    ELSE ch := CHR(Unix.fgetc(Unix.stdin))
-    END;
-    RETURN ch
+  BEGIN RETURN SerIO.Key()
   END Key;
 
   PROCEDURE Emit*(x: CHAR);
-    VAR rc: CType.int;
-  BEGIN rc := Unix.fputc(ORD(x), Unix.stdout)
+  BEGIN SerIO.Emit(x)
   END Emit;
 
   PROCEDURE Cr*;
@@ -58,9 +51,7 @@ MODULE IO;
   END Print;
 
   PROCEDURE Flush*;
-    VAR rc: CType.int;
-  BEGIN rc := Unix.fflush(Unix.stdout)
+  BEGIN SerIO.Flush
   END Flush;
   
-BEGIN eof := FALSE
 END IO.

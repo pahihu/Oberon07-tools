@@ -12,17 +12,20 @@ BINS=$(MODS:.Mod=$(EXE))
 %$(EXE): %.Mod
 	$(O2C) $(DYNEXPORT) $(O2CFLAGS) $(basename $@) | $(O2EF)
 
-all: $(BINS)
+all: SerIO.Mod $(BINS)
 
 test: ObForth$(EXE) test.fo
 	./ObForth < test.fo
 
+SerIO.Mod: UnixIO.Mod
+	cp $< $@
+
 clean:
 	$(RM) sym/* obj/*
-	$(RM) $(BINS)
+	$(RM) SerIO.Mod $(BINS)
 	$(RM) Oberon.Log
 
 ###
-ObForth$(EXE): ObForth.Mod VFC.Mod Logic.Mod
+ObForth$(EXE): ObForth.Mod UnixIO.Mod VFC.Mod Logic.Mod
 
 # vim:set ts=2 sw=2 noet:

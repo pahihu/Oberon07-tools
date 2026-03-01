@@ -1,0 +1,35 @@
+MODULE SerIO;
+  IMPORT SYSTEM;
+
+  CONST CR = 0DX; LF = 0AX; CtrlD = 03H;
+
+  VAR eof: BOOLEAN;
+
+  PROCEDURE Open*;
+  BEGIN (*serial I/O init here*)
+  END Open;
+
+  PROCEDURE IsEof*(): BOOLEAN;
+  BEGIN RETURN eof
+  END IsEof;
+  
+  PROCEDURE Key*(): CHAR;
+    VAR x: LONGINT;
+        ch: CHAR;
+  BEGIN SYSTEM.GET(-12, x);
+    IF x = CtrlD THEN eof := TRUE; ch := 0X
+    ELSE ch := CHR(x MOD 100H)
+    END;
+    RETURN ch
+  END Key;
+
+  PROCEDURE Emit*(x: CHAR);
+  BEGIN SYSTEM.PUT(-8, ORD(x))
+  END Emit;
+
+  PROCEDURE Flush*;
+  BEGIN 
+  END Flush;
+  
+BEGIN eof := FALSE
+END SerIO.
