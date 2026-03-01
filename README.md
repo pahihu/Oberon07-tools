@@ -22,6 +22,7 @@ The directories:
 - `Misc/Benchmark/` Pow! benchmark program.
 - `Misc/RayTest/` [Paul Graham's Common Lisp ray-tracer](https://paulgraham.com/acl.html) ported to Oberon-2.
 - `Misc/ObForth/` Virtual Forth Computer from C.H.Ting.
+- `UF2/` USB Flashing Format utils from [UF2](https://github.com/microsoft/uf2).
 - `cedt/` Oberon-2 and Lola-2 syntax definitions for [Crimson Editor](http://www.crimsoneditor.com/).
 
 You can rebuild the Project Oberon 2013 sources and install it in an SD card image with these tools.
