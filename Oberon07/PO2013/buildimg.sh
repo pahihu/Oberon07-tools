@@ -46,7 +46,7 @@ Viewers.rsc \
 Viewers.smb"
 
 make
-./mk.sh build
+./mkrsc.sh build
 
 echo "copying RISC.img..."
 cp ../riscw/RISC-11.12.2018.img.gz RISC.img.gz
