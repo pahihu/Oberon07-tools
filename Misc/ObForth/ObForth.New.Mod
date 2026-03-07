@@ -3,32 +3,26 @@ MODULE ObForth;
 
   CONST Forth = 0; Macro = 1; MaxStr = 7;
     NUL = 0FFX; TAB = 9X; CR = 0DX; LF = 0AX; MaxLine = 83;
-    Nil = 0;
 
   TYPE
-    Word = VFC.WORD;
-    String = ARRAY 2 OF Word;
-    (* name[0] name[1] link [cfa] *)
+    String = ARRAY MaxStr+1 OF CHAR;
+    Word = POINTER TO WordDesc;
+    WordDesc = RECORD
+      link: Word;
+      name: String;
+      cfa: LONGINT;
+    END;
 
   VAR Dict: ARRAY 2 OF Word;
       Current: INTEGER;
       Base: LONGINT;
       DoIt: PROCEDURE (VAR s:ARRAY OF CHAR);
+      L: INTEGER;
       S: ARRAY 32 OF CHAR;
       debug: BOOLEAN;
       TIB: ARRAY MaxLine OF CHAR;
       INN: LONGINT;
       T: Timer.Timer;
-
-  (* -------------------------- Dictionary -------------------------- *)
-
-  PROCEDURE Link(w: Word): Word;
-  BEGIN RETURN VFC.Get(w)
-  END Link;
-
-  PROCEDURE CFA(w: Word): LONGINT;
-  BEGIN RETURN w + 1
-  END CFA;
 
   (* -------------------------- Number I/O -------------------------- *)
 
@@ -57,56 +51,20 @@ MODULE ObForth;
   BEGIN IO.Print(x, 0, 16)
   END Hex;
 
-  (* ---------------------------- Packed ID ------------------------ *)
-
-  PROCEDURE Pack(src: ARRAY OF CHAR; VAR dst: String);
-    VAR i, j, flush: INTEGER;
-        packed: Word;
-  BEGIN i := 0; j := 0; packed := 0; flush := 3; dst[1] := 0;
-    WHILE (src[i] # 0X) DO
-      packed := 256 * packed + ORD(src[i]); INC(i);
-      IF i = flush THEN
-        dst[j] := packed; packed := 0; INC(j); INC(flush, 4);
-        IF flush > MaxStr THEN flush := MaxLine END
-      END
-    END;
-    IF (j < 2) & (packed # 0) THEN dst[j] := packed END;
-    dst[0] := dst[0] * 256 + i
-  END Pack;
-
-  PROCEDURE PrintID(VAR s: String);
-    VAR i: INTEGER;
-        str: ARRAY MaxStr+1 OF CHAR;
-        w: Word;
-        long: BOOLEAN;
-  BEGIN long := FALSE; str[MaxStr] := 0X; i := MaxStr;
-    w := s[1];
-    WHILE w # 0 DO DEC(i); str[i] := CHR(w MOD 256); w := w DIV 256 END;
-    w := s[0]; long := w MOD 256 > MaxStr; w := w DIV 256;
-    WHILE w # 0 DO DEC(i); str[i] := CHR(w MOD 256); w := w DIV 256 END;
-    WHILE str[i] # 0X DO IO.Emit(str[i]); INC(i) END;
-    IF long THEN IO.Emit("$") END
-  END PrintID;
-
-  PROCEDURE PrintIDPtr(w: Word);
-    VAR s: String;
-  BEGIN s[0] := VFC.Get(w); s[1] := VFC.Get(w+1); PrintID(s)
-  END PrintIDPtr;
-
   (* ------------------------- Debug helpers ------------------------ *)
 
   PROCEDURE Dump(w: Word);
-  BEGIN IF w # Nil THEN
-      IO.Type(" link="); Hex(Link(w)); IO.Cr;
-      IO.Type(" name="); PrintIDPtr(w-2); IO.Cr;
-      IO.Type("  cfa="); Hex(CFA(w)); IO.Cr;
-      IO.Type("   op="); Hex(VFC.Get(w+1)); IO.Cr;
+  BEGIN IF w # NIL THEN
+      IO.Type(" link="); Hex(SYSTEM.VAL(LONGINT,w.link)); IO.Cr;
+      IO.Type(" name="); IO.Type(w.name); IO.Cr;
+      IO.Type("  cfa="); Hex(w.cfa); IO.Cr;
+      IO.Type("   op="); Hex(VFC.Get(w.cfa)); IO.Cr;
     ELSE IO.Type(" NIL")
     END; IO.Cr
   END Dump;
 
   PROCEDURE DumpDict(w: Word);
-  BEGIN WHILE w # Nil DO Dump(w); w := Link(w) END
+  BEGIN WHILE w # NIL DO Dump(w); w := w.link END
   END DumpDict;
 
   PROCEDURE Log(s: ARRAY OF CHAR);
@@ -132,14 +90,15 @@ MODULE ObForth;
   BEGIN WHILE TIB[INN] = " " DO INC(INN) END
   END Skip;
 
-  PROCEDURE Scan(VAR s: ARRAY OF CHAR; delim: CHAR);
+  PROCEDURE Scan(VAR s: ARRAY OF CHAR; delim: CHAR): INTEGER;
     VAR i: INTEGER;
   BEGIN i := 0; WHILE TIB[INN] # delim DO s[i] := TIB[INN]; INC(i); INC(INN) END; s[i] := 0X;
-    IF debug THEN IO.Cr; IO.Type("Scan=["); IO.Type(s); IO.Type("] "); END
+    IF debug THEN IO.Cr; IO.Type("Scan=["); IO.Type(s); IO.Type("] "); END;
+    RETURN i
   END Scan;
 
   PROCEDURE Parse;
-  BEGIN Skip; Scan(S, " ")
+  BEGIN Skip; L := Scan(S, " ")
   END Parse;
 
   PROCEDURE Length(VAR s: ARRAY OF CHAR): LONGINT;
@@ -157,11 +116,36 @@ MODULE ObForth;
   BEGIN VFC.DPushProc(x); VFC.Comma
   END CommaProc;
 
+  PROCEDURE Pack(src: ARRAY OF CHAR; VAR dst: String);
+    VAR i, j: INTEGER;
+  BEGIN j := 1; i := 0;
+    WHILE (src[i] # 0X) DO
+      IF j < LEN(dst)-1 THEN dst[j] := src[i]; INC(j); END;
+      INC(i);
+    END;
+    WHILE j < LEN(dst) DO dst[j] := 0X; INC(j) END;
+    dst[0] := CHR(i)
+  END Pack;
+
+  PROCEDURE Pack2(s: ARRAY OF CHAR; VAR offs: INTEGER): LONGINT;
+    VAR r: LONGINT;
+        i, j: INTEGER;
+  BEGIN r := 0; i := 0; j := offs;
+    WHILE (i < 4) & (s[j] # 0X) DO
+      r := 64 * r + ORD(s[j]) - 32;
+    END;
+    offs := j; RETURN r
+  END Pack2;
+
+  PROCEDURE Header2(s: ARRAY OF CHAR);
+  BEGIN Comma(Dict[Current]); 
+  END Header2;
+
   PROCEDURE Header(s: ARRAY OF CHAR);
-    VAR P: String;
-  BEGIN Pack(s, P); Comma(P[0]); Comma(P[1]);
-    Comma(Dict[Current]); Dict[Current] := VFC.dictPtr-1;
-    IF debug THEN IO.Type("HEADER "); PrintIDPtr(VFC.dictPtr-3); (*IO.Type(s);*) IO.Type(" @ "); IO.Print(VFC.dictPtr, 0, 10) END
+    VAR d: Word;
+  BEGIN NEW(d); Pack(s, d.name); d.link := Dict[Current];
+    d.cfa := VFC.dictPtr; Dict[Current] := d;
+    IF debug THEN IO.Type("HEADER "); IO.Type(s); IO.Type(" @ "); IO.Print(VFC.dictPtr, 0, 10) END
   END Header;
 
   PROCEDURE Define(s: ARRAY OF CHAR; op: LONGINT);
@@ -185,10 +169,9 @@ MODULE ObForth;
 
   PROCEDURE Find(dict: Word; VAR s: String): Word;
     VAR ret: Word;
-  BEGIN ret := Nil;
-    WHILE (dict # Nil) & (ret = Nil) DO
-      IF (s[0] = VFC.Get(dict-2)) & (s[1] = VFC.Get(dict-1)) THEN ret := dict END;
-      dict := Link(dict)
+  BEGIN ret := NIL;
+    WHILE (dict # NIL) & (ret = NIL) DO
+      IF s = dict.name THEN ret := dict END; dict := dict.link
     END;
     RETURN ret
   END Find;
@@ -200,7 +183,7 @@ MODULE ObForth;
   BEGIN Pack(s, P);
     w := Find(Dict[Forth], P);
     IF debug THEN Dump(w) END;
-    IF w # Nil THEN VFC.Execute(CFA(w))
+    IF w # NIL THEN VFC.Execute(w.cfa)
     ELSIF IsNumber(s, x) THEN VFC.DPush(x)
     ELSE Err(s)
     END
@@ -212,10 +195,10 @@ MODULE ObForth;
         P: String;
   BEGIN Pack(s, P);
     w := Find(Dict[Macro], P);
-    IF w # Nil THEN VFC.Execute(CFA(w))
+    IF w # NIL THEN VFC.Execute(w.cfa)
     ELSE
       w := Find(Dict[Forth], P);
-      IF w # Nil THEN Comma(CFA(w))
+      IF w # NIL THEN Comma(w.cfa)
       ELSIF IsNumber(s, x) THEN Comma(VFC.OpLit); Comma(x)
       ELSE Err(s)
       END
@@ -292,7 +275,8 @@ MODULE ObForth;
 
   PROCEDURE FLParen;
     VAR s: ARRAY MaxLine OF CHAR;
-  BEGIN Scan(s, ")"); INC(INN)
+        l: INTEGER;
+  BEGIN l := Scan(s, ")"); INC(INN)
   END FLParen;
 
   PROCEDURE FDecimal;
@@ -339,10 +323,16 @@ MODULE ObForth;
   BEGIN W := VFC.DPop(); VFC.DPush(Timer.Elapsed(T))
   END FPTimer;
 
+  PROCEDURE PrintID(VAR s: String);
+    VAR i: INTEGER;
+  BEGIN i := 1; WHILE s[i] # 0X DO IO.Emit(s[i]); INC(i) END;
+    IF ORD(s[0]) > 6 THEN IO.Emit("$") END
+  END PrintID;
+
   PROCEDURE FWords;
     VAR w: Word;
   BEGIN w := Dict[Current];
-    WHILE w # 0 DO PrintIDPtr(w-2); IO.Emit(" "); w := Link(w) END
+    WHILE w # NIL DO PrintID(w.name); IO.Emit(" "); w := w.link END
   END FWords;
 
   (* --------------------------- Main loop -------------------------- *)
@@ -472,7 +462,7 @@ MODULE ObForth;
   (* ---------------------------------------------------------------- *)
 
 BEGIN debug := FALSE;
-  Dict[Forth] := Nil; Dict[Macro] := Nil; InitDict;
+  Dict[Forth] := NIL; Dict[Macro] := NIL; InitDict;
   IF debug THEN DumpDict(Dict[Forth]); END;
   Base := 10;
   Loop
