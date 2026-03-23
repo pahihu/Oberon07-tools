@@ -8,7 +8,7 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
 
   PROCEDURE WriteReg*(VAR W: Texts.Writer; r: LONGINT);
   BEGIN Texts.Write(W, " ");
-    IF r < 12 THEN 
+    IF r < 12 THEN
       IF r < 10 THEN Texts.Write(W, " ") END;
       Texts.WriteString(W, "R"); Texts.WriteInt(W, r MOD 10H, 1);
     ELSIF r = 12 THEN Texts.WriteString(W, " MT")
@@ -37,12 +37,14 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
 
   PROCEDURE Opcode*(VAR W: Texts.Writer; w: LONGINT);
     VAR k, op, u, v, a, b, c: LONGINT;
+        d1, d0: LONGINT;
   BEGIN
       k := w DIV 40000000H MOD 4;
       a := w DIV 1000000H MOD 10H;
       b := w DIV 100000H MOD 10H;
       op := w DIV 10000H MOD 10H;
       u := w DIV 10000000H MOD 4; v := u MOD 2; u := u DIV 2;
+      d1 := w DIV 10H MOD 10H;
       IF k = 0 THEN
         WriteMnemo0(W, u, op, 2*k+v);
         WriteReg(W, a); WriteRegB(W, op, b); WriteReg(W, w MOD 10H)
@@ -57,13 +59,21 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
         IF w >= 80000H THEN w := w - 100000H END ;
         Texts.WriteInt(W, w, 8)
       ELSIF k = 3 THEN  (*Branch instr*)
-        Texts.Write(W, "B");
-        IF ODD(w DIV 10000000H) THEN Texts.WriteString(W, "L  ") ELSE Texts.WriteString(W, "   ") END ;
-        Texts.WriteString(W, mnemo1[a]);
-        IF u = 0 THEN WriteReg(W, w MOD 10H) ELSE
-          w := w MOD 100000H;
-          IF w >= 80000H THEN w := w - 100000H END ;
-          Texts.WriteInt(W, w, 8)
+        IF (u = 0) & (v = 0) & ((d1 = 2) OR (d1 = 1)) THEN
+          d0 := w MOD 10H;
+          IF d1 = 2 THEN
+            IF ODD(d0) THEN Texts.WriteString(W, "EI ") ELSE Texts.WriteString(W, "DI ") END
+          ELSIF d1 = 1 THEN Texts.WriteString(W, "RTI"); WriteReg(W, d0)
+          END
+        ELSE
+          Texts.Write(W, "B");
+          IF ODD(w DIV 10000000H) THEN Texts.WriteString(W, "L  ") ELSE Texts.WriteString(W, "   ") END ;
+          Texts.WriteString(W, mnemo1[a]);
+          IF u = 0 THEN WriteReg(W, w MOD 10H) ELSE
+            w := w MOD 100000H;
+            IF w >= 80000H THEN w := w - 100000H END ;
+            Texts.WriteInt(W, w, 8)
+          END
         END
       END
   END Opcode;
@@ -93,7 +103,7 @@ BEGIN
   mnemo1[5] := " LT"; mnemo1[13] := " GE";
   mnemo1[6] := " LE"; mnemo1[14] := " GT";
   mnemo1[7] := "   "; mnemo1[15] := " NO";
-  
+
   specmov[0] := "MVH";
   specmov[1] := "MVF";
   specmov[2] := "MVS";

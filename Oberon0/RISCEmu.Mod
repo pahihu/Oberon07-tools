@@ -2,6 +2,8 @@ MODULE RISCEmu; (* Phu 13.2.2026 *)
   IMPORT Texts, Oberon, Disasm, Sys := System;
 
   CONST TAB = 09X;
+        NN* = 8; ZZ* = 4; CC* = 2; VV* = 1;
+        INTE* = 8; INTP* = 4; INTM* = 1;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -30,7 +32,7 @@ MODULE RISCEmu; (* Phu 13.2.2026 *)
   BEGIN IF x THEN Texts.Write(W, ch) ELSE Texts.Write(W, "-") END
   END OutFlag;
 
-  PROCEDURE Status*(VAR W: Texts.Writer; PC, IR: LONGINT; R: ARRAY OF LONGINT; H: LONGINT; N,Z,Y,V: BOOLEAN);
+  PROCEDURE Status*(VAR W: Texts.Writer; PC, IR: LONGINT; R: ARRAY OF LONGINT; H: LONGINT; flags, intFlags: SET);
     VAR i: INTEGER;
   BEGIN
     IF verbose THEN
@@ -38,8 +40,12 @@ MODULE RISCEmu; (* Phu 13.2.2026 *)
       Disasm.Opcode(W, IR); Ln(W);
       Out(W, "  PC", PC); Out(W, "   H", H); (*PC,H*)
       Texts.WriteString(W, "  CC= "); (*Flags*)
-      OutFlag(W, "N", N); OutFlag(W, "Z", Z);
-      OutFlag(W, "C", Y); OutFlag(W, "V", V);
+      OutFlag(W, "N", NN IN flags); OutFlag(W, "Z", ZZ IN flags);
+      OutFlag(W, "C", CC IN flags); OutFlag(W, "V", VV IN flags);
+      Texts.WriteString(W, "      INT= "); (*INT flags*)
+      OutFlag(W, "E", INTE IN intFlags);
+      OutFlag(W, "P", INTP IN intFlags);
+      OutFlag(W, "M", INTM IN intFlags);
       FOR i := 0 TO 15 DO (*regs*)
         IF i MOD 4 = 0 THEN Ln(W) END;
         OutReg(W, i, R[i])
