@@ -79,7 +79,7 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
       END
   END Opcode;
 
-BEGIN
+BEGIN (*https://ecs.openbrace.org/*)
   mnemo0[0] := "MOV";
   mnemo0[1] := "LSL";
   mnemo0[2] := "ASR";
