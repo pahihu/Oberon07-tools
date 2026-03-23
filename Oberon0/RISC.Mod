@@ -93,6 +93,20 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     hi := p2 + hiP1 + carry;
   END Mul32;
 
+  PROCEDURE FSum(B, C: LONGINT; u, v: Sys.Address): LONGINT;
+    VAR A: LONGINT;
+  BEGIN
+    IF ODD(u) THEN (*FLT*)
+      (*denormalization omitted*)
+      A := SYSTEM.VAL(LONGINT, 0.0 + SYSTEM.VAL(REAL, C));
+    ELSIF ODD(v) THEN (*FLOOR*)
+      (*post-normalization suppressed*)
+      A := Sys.Short(ENTIER(SYSTEM.VAL(REAL, C)));
+    ELSE A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) + SYSTEM.VAL(REAL, C))
+    END;
+    RETURN A
+  END FSum;
+
   PROCEDURE SplitReal(r: REAL; VAR s, e, m: LONGINT);
     VAR ur: LONGINT;
   BEGIN ur := SYSTEM.VAL(LONGINT, r);
@@ -152,8 +166,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                  V := (Sign(B) # Sign(C)) & (Sign(B) # Sign(A)); |
             MUL: Mul32(B, C, H, A, ODD(u)); |
             Div: A := B DIV C; H := B MOD C |
-            FAD: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) + SYSTEM.VAL(REAL, C)) |
-            FSB: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) - SYSTEM.VAL(REAL, C)) |
+            FAD, FSB:
+                 IF op = FSB THEN C := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, 7FFFFFFFH-1) / SYSTEM.VAL(SET, C)) END;
+                 A := FSum(B, C, u, v) |
             FML: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) * SYSTEM.VAL(REAL, C)) |
             FDV: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) / SYSTEM.VAL(REAL, C))
          END ;
