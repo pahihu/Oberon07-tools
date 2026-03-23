@@ -38,6 +38,7 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
   PROCEDURE Opcode*(VAR W: Texts.Writer; w: LONGINT);
     VAR k, op, u, v, a, b, c: LONGINT;
         d1, d0: LONGINT;
+        filler: ARRAY 2 OF CHAR;
   BEGIN
       k := w DIV 40000000H MOD 4;
       a := w DIV 1000000H MOD 10H;
@@ -62,13 +63,13 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
         IF (u = 0) & (v = 0) & ((d1 = 2) OR (d1 = 1)) THEN
           d0 := w MOD 10H;
           IF d1 = 2 THEN
-            IF ODD(d0) THEN Texts.WriteString(W, "EI ") ELSE Texts.WriteString(W, "DI ") END
+            IF ODD(d0) THEN Texts.WriteString(W, "STI") ELSE Texts.WriteString(W, "CLI") END
           ELSIF d1 = 1 THEN Texts.WriteString(W, "RTI"); WriteReg(W, d0)
           END
         ELSE
-          Texts.Write(W, "B");
-          IF ODD(w DIV 10000000H) THEN Texts.WriteString(W, "L  ") ELSE Texts.WriteString(W, "   ") END ;
-          Texts.WriteString(W, mnemo1[a]);
+          Texts.Write(W, "B"); filler := "";
+          IF ODD(w DIV 10000000H) THEN Texts.WriteString(W, "L") ELSE filler := " "; END ;
+          Texts.WriteString(W, mnemo1[a]); Texts.WriteString(W, filler); Texts.WriteString(W, "   ");
           IF u = 0 THEN WriteReg(W, w MOD 10H) ELSE
             w := w MOD 100000H;
             IF w >= 80000H THEN w := w - 100000H END ;
@@ -95,14 +96,14 @@ BEGIN
   mnemo0[13] := "FSB";
   mnemo0[14] := "FML";
   mnemo0[15] := "FDV";
-  mnemo1[0] := " MI"; mnemo1[8] := " PL";
-  mnemo1[1] := " EQ"; mnemo1[9] := " NE";
-  mnemo1[2] := " CS"; mnemo1[10] := " CC";
-  mnemo1[3] := " VS"; mnemo1[11] := " VC";
-  mnemo1[4] := " LS"; mnemo1[12] := " HI";
-  mnemo1[5] := " LT"; mnemo1[13] := " GE";
-  mnemo1[6] := " LE"; mnemo1[14] := " GT";
-  mnemo1[7] := "   "; mnemo1[15] := " NO";
+  mnemo1[0] := "MI"; mnemo1[8] := "PL";
+  mnemo1[1] := "EQ"; mnemo1[9] := "NE";
+  mnemo1[2] := "CS"; mnemo1[10] := "CC";
+  mnemo1[3] := "VS"; mnemo1[11] := "VC";
+  mnemo1[4] := "LS"; mnemo1[12] := "HI";
+  mnemo1[5] := "LT"; mnemo1[13] := "GE";
+  mnemo1[6] := "LE"; mnemo1[14] := "GT";
+  mnemo1[7] := "  "; mnemo1[15] := "NO";
 
   specmov[0] := "MVH";
   specmov[1] := "MVF";
@@ -113,9 +114,9 @@ BEGIN
   specop[1] := "SBC";
   specop[2] := "MLU";
 
-  memop[0] := "LDR";
+  memop[0] := "LD ";
   memop[1] := "LDB";
-  memop[2] := "STR";
+  memop[2] := "ST ";
   memop[3] := "STB";
 END Disasm.
 
