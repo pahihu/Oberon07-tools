@@ -214,8 +214,14 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           ELSE intEnb := ODD(IR) END
         ELSE
           b := a; a := a MOD 8;
-          cond := (a = 0) & N OR (a = 1) & Z OR (a = 2) & Y OR (a = 3) & V OR
-                  (a = 4) & (~Y OR Z) OR (a = 5) & (N # V) OR (a = 6) & ((N # V) OR Z) OR (a = 7);
+          cond :=    (a = 0) & N
+                  OR (a = 1) & Z
+                  OR (a = 2) & Y
+                  OR (a = 3) & V
+                  OR (a = 4) & (Y OR Z)
+                  OR (a = 5) & (N # V)
+                  OR (a = 6) & ((N # V) OR Z)
+                  OR (a = 7);
           IF (b < 8) & cond OR (b > 7) & ~cond THEN
             IF ODD(v) THEN R[15] := PC * 4 END ;
             IF ODD(u) THEN PC := (PC + (IR MOD 1000000H)) MOD 40000H
