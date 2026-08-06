@@ -41,4 +41,4 @@ Example run:
 
 ***
 
-**NOTE**: Don't forget the excellent [Astrobe for RISC5](https://web.archive.org/web/20250212125608/https://www.astrobe.com/RISC5/), otherwise here is the code. Good luck!
+**NOTE**: Don't forget the excellent [Astrobe for RISC5](https://www.astrobe.com/RISC5/), otherwise here is the code. Good luck!
