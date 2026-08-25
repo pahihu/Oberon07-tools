@@ -112,13 +112,15 @@ MODULE ORTool;  (*NW 18.2.2013*)
   END WriteReg;
 
   PROCEDURE opcode(w: LONGINT);
-    VAR k, op, u, a, b, c: LONGINT;
+    VAR k, op, u, v, fn, a, b, c: LONGINT;
+        match: BOOLEAN;
   BEGIN
       k := w DIV 40000000H MOD 4;
       a := w DIV 1000000H MOD 10H;
       b := w DIV 100000H MOD 10H;
       op := w DIV 10000H MOD 10H;
       u := w DIV 20000000H MOD 2;
+      v := w DIV 10000000H MOD 2;
       IF k = 0 THEN
         Texts.WriteString(W, mnemo0[op]);
         IF u = 1 THEN Texts.Write(W, "'") END ;
@@ -130,18 +132,30 @@ MODULE ORTool;  (*NW 18.2.2013*)
         IF w >= 8000H THEN w := w - 10000H END ;
         Texts.WriteInt(W, w, 7)
       ELSIF k = 2 THEN  (*LDR/STR*)
-        IF u = 1 THEN Texts.WriteString(W, "STR ") ELSE Texts.WriteString(W, "LDR") END ;
+        IF u = 1 THEN Texts.WriteString(W, "ST") ELSE Texts.WriteString(W, "LD") END ;
+        IF v = 1 THEN Texts.Write(W, "B") ELSE Texts.Write(W, "R") END ;
         WriteReg(a); WriteReg(b); w := w MOD 100000H;
         IF w >= 80000H THEN w := w - 100000H END ;
         Texts.WriteInt(W, w, 8)
       ELSIF k = 3 THEN  (*Branch instr*)
-        Texts.Write(W, "B");
-        IF ODD(w DIV 10000000H) THEN Texts.Write(W, "L") END ;
-        Texts.WriteString(W, mnemo1[a]);
-        IF u = 0 THEN WriteReg(w MOD 10H) ELSE
-          w := w MOD 100000H;
-          IF w >= 80000H THEN w := w - 100000H END ;
-          Texts.WriteInt(W, w, 8)
+        fn := (w DIV 10H) MOD 10H;
+        IF (u = 0) & (v = 0) & ((fn = 1) OR (fn = 2)) THEN
+          IF fn = 1 THEN Texts.WriteString(W, "RTI"); WriteReg(w MOD 10H) END;
+          IF fn = 2 THEN
+            IF ODD(w) THEN Texts.WriteString(W, "STI") ELSE Texts.WriteString(W, "CLI") END;
+          END
+        ELSE
+          Texts.Write(W, "B");
+          IF v = 1 THEN Texts.Write(W, "L") END ;
+          Texts.WriteString(W, mnemo1[a]);
+          IF u = 0 THEN
+            IF fn = 8 THEN Texts.WriteString(W, "PC,") END;
+            WriteReg(w MOD 10H)
+          ELSE
+            w := w MOD 100000H;
+            IF w >= 80000H THEN w := w - 100000H END ;
+            Texts.WriteInt(W, w, 8)
+          END
         END
       END
   END opcode;
