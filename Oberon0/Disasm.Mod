@@ -70,7 +70,10 @@ MODULE Disasm; (* from ORTool.Mod / Phu 13.2.2026 *)
           Texts.Write(W, "B"); filler := "";
           IF ODD(w DIV 10000000H) THEN Texts.WriteString(W, "L") ELSE filler := " "; END ;
           Texts.WriteString(W, mnemo1[a]); Texts.WriteString(W, filler); Texts.WriteString(W, "   ");
-          IF u = 0 THEN WriteReg(W, w MOD 10H) ELSE
+          IF u = 0 THEN
+            IF d1 = 8 THEN Texts.WriteString(W, "PC,") END;
+            WriteReg(W, w MOD 10H)
+          ELSE
             w := w MOD 100000H;
             IF w >= 80000H THEN w := w - 100000H END ;
             Texts.WriteInt(W, w, 8)

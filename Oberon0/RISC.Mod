@@ -224,7 +224,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                   OR (a = 7);
           IF (b < 8) & cond OR (b > 7) & ~cond THEN
             IF ODD(v) THEN R[15] := PC * 4 END ;
-            IF ODD(u) THEN PC := (PC + (IR MOD 1000000H)) MOD 40000H
+            IF ODD(u) THEN INC(PC, IR MOD 1000000H)
+            ELSIF d1 = 8 THEN INC(PC, R[IR MOD 10H] DIV 4) (* Astrobe RISC5 Bcc PC,Rn *)
             ELSE PC := R[IR MOD 10H] DIV 4
             END
           END
