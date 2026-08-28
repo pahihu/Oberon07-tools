@@ -1,5 +1,5 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
-  IMPORT SYSTEM, Texts, Oberon, Sys := System, In, RISCEmu, WA := WAddress;
+  IMPORT SYSTEM, Texts, Oberon, Sys := System, In, RISCEmu, WA := WAddress, Timer;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -20,6 +20,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     intMd: BOOLEAN; (*INT mode*)
     intEnb: BOOLEAN; (*INT enabled*)
     cnt: LONGINT; (*number of instr.*)
+    SW: INTEGER;
 
   PROCEDURE Sign(a: LONGINT): INTEGER;
     VAR ret: INTEGER;
@@ -115,6 +116,20 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     IF ODD(ur) THEN e := 1 ELSE e := 0 END
   END SplitReal;
 
+  PROCEDURE ShowLEDs(VAR W: Texts.Writer; value: LONGINT);
+  VAR n, pos: INTEGER;
+      i: INTEGER;
+  BEGIN
+    Texts.WriteLn(W);
+    Texts.WriteString(W, "LEDs=");
+    n := value;
+    FOR i := 1 TO 8 DO
+      IF n >= pos THEN Texts.Write(W, "O") ELSE Texts.Write(W, ".") END;
+      n := n DIV 2; pos := pos DIV 2
+    END;
+    Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+  END ShowLEDs;
+
   PROCEDURE Execute*(VAR M: ARRAY OF LONGINT; entry, pc: WA.ADDR;
       VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
@@ -124,7 +139,12 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       d1: LONGINT;
       flags: SET;
       p,q,u,v: Sys.Address;
-  BEGIN PC := entry.ToWords() (*0*); R[13] := pc.ToBytes(); R[14] := Sys.Short(LEN(M)*4);
+      TIM0: Timer.Timer;
+      ch: CHAR;
+      MaxMem: INTEGER;
+  BEGIN MaxMem := Sys.Short(LEN(M)*4);
+    PC := entry.ToWords() (*0*); R[13] := pc.ToBytes(); R[14] := MaxMem;
+    Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
       IR := M[PC]; RISCEmu.Status(W, PC, IR, R, H, Flags(), IntFlags()); INC(PC);
@@ -183,21 +203,30 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             END;
             R[a] := A; N := A < 0; Z := A = 0
           ELSE (*input*)
-            IF adr = -1 THEN (*ReadInt*) Sys.InInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
-            ELSIF adr = -2 THEN (*eot*)  IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
+               IF adr =  -1 THEN (* ReadInt *) Sys.InInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
+            ELSIF adr =  -2 THEN (* eot *) IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
+            ELSIF adr = -16 THEN (* msec counter *) R[a] := SHORT(Timer.Elapsed(TIM0))
+            ELSIF adr = -15 THEN (* switch *) R[a] := SW
+            ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
+            ELSIF adr = -13 THEN (* RS-232 status, always rdy *) R[a] := 3
             END 
           END
         ELSE
           IF adr >= 0 THEN (*store*)
-            ASSERT(adr >= pc.ToWords()); (*read-only code*)
+            IF entry.ToWords() # 0 THEN
+              ASSERT(adr >= pc.ToWords()); (*read-only code*)
+            END;
             IF ODD(v) THEN (*v: byte access*)
               M[adr] := InsertByte(M[adr], R[a] MOD 100H, badr MOD 4)
             ELSE M[adr] := R[a];
             END
           ELSE (*output*);
-            IF adr = -1 THEN Texts.WriteInt(W, R[a], 4)
-            ELSIF adr = -2 THEN Texts.Write(W, CHR(R[a] MOD 80H))
-            ELSIF adr = -3 THEN Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+               IF adr =  -1 THEN (* WriteInt *) Texts.WriteInt(W, R[a], 4)
+            ELSIF adr =  -2 THEN (* WriteChar *) Texts.Write(W, CHR(R[a] MOD 80H))
+            ELSIF adr =  -3 THEN (* WriteLn *) Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+            ELSIF adr = -15 THEN (* LEDs*) ShowLEDs(W, R[a] MOD 100H)
+            ELSIF adr = -14 THEN (* RS-232 TX *) Texts.Write(W, CHR(R[a] MOD 80H))  (* RS-232 *)
+            ELSIF adr = -13 THEN (* RS-232 ctrl *)
             END
           END
         END
@@ -224,9 +253,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                   OR (a = 7);
           IF (b < 8) & cond OR (b > 7) & ~cond THEN
             IF ODD(v) THEN R[15] := PC * 4 END ;
-            IF ODD(u) THEN INC(PC, IR MOD 1000000H)
-            ELSIF d1 = 8 THEN INC(PC, R[IR MOD 10H] DIV 4) (* Astrobe RISC5 Bcc PC,Rn *)
-            ELSE PC := R[IR MOD 10H] DIV 4
+            IF ODD(u) THEN PC := (PC + IR MOD 1000000H) MOD MaxMem
+            ELSIF d1 = 8 THEN PC := (PC + R[IR MOD 10H] DIV 4) MOD MaxMem (* Astrobe RISC5 Bcc PC,Rn *)
+            ELSE PC := (R[IR MOD 10H] DIV 4) MOD MaxMem
             END
           END
         END
@@ -236,10 +265,18 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         PC := 1;
         intMd := TRUE
       END
-    UNTIL IR = -18000001H; (*HALT B -1*)
+    UNTIL (IR = -18000001H) OR (cnt > 1000); (*HALT B -1*)
     Texts.WriteString(W, "#instr="); Texts.WriteInt(W, cnt, 0); Texts.WriteLn(W);
     Texts.Append(Oberon.Log, W.buf)
   END Execute;
+
+  PROCEDURE SetReg*(i: INTEGER; v: LONGINT);
+  BEGIN R[i] := v;
+  END SetReg;
+
+  PROCEDURE SetSW*(v: INTEGER);
+  BEGIN SW := v
+  END SetSW;
 
 BEGIN cnt := 0; In.Open
 END RISC.

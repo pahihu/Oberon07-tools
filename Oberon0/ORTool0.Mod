@@ -6,6 +6,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     MaxExports = 64;
     MaxImports = 16;
     MaxMem = 8192;
+    MemAdr = 12; StackAdr = 24; MT = 12;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -190,6 +191,32 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     m.nimports := 0;
     RETURN m
   END NewModule;
+
+  PROCEDURE LoadBin(F: Files.File; verbose: BOOLEAN);
+  VAR i, len: LONGINT;
+      base: WA.ADDR;
+      data: INTEGER;
+      R: Files.Rider;
+  BEGIN
+    IF verbose THEN Ln; String("LoadBin...") END;
+    len := SHORT(Files.Length(F)); len := len DIV 4;
+    IF len > MaxMem THEN Err(" binary too large ")
+    ELSE
+      Files.Set(R, F, 0);
+      IF verbose THEN Ln; PrInt("len=", len, 1) END;
+      base := wcode;
+      FOR i := 0 TO len DO
+        Files.ReadInt(R, data);
+        IF verbose THEN
+          Ln; Int(base.ToWords() + i, 4); Tab; Hex(data);
+        END;
+        code[wcode.ToWords()] := data; wcode.Next
+      END;
+      code[MemAdr DIV 4] := MaxMem; 
+      code[StackAdr DIV 4] := MaxMem
+    END;
+    IF verbose THEN Ln; String("done") END
+  END LoadBin;
   
   PROCEDURE LoadObj(F: Files.File; verbose: BOOLEAN): Module;  (*decode object file*)
     VAR class, i, n, key, size, fix, adr, data, len: INTEGER;
@@ -314,36 +341,63 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     END
   END Link;
 
+  PROCEDURE GetFileExt(name: ARRAY OF CHAR; VAR ext: ARRAY OF CHAR);
+  VAR i, j: INTEGER;
+      cpy: BOOLEAN;
+  BEGIN i := 0; j := 0; cpy := FALSE;
+    WHILE name[i] # 0X DO
+      IF cpy THEN ext[j] := name[i]; INC(j) END;
+      IF name[i] = "." THEN j := 0; cpy := TRUE END;
+      INC(i)
+    END;
+    ext[j] := 0X;
+  END GetFileExt;
+
   PROCEDURE ExecObj(debug: BOOLEAN);  (*execute/debug object file*)
     VAR w, wentry, wfixlist, wfixorgD: WA.ADDR;
       F: Files.File;
       S: Texts.Scanner;
       m: Module;
       prev: BOOLEAN;
-  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
-    WHILE S.class = Texts.Name DO
+      bin: BOOLEAN;
+      ext: ARRAY 32 OF CHAR;
+  BEGIN bin := FALSE;
+    Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+    WHILE (S.class = Texts.Name) & ~bin DO
       String("load "); String(S.s); F := Files.Old(S.s);
       IF F # NIL THEN
-        m := LoadObj(F, FALSE);
-        IF m # NIL THEN
-          w.Aligned(m.ndata); wdata.IncBy(w);
-          m.next := modules; modules := m;
+        GetFileExt(S.s, ext);
+        IF ext = "bin" THEN
+          LoadBin(F, TRUE);
+          bin := TRUE
+        ELSE
+          m := LoadObj(F, FALSE);
+          IF m # NIL THEN
+            w.Aligned(m.ndata); wdata.IncBy(w);
+            m.next := modules; modules := m;
+          END
         END
       ELSE Err(" not found")
       END ;
       Ln; Texts.Scan(S)
     END;
-    prev := Verbose(TRUE);
-    PrInt(" code=", wcode.ToWords(), 4);
-    PrInt(" data=", wdata.ToWords(), 4);
-    IF wcode.ToWords() + wdata.ToWords() > MaxMem THEN Err(" space full ")
-    ELSIF (m # NIL) & (errno = 0) THEN (*call last module entry*)
-      GF.FromWords(wcode.ToWords()); Link(modules);
-      IF errno = 0 THEN
+    IF bin THEN
+      wentry.FromWords(0); (* wcode points to the end of the loaded binary *)
+      RISC.SetReg(MT, 20H);
+      (* TODO: upload.mod register settings, MT? *)
+    ELSE
+      prev := Verbose(TRUE);
+      PrInt(" code=", wcode.ToWords(), 4);
+      PrInt(" data=", wdata.ToWords(), 4);
+      IF wcode.ToWords() + wdata.ToWords() > MaxMem THEN Err(" space full ")
+      ELSIF (m # NIL) & (errno = 0) THEN (*call last module entry*)
+        GF.FromWords(wcode.ToWords()); Link(modules);
         wentry.FromBytes(m.entry); wentry.IncBy(m.base);
-        RISCEmu.verbose := debug;
-        RISC.Execute(code, wentry, wcode, S, W)
       END
+    END;
+    IF errno = 0 THEN
+      RISCEmu.verbose := debug;
+      RISC.Execute(code, wentry, wcode, S, W)
     END
   END ExecObj;
 

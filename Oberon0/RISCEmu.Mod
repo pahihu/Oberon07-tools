@@ -36,8 +36,6 @@ MODULE RISCEmu; (* Phu 13.2.2026 *)
     VAR i: INTEGER;
   BEGIN
     IF verbose THEN
-      Texts.WriteInt(W, PC, 4); Texts.Write(W, TAB); Texts.WriteHex(W, IR); Texts.Write(W, TAB);
-      Disasm.Opcode(W, IR); Ln(W);
       Out(W, "  PC", PC); Out(W, "   H", H); (*PC,H*)
       Texts.WriteString(W, "  CC= "); (*Flags*)
       OutFlag(W, "N", NN IN flags); OutFlag(W, "Z", ZZ IN flags);
@@ -49,7 +47,9 @@ MODULE RISCEmu; (* Phu 13.2.2026 *)
       FOR i := 0 TO 15 DO (*regs*)
         IF i MOD 4 = 0 THEN Ln(W) END;
         OutReg(W, i, R[i])
-      END; Ln(W); Ln(W); Ln(W)
+      END; Ln(W); Ln(W);
+      Texts.WriteInt(W, PC, 4); Texts.Write(W, TAB); Texts.WriteHex(W, IR); Texts.Write(W, TAB);
+      Disasm.Opcode(W, IR); Ln(W); Ln(W); Ln(W)
     END
   END Status;
     

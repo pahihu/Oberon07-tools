@@ -5,6 +5,7 @@ MODULE TestInt;
       n: LONGINT;
       s: ARRAY 32 OF CHAR;
       i: INTEGER;
+      c: CHAR;
 
   PROCEDURE Mod(x, y: LONGINT): LONGINT;
     VAR q,r: LONGINT;
@@ -26,6 +27,12 @@ BEGIN Out.Open; In.Open;
         Out.String (" cannot read string ");
       ELSE
         Out.String ("s=["); Out.String (s); Out.String ("]"); Out.Ln;
+      END;
+      Out.String ("Enter a char: "); In.Char (c);
+      IF ~In.Done THEN
+        Out.String (" cannot read char ");
+      ELSE
+        Out.String ("c=["); Out.Char (c); Out.String ("]"); Out.Ln;
       END
     END
 END TestInt.
