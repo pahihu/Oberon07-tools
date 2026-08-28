@@ -9,6 +9,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     MOV = 0; LSL = 1; ASR = 2; ROR = 3; AND = 4; ANN = 5; IOR = 6; XOR = 7;
     ADD = 8; SUB = 9;  MUL = 10; Div = 11; FAD = 12; FSB = 13; FML = 14;
     FDV = 15;
+    MT = 12; SP = 14; LNK = 15;
+    Debug = FALSE;
 
   VAR IR: LONGINT;   (*instruction register*)
     PC: LONGINT;   (*program counter*)
@@ -28,13 +30,28 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     RETURN ret
   END Sign;
 
-  PROCEDURE InsertByte(m, val, pos: LONGINT): LONGINT;
+  PROCEDURE InsertByte(VAR W: Texts.Writer; m, val, pos: LONGINT): LONGINT;
     VAR hi, lo: LONGINT;
-  BEGIN pos := 8*pos; lo := m MOD Sys.Ash(100H, pos);
-    IF pos = 24 THEN hi := 0
-    ELSE hi := m DIV Sys.Ash(100H, pos+8)
+        ret: LONGINT;
+  BEGIN
+    IF Debug THEN
+      Texts.WriteLn(W);
+      Texts.WriteString(W, "  m="); Texts.WriteHex(W,   m); Texts.WriteLn(W);
+      Texts.WriteString(W, "val="); Texts.WriteHex(W, val); Texts.WriteLn(W);
+      Texts.WriteString(W, "pos="); Texts.WriteInt(W, pos, 1); Texts.WriteLn(W);
+      Texts.Append(Oberon.Log, W.buf)
     END;
-    RETURN hi + Sys.Ash(val, pos) + lo
+    CASE pos OF
+      0: hi := 100H * (m DIV 100H); lo := 0 |
+      1: lo := m MOD 100H; hi := 10000H * (m DIV 10000H) |
+      2: lo := m MOD 10000H; hi := 1000000H * (m DIV 1000000H) |
+      3: lo := m MOD 1000000H; hi := 0 |
+    END;
+    ret := hi + Sys.Ash(val, 8 * pos) + lo;
+    IF Debug THEN
+      Texts.WriteString(W, "ret="); Texts.WriteHex(W, ret); Texts.WriteLn(W);
+    END;
+    RETURN ret
   END InsertByte;
 
   PROCEDURE Flags(): SET;
@@ -143,7 +160,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       ch: CHAR;
       MaxMem: INTEGER;
   BEGIN MaxMem := Sys.Short(LEN(M)*4);
-    PC := entry.ToWords() (*0*); R[13] := pc.ToBytes(); R[14] := MaxMem;
+    PC := entry.ToWords() (*0*); R[13] := pc.ToBytes();
+    R[SP] := MaxMem; R[LNK] := 0;
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
@@ -182,7 +200,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                  V := (Sign(B) = Sign(C)) & (Sign(B) # Sign(A)); |
             SUB: A := B - C;
                  IF ODD(u) & ~Y THEN DEC(A) END;
-                 Y := ~(B < C);
+                 Y := B < C;
                  V := (Sign(B) # Sign(C)) & (Sign(B) # Sign(A)); |
             MUL: Mul32(B, C, H, A, ODD(u)); |
             Div: A := B DIV C; H := B MOD C |
@@ -195,10 +213,22 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
          R[a] := A; N := A < 0; Z := A = 0
       ELSIF ~ODD(q) THEN (*p & ~q: memory instruction*)
         badr := R[b] + IR MOD 100000H; adr := badr DIV 4;
+        IF Debug THEN
+          Texts.WriteLn(W);
+          Texts.WriteString(W, "badr="); Texts.WriteHex(W, badr); Texts.WriteLn(W);
+          Texts.WriteString(W, " adr="); Texts.WriteHex(W,  adr); Texts.WriteLn(W);
+        END;
         IF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
             A := M[adr];
             IF ODD(v) THEN (*v: byte access*)
+              IF Debug THEN
+                Texts.WriteLn(W);
+                Texts.WriteHex(W, A);
+                Texts.WriteString(W, " @");
+                Texts.WriteHex(W, badr);
+                Texts.WriteLn(W);
+              END;
               A := Sys.Ash(A, -8*(badr MOD 4)) MOD 100H
             END;
             R[a] := A; N := A < 0; Z := A = 0
@@ -217,7 +247,14 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
               ASSERT(adr >= pc.ToWords()); (*read-only code*)
             END;
             IF ODD(v) THEN (*v: byte access*)
-              M[adr] := InsertByte(M[adr], R[a] MOD 100H, badr MOD 4)
+              IF Debug THEN
+                Texts.WriteLn(W);
+                Texts.WriteHex(W, A);
+                Texts.WriteString(W, " @");
+                Texts.WriteHex(W, badr);
+                Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+              END;
+              M[adr] := InsertByte(W, M[adr], R[a] MOD 100H, badr MOD 4)
             ELSE M[adr] := R[a];
             END
           ELSE (*output*);
@@ -225,7 +262,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSIF adr =  -2 THEN (* WriteChar *) Texts.Write(W, CHR(R[a] MOD 80H))
             ELSIF adr =  -3 THEN (* WriteLn *) Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
             ELSIF adr = -15 THEN (* LEDs*) ShowLEDs(W, R[a] MOD 100H)
-            ELSIF adr = -14 THEN (* RS-232 TX *) Texts.Write(W, CHR(R[a] MOD 80H))  (* RS-232 *)
+            ELSIF adr = -14 THEN (* RS-232 TX *) Texts.Write(W, CHR(R[a] MOD 80H)); Texts.Append(Oberon.Log, W.buf)
             ELSIF adr = -13 THEN (* RS-232 ctrl *)
             END
           END
@@ -252,7 +289,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                   OR (a = 6) & ((N # V) OR Z)
                   OR (a = 7);
           IF (b < 8) & cond OR (b > 7) & ~cond THEN
-            IF ODD(v) THEN R[15] := PC * 4 END ;
+            IF ODD(v) THEN R[LNK] := PC * 4 END ;
             IF ODD(u) THEN PC := (PC + IR MOD 1000000H) MOD MaxMem
             ELSIF d1 = 8 THEN PC := (PC + R[IR MOD 10H] DIV 4) MOD MaxMem (* Astrobe RISC5 Bcc PC,Rn *)
             ELSE PC := (R[IR MOD 10H] DIV 4) MOD MaxMem
@@ -265,7 +302,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         PC := 1;
         intMd := TRUE
       END
-    UNTIL (IR = -18000001H) OR (cnt > 1000); (*HALT B -1*)
+    UNTIL (IR = -18000001H) OR (cnt > 10000); (*HALT B -1*)
     Texts.WriteString(W, "#instr="); Texts.WriteInt(W, cnt, 0); Texts.WriteLn(W);
     Texts.Append(Oberon.Log, W.buf)
   END Execute;

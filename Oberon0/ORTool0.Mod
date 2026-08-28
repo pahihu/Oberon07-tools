@@ -5,7 +5,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     MaxModules = 8;
     MaxExports = 64;
     MaxImports = 16;
-    MaxMem = 8192;
+    MaxMem = 32768;
     MemAdr = 12; StackAdr = 24; MT = 12;
 
   TYPE
@@ -199,7 +199,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       R: Files.Rider;
   BEGIN
     IF verbose THEN Ln; String("LoadBin...") END;
-    len := SHORT(Files.Length(F)); len := len DIV 4;
+    len := Files.Length(F); len := len DIV 4;
     IF len > MaxMem THEN Err(" binary too large ")
     ELSE
       Files.Set(R, F, 0);
@@ -368,7 +368,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       IF F # NIL THEN
         GetFileExt(S.s, ext);
         IF ext = "bin" THEN
-          LoadBin(F, TRUE);
+          LoadBin(F, FALSE);
           bin := TRUE
         ELSE
           m := LoadObj(F, FALSE);
@@ -384,7 +384,6 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     IF bin THEN
       wentry.FromWords(0); (* wcode points to the end of the loaded binary *)
       RISC.SetReg(MT, 20H);
-      (* TODO: upload.mod register settings, MT? *)
     ELSE
       prev := Verbose(TRUE);
       PrInt(" code=", wcode.ToWords(), 4);
