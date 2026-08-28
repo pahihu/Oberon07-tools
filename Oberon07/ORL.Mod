@@ -1,4 +1,4 @@
-MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
+MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.8.26 *)
   IMPORT SYSTEM, Files, Texts, Oberon, Args, Kernel := POKernel, Sys := System;
   CONST versionkey = 1X; versionkey0 = 0X; MT = 12; DescSize = 80; MnLength = 32; BootSec = 2; BootSize = 64; FPrint = 12345678H;
     noerr* = 0; nofile* = 1; badversion* = 2; badkey* = 3; badfile* = 4; nospace* = 5;
@@ -7,6 +7,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
     C18 = 40000H; C20 = 100000H; C22 = 400000H; C24 = 1000000H; BCT = 0E7000000H; BLT = 0F7000000H;
     
     MemSize = 20000H; (*128K area for linking*)
+    MaxModules = 55;
 
   TYPE  (*copied from Modules for use as cross linker/loader*)
     PtrOffset* = Sys.Integer;
@@ -30,6 +31,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
   VAR
     Mem: POINTER TO ARRAY MemSize OF CHAR;
     cmd: ARRAY 32 OF CHAR;
+    modInit: BOOLEAN;
     
   (*==================================================================*)
 
@@ -251,6 +253,49 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
     newmod := mod
   END LinkOne;
 
+  PROCEDURE InitModules;
+  CONST Debug = FALSE;
+  VAR mod: Module;
+      calls: ARRAY MaxModules+1 OF Sys.Integer; 
+      nmods: Sys.Integer;
+      body, adr, offset: Sys.Integer;
+      instr: Sys.Integer;
+      i, p: Sys.Integer;
+  BEGIN Texts.WriteString(W, " - init modules");
+    nmods := 0; p := AllocPtr;
+    mod := root; IF mod # NIL THEN nmods := mod.num END;
+    WHILE mod # NIL DO
+      Get4(mod.ent, body); INC(body, mod.code);
+      IF Debug THEN
+        Texts.WriteLn(W);
+        Texts.WriteString(W, "name="); Texts.WriteString(W, mod.name); Texts.WriteLn(W);
+        Texts.WriteString(W, " num="); Texts.WriteInt(W, mod.num, 1); Texts.WriteLn(W);
+        Texts.WriteString(W, " ent="); Texts.WriteHex(W, mod.ent); Texts.WriteLn(W);
+        Texts.WriteString(W, "body="); Texts.WriteHex(W, body); Texts.WriteLn(W)
+      END;
+      adr := p + (mod.num - 1) * 4;
+      offset := (body - adr - 4) DIV 4;
+      calls[mod.num] := Sys.BinOr(BLT, offset MOD C24);
+      mod := AbsPtr(mod.next)
+    END;
+    IF Debug THEN Texts.WriteLn(W) END;
+    Put4(Start, Sys.BinOr(BCT, (p DIV 4) - 1));
+    FOR i := 1 TO nmods DO
+      Put4(p, calls[i]); INC(p, 4)
+    END;
+    Put4(p, Sys.BinOr(BCT, 0FFFFFFH)); INC(p, 4);
+
+    AllocPtr := p;
+  END InitModules;
+
+  PROCEDURE Option(VAR S: Texts.Scanner);
+  BEGIN modInit := FALSE;
+    IF S.nextCh = "/" THEN
+      Texts.Scan(S); Texts.Scan(S);
+      IF (S.class = Texts.Name) & (S.s[0] = "i") THEN modInit := TRUE END
+    END
+  END Option;
+
   PROCEDURE Link*;  (*link multiple object files together and create a single boot file M.bin from them*)
     VAR i, x: Sys.Integer;
       F: Files.File; R: Files.Rider;
@@ -262,7 +307,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
     IF S.class = Texts.Name THEN
       root := NIL; Start := 0; MTOrg := Start + MTAdr; AllocPtr :=  Start + ModAdr; i := Start;
       WHILE i < AllocPtr DO Put4(i, 0); INC(i, 4) END ;
-      REPEAT LinkOne(S.s, M); Texts.Scan(S) UNTIL (S.class # Texts.Name) OR (res # noerr);
+      REPEAT LinkOne(S.s, M); Option(S); Texts.Scan(S) UNTIL (S.class # Texts.Name) OR (res # noerr);
       IF res = noerr THEN p := root; Texts.WriteString(W, "  linking");
         WHILE p # NIL DO (*fixup*) Texts.Write(W, " "); Texts.WriteString(W, p.name);
           M := p; p := AbsPtr(p.next);
@@ -279,6 +324,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
         END ;
         Get4(Start, x);  (*address of initialization body of the top module relative to Start*)
         Put4(Start, Sys.BinOr(BCT, (x DIV 4) - 1));  (*branch instruction to the initialization body of the top module*)
+        IF modInit THEN InitModules END;
         Put4(Start + DestAdr, 0);  (*destination address of the prelinked, executable binary*)
         Put4(Start + MemAdr, 0);  (*limit of available memory, typically overwritten by the boot loader*)
         Put4(Start + AllocAdr, AllocPtr - Start);  (*address of the end of the module space loaded*)
@@ -298,7 +344,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
         ELSIF res = nospace THEN Texts.WriteString(W, " insufficient space")
         END
       END
-    ELSE Texts.WriteString(W, "Usage: ORL.Link [module...] topmodule")
+    ELSE Texts.WriteString(W, "Usage: ORL.Link [module...] topmodule[/i]")
     END ;
     EndLine; root := NIL
   END Link;
@@ -342,7 +388,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26 *)
   PROCEDURE Help*;
     VAR W: Texts.Writer;
   BEGIN Texts.OpenWriter(W);
-    Texts.WriteString(W, "ORL Link [module ...] topmodule | Load M.bin SD.img");
+    Texts.WriteString(W, "ORL Link [module ...] topmodule[/i] | Load M.bin SD.img");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
 
