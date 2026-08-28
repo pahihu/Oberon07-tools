@@ -302,12 +302,13 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
       S: Texts.Scanner;
       M, p: Module;
       name: ModuleName;
+      fname: ARRAY 256 OF CHAR;
       pos: INTEGER;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S); res := -1;
     IF S.class = Texts.Name THEN
       root := NIL; Start := 0; MTOrg := Start + MTAdr; AllocPtr :=  Start + ModAdr; i := Start;
       WHILE i < AllocPtr DO Put4(i, 0); INC(i, 4) END ;
-      REPEAT LinkOne(S.s, M); Option(S); Texts.Scan(S) UNTIL (S.class # Texts.Name) OR (res # noerr);
+      REPEAT COPY(S.s, name); LinkOne(name, M); Option(S); Texts.Scan(S) UNTIL (S.class # Texts.Name) OR (res # noerr);
       IF res = noerr THEN p := root; Texts.WriteString(W, "  linking");
         WHILE p # NIL DO (*fixup*) Texts.Write(W, " "); Texts.WriteString(W, p.name);
           M := p; p := AbsPtr(p.next);
@@ -331,7 +332,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
         Put4(Start + RootAdr, RelPtr(root) - Start);  (*current root of the links of loaded modules*)
         Put4(Start + StackAdr, 0);  (*current limit of the module area, typically overwritten by the boot loader*)
         Put4(Start + FPrintAdr, FPrint);  (*fingerprint*)
-        MakeFileName(name, S.s, ".bin"); F := Files.New(name); Files.Set(R, F, 0); i := Start;
+        MakeFileName(fname, name, ".bin"); F := Files.New(fname); Files.Set(R, F, 0); i := Start;
         WHILE i < AllocPtr DO Get4(i, x); Sys.WriteInt(R, x); INC(i, 4) END ;
         Texts.WriteInt(W, AllocPtr - Start, 7); Files.Register(F)
       ELSE
