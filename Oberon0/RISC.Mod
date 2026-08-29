@@ -159,9 +159,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       TIM0: Timer.Timer;
       ch: CHAR;
       MaxMem: INTEGER;
-  BEGIN MaxMem := Sys.Short(LEN(M)*4);
+  BEGIN MaxMem := Sys.Short(LEN(M) * 4);
     PC := entry.ToWords() (*0*); R[13] := pc.ToBytes();
-    R[SP] := MaxMem; R[LNK] := 0;
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
@@ -291,7 +290,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           IF (b < 8) & cond OR (b > 7) & ~cond THEN
             IF ODD(v) THEN R[LNK] := PC * 4 END ;
             IF ODD(u) THEN PC := (PC + IR MOD 1000000H) MOD MaxMem
-            ELSIF d1 = 8 THEN PC := (PC + R[IR MOD 10H] DIV 4) MOD MaxMem (* Astrobe RISC5 Bcc PC,Rn *)
+            ELSIF d1 = 8 THEN PC := (PC + R[IR MOD 10H]) MOD MaxMem (* Astrobe RISC5 Bcc PC,Rn *)
             ELSE PC := (R[IR MOD 10H] DIV 4) MOD MaxMem
             END
           END

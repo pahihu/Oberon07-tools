@@ -5,8 +5,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     MaxModules = 8;
     MaxExports = 64;
     MaxImports = 16;
-    MaxMem = 32768;
-    MemAdr = 12; StackAdr = 24; MT = 12;
+    MaxMem = 32768; MaxHeap = 4096; (*words*)
+    MemAdr = 12; StackAdr = 24; MT = 12; SP = 14; LNK = 15;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -212,8 +212,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         END;
         code[wcode.ToWords()] := data; wcode.Next
       END;
-      code[MemAdr DIV 4] := MaxMem; 
-      code[StackAdr DIV 4] := MaxMem
+      code[MemAdr DIV 4] := MaxMem * 4;
+      code[StackAdr DIV 4] := 4 * (MaxMem - MaxHeap); (*heap*)
     END;
     IF verbose THEN Ln; String("done") END
   END LoadBin;
@@ -384,6 +384,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     IF bin THEN
       wentry.FromWords(0); (* wcode points to the end of the loaded binary *)
       RISC.SetReg(MT, 20H);
+      RISC.SetReg(SP, 4 * (MaxMem - MaxHeap));
+      RISC.SetReg(LNK, 0)
     ELSE
       prev := Verbose(TRUE);
       PrInt(" code=", wcode.ToWords(), 4);
@@ -392,7 +394,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       ELSIF (m # NIL) & (errno = 0) THEN (*call last module entry*)
         GF.FromWords(wcode.ToWords()); Link(modules);
         wentry.FromBytes(m.entry); wentry.IncBy(m.base);
-      END
+      END ;
+      RISC.SetReg(SP, 4 * MaxMem);
+      RISC.SetReg(LNK, 0)
     END;
     IF errno = 0 THEN
       RISCEmu.verbose := debug;

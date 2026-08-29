@@ -148,21 +148,27 @@ MODULE ORTool;  (*NW 18.2.2013*)
           IF v = 1 THEN Texts.Write(W, "L") END ;
           Texts.WriteString(W, mnemo1[a]);
           IF u = 0 THEN
-            IF fn = 8 THEN Texts.WriteString(W, "PC,") END;
+            IF fn = 8 THEN Texts.WriteString(W, "PC ") END;
             WriteReg(w MOD 10H);
             IF (v = 0) & (fn = 1) THEN Texts.WriteString(W, " ;RTI") END;
-            (*D.pppp#C*)
+            (*0D.pppp#C*)
+               (*0D000000CH*)         (*0DFFFFFFCH*)
             IF (-805306356 <= w) & (w <= -536870916) THEN
               w := w DIV 10H; a := w MOD 10H;
               w := w DIV 10H; b := w MOD 10000H;
-              Texts.WriteString(W, " ; Trap #");
-              Texts.WriteInt(W, a, 1);
+              IF a = 0 THEN (*Trap #0 is NEW()*)
+                Texts.WriteString(W, " ; NEW()");
+              ELSE
+                Texts.WriteString(W, " ; Trap #");
+                Texts.WriteInt(W, a, 1);
+              END ;
               Texts.WriteString(W, " pos ");
               Texts.WriteInt(W, b, 1)
             END
           ELSE
             op := w DIV 1000H;
-            IF (v = 1) & (op # -32769) & (op > -36609) THEN (*# F7FFFxxx, F70FFxxx, F7MEExxx*)
+            (*F7MEExxx    0F7FFFxxxH      0F70FFxxxH*)
+            IF (v = 1) & (op # -32769) & (op > -36609) THEN
               a := op MOD 100H; op := op DIV  100H; b := op MOD  10H;
               Texts.WriteString(W, "; Module #");
               Texts.WriteInt(W, b, 1);
