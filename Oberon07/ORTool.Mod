@@ -103,11 +103,11 @@ MODULE ORTool;  (*NW 18.2.2013*)
 
   PROCEDURE WriteReg(r: LONGINT);
   BEGIN Texts.Write(W, " ");
-    IF r < 12 THEN Texts.WriteString(W, " R"); Texts.WriteInt(W, r MOD 10H, 1)
-    ELSIF r = 12 THEN Texts.WriteString(W, " MT")
-    ELSIF r = 13 THEN Texts.WriteString(W, " SB")
-    ELSIF r = 14 THEN Texts.WriteString(W, " SP")
-    ELSE Texts.WriteString(W, "LNK")
+    IF r < 12 THEN Texts.WriteString(W, "R"); Texts.WriteInt(W, r MOD 10H, 1)
+    ELSIF r = 12 THEN Texts.WriteString(W, "MT")
+    ELSIF r = 13 THEN Texts.WriteString(W, "SB")
+    ELSIF r = 14 THEN Texts.WriteString(W, "SP")
+    ELSE Texts.WriteString(W, "LR")
     END
   END WriteReg;
 
@@ -130,13 +130,13 @@ MODULE ORTool;  (*NW 18.2.2013*)
         IF u = 1 THEN Texts.Write(W, "'") END ;
         WriteReg(a); IF (op # 0) & (a # b) THEN WriteReg(b) END; w := w MOD 10000H;
         IF w >= 8000H THEN w := w - 10000H END ;
-        Texts.WriteInt(W, w, 7)
+        Texts.Write(W, " "); Texts.WriteInt(W, w, 1)
       ELSIF k = 2 THEN  (*LDR/STR*)
         IF u = 1 THEN Texts.WriteString(W, "ST") ELSE Texts.WriteString(W, "LD") END ;
         IF v = 1 THEN Texts.Write(W, "B") ELSE Texts.Write(W, "R") END ;
         WriteReg(a); WriteReg(b); w := w MOD 100000H;
         IF w >= 80000H THEN w := w - 100000H END ;
-        Texts.WriteInt(W, w, 8)
+        Texts.Write(W, " "); Texts.WriteInt(W, w, 1)
       ELSIF k = 3 THEN  (*Branch instr*)
         fn := (w DIV 10H) MOD 10H;
         IF (u = 0) & (v = 0) & (fn = 2) THEN
@@ -151,12 +151,30 @@ MODULE ORTool;  (*NW 18.2.2013*)
             IF fn = 8 THEN Texts.WriteString(W, "PC,") END;
             WriteReg(w MOD 10H);
             IF (v = 0) & (fn = 1) THEN Texts.WriteString(W, " ;RTI") END;
+            (*D.pppp#C*)
+            IF (-805306356 <= w) & (w <= -536870916) THEN
+              w := w DIV 10H; a := w MOD 10H;
+              w := w DIV 10H; b := w MOD 10000H;
+              Texts.WriteString(W, " ; Trap #");
+              Texts.WriteInt(W, a, 1);
+              Texts.WriteString(W, " pos ");
+              Texts.WriteInt(W, b, 1)
+            END
           ELSE
-            w := w MOD 100000H;
-            IF w >= 80000H THEN w := w - 100000H END ;
-            Texts.WriteInt(W, w, 8);
-            Texts.WriteString(W, " ; ===> ");
-            Texts.WriteInt(W, i + 1 + w, 1)
+            op := w DIV 1000H;
+            IF (v = 1) & (op # -32769) & (op > -36609) THEN (*# F7FFFxxx, F70FFxxx, F7MEExxx*)
+              a := op MOD 100H; op := op DIV  100H; b := op MOD  10H;
+              Texts.WriteString(W, "; Module #");
+              Texts.WriteInt(W, b, 1);
+              Texts.WriteString(W, " Entry #");
+              Texts.WriteInt(W, a, 1)
+            ELSE
+              w := w MOD 100000H;
+              IF w >= 80000H THEN w := w - 100000H END ;
+              Texts.Write(W, " "); Texts.WriteInt(W, w, 1);
+              Texts.WriteString(W, " ; ===> ");
+              Texts.WriteInt(W, i + 1 + w, 1)
+            END
           END
         END
       END
@@ -265,14 +283,14 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "ORTool 18.2.2013");
   mnemo0[13] := "FSB";
   mnemo0[14] := "FML";
   mnemo0[15] := "FDV";
-  mnemo1[0] := "MI "; mnemo1[ 8] := "PL";
-  mnemo1[1] := "EQ "; mnemo1[ 9] := "NE ";
-  mnemo1[2] := "CS "; mnemo1[10] := "CC ";
-  mnemo1[3] := "VS "; mnemo1[11] := "VC ";
-  mnemo1[4] := "LS "; mnemo1[12] := "HI ";
-  mnemo1[5] := "LT "; mnemo1[13] := "GE ";
-  mnemo1[6] := "LE "; mnemo1[14] := "GT ";
-  mnemo1[7] := "   "; mnemo1[15] := "NO ";
+  mnemo1[0] := "MI"; mnemo1[ 8] := "PL";
+  mnemo1[1] := "EQ"; mnemo1[ 9] := "NE";
+  mnemo1[2] := "CS"; mnemo1[10] := "CC";
+  mnemo1[3] := "VS"; mnemo1[11] := "VC";
+  mnemo1[4] := "LS"; mnemo1[12] := "HI";
+  mnemo1[5] := "LT"; mnemo1[13] := "GE";
+  mnemo1[6] := "LE"; mnemo1[14] := "GT";
+  mnemo1[7] := "  "; mnemo1[15] := "NO";
 
   Oberon.Run
 END ORTool.
