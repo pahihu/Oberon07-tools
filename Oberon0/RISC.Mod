@@ -23,6 +23,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     intEnb: BOOLEAN; (*INT enabled*)
     cnt: LONGINT; (*number of instr.*)
     SW: INTEGER;
+    absTime: BOOLEAN;
 
   PROCEDURE Sign(a: LONGINT): INTEGER;
     VAR ret: INTEGER;
@@ -234,7 +235,10 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           ELSE (*input*)
                IF adr =  -1 THEN (* ReadInt *) Sys.InInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
             ELSIF adr =  -2 THEN (* eot *) IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
-            ELSIF adr = -16 THEN (* msec counter *) R[a] := SHORT(Timer.Elapsed(TIM0))
+            ELSIF adr = -16 THEN (* msec counter *)
+                IF absTime THEN R[a] := SHORT(Timer.Elapsed(TIM0))
+                ELSE R[a] := cnt DIV 12000 (*12MHz clock*)
+                END
             ELSIF adr = -15 THEN (* switch *) R[a] := SW
             ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
             ELSIF adr = -13 THEN (* RS-232 status, always rdy *) R[a] := 3
@@ -314,7 +318,11 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   BEGIN SW := v
   END SetSW;
 
-BEGIN cnt := 0; In.Open
+  PROCEDURE UseAbsTime*;
+  BEGIN absTime := TRUE
+  END UseAbsTime;
+
+BEGIN absTime := FALSE; cnt := 0; In.Open
 END RISC.
 
 (* vim:set ts=2 sw=2 et: *)

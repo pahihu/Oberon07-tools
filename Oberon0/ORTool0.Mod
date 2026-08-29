@@ -353,6 +353,14 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     ext[j] := 0X;
   END GetFileExt;
 
+  PROCEDURE Option(VAR S: Texts.Scanner);
+  BEGIN
+    IF S.nextCh = "/" THEN
+      Texts.Scan(S); Texts.Scan(S);
+      IF (S.class = Texts.Name) & (S.s[0] = "t") THEN RISC.UseAbsTime END
+    END
+  END Option;
+
   PROCEDURE ExecObj(debug: BOOLEAN);  (*execute/debug object file*)
     VAR w, wentry, wfixlist, wfixorgD: WA.ADDR;
       F: Files.File;
@@ -367,6 +375,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       String("load "); String(S.s); F := Files.Old(S.s);
       IF F # NIL THEN
         GetFileExt(S.s, ext);
+        Option(S);
         IF ext = "bin" THEN
           LoadBin(F, FALSE);
           bin := TRUE
@@ -413,7 +422,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END Debug;
 
   PROCEDURE Help*;
-  BEGIN String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc..."); Ln
+  BEGIN String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin[/t]..."); Ln
   END Help;
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
