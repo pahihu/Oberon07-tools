@@ -302,7 +302,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         PC := 1;
         intMd := TRUE
       END
-    UNTIL (IR = -18000001H) OR (cnt > 10000); (*HALT B -1*)
+    UNTIL (IR = -18000001H) (*OR (cnt > 10000)*); (*HALT B -1*)
     Texts.WriteString(W, "#instr="); Texts.WriteInt(W, cnt, 0); Texts.WriteLn(W);
     Texts.Append(Oberon.Log, W.buf)
   END Execute;

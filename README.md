@@ -11,7 +11,7 @@ The original sources depend on the assumption, that `SIZE(INTEGER) = 4`. Hence I
 ***
 
 Changes:
-* The NW Oberon-07 compiler now accepts the leaf procedure and interrupt handler declaration of the Astrobe Oberon-07 compiler (/a option). In leaf procedure no run-time checking performed and the LNK register not saved/not restored.
+* The NW/AP Oberon-07 compiler now accepts the leaf procedure and interrupt handler declaration of the Astrobe Oberon-07 compiler (/a option). In leaf procedure no run-time checking performed and the LNK register not saved/not restored.
 
 ***
 

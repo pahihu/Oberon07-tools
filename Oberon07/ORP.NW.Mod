@@ -1012,7 +1012,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
   END Compile;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/s]...");
+  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/as]...");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
 
