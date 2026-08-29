@@ -10,6 +10,11 @@ The original sources depend on the assumption, that `SIZE(INTEGER) = 4`. Hence I
 
 ***
 
+Changes:
+* The NW Oberon-07 compiler now accepts the leaf procedure and interrupt handler declaration of the Astrobe Oberon-07 compiler (/a option). In leaf procedure no run-time checking performed and the LNK register not saved/not restored.
+
+***
+
 The directories:
 - `Oberon0/` source code from [Compiler Construction](https://people.inf.ethz.ch/wirth/CompilerConstruction/index.html). `OSP` in extended mode allows exported procedures with parameters, HALT procedure, GET/PUT to access memory. `IO.Mod.txt` contains the source code for the IO module, it can be executed using `ORTool0` with the integrated RISC5 simulator.
 - `Oberon07/` ORP (original NW and numeric-case mods), ORTool, ORL, ORX, O7Depends.

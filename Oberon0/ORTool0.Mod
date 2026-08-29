@@ -199,7 +199,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       R: Files.Rider;
   BEGIN
     IF verbose THEN Ln; String("LoadBin...") END;
-    len := Files.Length(F); len := len DIV 4;
+    len := Sys.Short(Files.Length(F)); len := len DIV 4;
     IF len > MaxMem THEN Err(" binary too large ")
     ELSE
       Files.Set(R, F, 0);

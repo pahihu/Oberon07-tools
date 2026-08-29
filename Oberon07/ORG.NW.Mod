@@ -46,7 +46,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     RH: LONGINT;  (*available registers R[0] ... R[H-1]*)
     frame: LONGINT;  (*frame offset changed in SaveRegs and RestoreRegs*)
     fixorgP, fixorgD, fixorgT: LONGINT;   (*origins of lists of locations to be fixed up by loader*)
-    check: BOOLEAN;  (*emit run-time checks*)
+    check, oldcheck: BOOLEAN;  (*emit run-time checks*)
     version: INTEGER;  (* 0 = RISC-0, 1 = RISC-5 *)
     
     relmap: ARRAY 6 OF INTEGER;  (*condition codes for relations*)
@@ -799,13 +799,15 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Call;
 
-  PROCEDURE Enter*(parblksize, locblksize: LONGINT; int: BOOLEAN);
+  PROCEDURE Enter*(parblksize, locblksize: LONGINT; int, leaf: BOOLEAN);
     VAR a, r: LONGINT;
   BEGIN frame := 0;
+    IF int OR leaf THEN oldcheck := check; check := FALSE END ;
     IF ~int THEN (*procedure prolog*)
       IF locblksize >= 10000H THEN ORS.Mark("too many locals") END ;
       a := 4; r := 0;
-      Put1(Sub, SP, SP, locblksize); Put2(Str, LNK, SP, 0);
+      Put1(Sub, SP, SP, locblksize);
+      IF leaf THEN a := 0 ELSE Put2(Str, LNK, SP, 0) END ;
       WHILE a < parblksize DO Put2(Str, r, SP, a); INC(r); INC(a, 4) END
     ELSE (*interrupt procedure*)
       Put1(Sub, SP, SP, locblksize); Put2(Str, 0, SP, 0); Put2(Str, 1, SP, 4); Put2(Str, 2, SP, 8)
@@ -813,15 +815,17 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Enter;
 
-  PROCEDURE Return*(form: INTEGER; VAR x: Item; size: LONGINT; int: BOOLEAN);
+  PROCEDURE Return*(form: INTEGER; VAR x: Item; size: LONGINT; int, leaf: BOOLEAN);
   BEGIN
     IF form # ORB.NoTyp THEN load(x) END ;
     IF ~int THEN (*procedure epilog*)
-      Put2(Ldr, LNK, SP, 0); Put1(Add, SP, SP, size); Put3(BR, 7, LNK)
+      IF ~leaf THEN Put2(Ldr, LNK, SP, 0) END ;
+      Put1(Add, SP, SP, size); Put3(BR, 7, LNK)
     ELSE (*interrupt return, restore R2, R1, R0*)
       Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
       Put3(BR, 7, 10H) (*RTI*)
     END ;
+    IF int OR leaf THEN check := oldcheck END ;
     RH := 0
   END Return;
 

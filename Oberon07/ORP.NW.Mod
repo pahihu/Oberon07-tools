@@ -25,6 +25,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     pbsList: PtrBase;   (*list of names of pointer base types*)
     dummy: ORB.Object;
     W: Texts.Writer;
+    astrobe: BOOLEAN;   (* Astrobe Oberon-07 *)
 
   PROCEDURE Check(s: INTEGER; msg: ARRAY OF CHAR);
   BEGIN
@@ -89,6 +90,22 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     ELSE expo := FALSE
     END
   END CheckExport;
+
+  PROCEDURE CheckIntHandler(VAR int: BOOLEAN);
+    VAR x, y: ORG.Item; n: LONGINT;
+  BEGIN
+    IF sym = ORS.lbrak THEN
+      int := TRUE; ORS.Get(sym);
+      expression(x); n := 1;
+      WHILE sym = ORS.comma DO ORS.Get(sym); expression(y); INC(n) END ;
+      Check(ORS.rbrak, "no ]");
+      IF n = 1 THEN
+        CheckConst(x); CheckInt(x)
+      ELSE ORS.Mark("wrong nof params")
+      END ;
+    ELSE int := FALSE
+    END
+  END CheckIntHandler;
 
   PROCEDURE IsExtension(t0, t1: ORB.Type): BOOLEAN;
   BEGIN (*t1 is an extension of t0*)
@@ -855,17 +872,25 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       x: ORG.Item;
       locblksize, parblksize, L: LONGINT;
       int: BOOLEAN;
-  BEGIN (* ProcedureDecl *) int := FALSE; ORS.Get(sym); 
-    IF sym = ORS.times THEN ORS.Get(sym); int := TRUE END ;
+      leaf: BOOLEAN;
+  BEGIN (* ProcedureDecl *) leaf := FALSE; int := FALSE; ORS.Get(sym); 
+    IF sym = ORS.times THEN ORS.Get(sym);
+      IF astrobe THEN leaf := TRUE ELSE int := TRUE END ;
+    END ;
     IF sym = ORS.ident THEN
       ORS.CopyId(procid); ORS.Get(sym);
       ORB.NewObj(proc, ORS.id, ORB.Const);
-      IF int THEN parblksize := 12 ELSE parblksize := 4 END ;
+      IF int THEN
+        parblksize := 12
+      ELSE
+        IF leaf THEN parblksize := 0 ELSE parblksize := 4 END ;
+      END ;
       NEW(type); type.form := ORB.Proc; type.size := ORG.WordSize;
       proc.type := type; proc.val := -1; proc.lev := level; 
       CheckExport(proc.expo);
       IF proc.expo THEN proc.exno := SHORT(exno); INC(exno) END ;
       ORB.OpenScope; INC(level); type.base := ORB.noType;
+      IF astrobe THEN CheckIntHandler(int) END ;
       ProcedureType(type, parblksize);  (*formal parameter list*)
       Check(ORS.semicolon, "no ;"); locblksize := parblksize; 
       Declarations(locblksize);
@@ -875,7 +900,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
         REPEAT ProcedureDecl; Check(ORS.semicolon, "no ;") UNTIL sym # ORS.procedure;
         ORG.FixOne(L); proc.val := ORG.Here() * 4; proc.type.dsc := ORB.topScope.next
       END ;
-      ORG.Enter(parblksize, locblksize, int);
+      ORG.Enter(parblksize, locblksize, int, leaf);
       IF sym = ORS.begin THEN ORS.Get(sym); StatSequence END ;
       IF sym = ORS.return THEN
         ORS.Get(sym); expression(x);
@@ -885,7 +910,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       ELSIF type.base.form # ORB.NoTyp THEN
         ORS.Mark("function without result"); type.base := ORB.noType
       END ;
-      ORG.Return(type.base.form, x, locblksize, int);
+      ORG.Return(type.base.form, x, locblksize, int, leaf);
       ORB.CloseScope; DEC(level); Check(ORS.end, "no END");
       IF sym = ORS.ident THEN
         IF ORS.id # procid THEN ORS.Mark("no match") END ;
@@ -958,10 +983,17 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
   END Module;
 
   PROCEDURE Option(VAR S: Texts.Scanner);
-  BEGIN newSF := FALSE;
+    VAR i: INTEGER;
+  BEGIN newSF := FALSE; astrobe := FALSE;
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
-      IF (S.class = Texts.Name) & (S.s[0] = "s") THEN newSF := TRUE END
+      IF S.class = Texts.Name THEN
+        FOR i := 0 TO S.len DO
+             IF S.s[0] = "s" THEN   newSF := TRUE
+          ELSIF S.s[0] = "a" THEN astrobe := TRUE
+          END
+        END
+      END
     END
   END Option;
 
