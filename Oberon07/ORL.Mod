@@ -31,7 +31,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   VAR
     Mem: POINTER TO ARRAY MemSize OF CHAR;
     cmd: ARRAY 32 OF CHAR;
-    modInit: BOOLEAN;
+    details, modInit: BOOLEAN;
     
   (*==================================================================*)
 
@@ -114,6 +114,10 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
     END
   END Stats;
 
+  PROCEDURE DetailStats(s: ARRAY OF CHAR; n: Sys.Integer);
+  BEGIN IF details THEN Stats(s, n) END
+  END DetailStats;
+
   PROCEDURE LinkOne(name: ARRAY OF CHAR; VAR newmod: Module);
     (*search module in list; if not found, link module.
       res = noerr: already present or linked;
@@ -174,34 +178,34 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
         WHILE i < MnLength DO mod.name[i] := 0X; INC(i) END ;
         mod.data := p;  (*data*)
         Put4(mod.num * 4 + MTOrg, p);  (*module table entry*)
-        Sys.ReadInt(R, n);
+        Sys.ReadInt(R, n); DetailStats(" tdesc=", n);
         WHILE n > 0 DO Sys.ReadInt(R, w); Put4(p, w); INC(p, 4); DEC(n, 4) END ;  (*type descriptors*)
         Sys.ReadInt(R, n); Stats(" data=", n);
         WHILE n > 0 DO Put4(p, 0); INC(p, 4); DEC(n, 4) END ;  (*variable space*)
-        Sys.ReadInt(R, n); Stats(" strings=", n);
+        Sys.ReadInt(R, n); DetailStats(" strings=", n);
         WHILE n > 0 DO Files.Read(R, ch); Put1(p, ch); INC(p); DEC(n) END ;   (*strings*)
         mod.code := p;  (*program*)
-        Sys.ReadInt(R, n); Stats(" code=", n);
+        Sys.ReadInt(R, n); Stats(" code=", n * 4);
         WHILE n > 0 DO Sys.ReadInt(R, w); Put4(p, w); INC(p, 4); DEC(n) END ;  (*program code*)
         mod.imp := p;  (*copy imports*)
         i := 0;
         WHILE i < nofimps DO
           Put4(p, RelPtr(import[i])); INC(p, 4); INC(i)
-        END ;
+        END ; DetailStats(" imps=", p - mod.imp);
         mod.cmd := p;  (*commands*) Files.Read(R, ch);
         WHILE ch # 0X DO
           REPEAT Put1(p, ch); INC(p); Files.Read(R, ch) UNTIL ch = 0X;
           REPEAT Put1(p, 0X); INC(p) UNTIL p MOD 4 = 0;
           Sys.ReadInt(R, n); Put4(p, n); INC(p, 4); Files.Read(R, ch)
         END ;
-        REPEAT Put1(p, 0X); INC(p) UNTIL p MOD 4 = 0;
+        REPEAT Put1(p, 0X); INC(p) UNTIL p MOD 4 = 0; DetailStats(" cmds=", p - mod.cmd);
         mod.ent := p;  (*entries*)
-        Sys.ReadInt(R, n);
+        Sys.ReadInt(R, n); DetailStats(" entries=", 4 * n);
         WHILE n > 0 DO Sys.ReadInt(R, w); Put4(p, w); INC(p, 4); DEC(n) END ;
         mod.ptr := p;  (*pointer references*)
         Sys.ReadInt(R, w);
         WHILE w >= 0 DO Put4(p, mod.data + w - Start); INC(p, 4); Sys.ReadInt(R, w) END ;
-        Put4(p, 0); INC(p, 4);
+        Put4(p, 0); INC(p, 4); DetailStats(" ptrrefs=", p - mod.ptr);
         Sys.ReadInt(R, fixorgP); Sys.ReadInt(R, fixorgD); Sys.ReadInt(R, fixorgT);
         Sys.ReadInt(R, w); body := SYSTEM.VAL(Command, mod.code + w - Start);
         Files.Read(R, ch);
@@ -297,10 +301,19 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   END InitModules;
 
   PROCEDURE Option(VAR S: Texts.Scanner);
-  BEGIN modInit := FALSE;
+    VAR ch: CHAR;
+        i: INTEGER;
+  BEGIN modInit := FALSE; details := FALSE;
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S);
-      IF (S.class = Texts.Name) & (S.s[0] = "i") THEN modInit := TRUE END
+      IF (S.class = Texts.Name) THEN
+        FOR i := 0 TO S.len DO
+          ch := S.s[i];
+          IF ch = "i" THEN modInit := TRUE
+          ELSIF ch = "d" THEN details := TRUE
+          END
+        END
+      END
     END
   END Option;
 
@@ -316,7 +329,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
     IF S.class = Texts.Name THEN
       root := NIL; Start := 0; MTOrg := Start + MTAdr; AllocPtr :=  Start + ModAdr; i := Start;
       WHILE i < AllocPtr DO Put4(i, 0); INC(i, 4) END ;
-      REPEAT COPY(S.s, name); LinkOne(name, M); Option(S); Texts.Scan(S) UNTIL (S.class # Texts.Name) OR (res # noerr);
+      REPEAT COPY(S.s, name); Option(S); LinkOne(name, M); Texts.Scan(S) UNTIL (S.class # Texts.Name) OR (res # noerr);
       IF res = noerr THEN p := root;
         WHILE p # NIL DO (*fixup*)
           M := p; p := AbsPtr(p.next);
@@ -401,7 +414,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   PROCEDURE Help*;
     VAR W: Texts.Writer;
   BEGIN Texts.OpenWriter(W);
-    Texts.WriteString(W, "ORL Link [module ...] topmodule[/i] | Load M.bin SD.img");
+    Texts.WriteString(W, "ORL Link [module ...] topmodule[/id] | Load M.bin SD.img");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
 
