@@ -11,8 +11,8 @@ The original sources depend on the assumption, that `SIZE(INTEGER) = 4`. Hence I
 ***
 
 Changes:
-* The NW/AP compiler now accepts the Astrobe extension of ASSERT(cond,code)
-* The NW/AP Oberon-07 compiler now accepts the leaf procedure and interrupt handler declaration of the Astrobe Oberon-07 compiler (/a option). In leaf procedures no run-time checking is performed and the LNK register not saved/not restored.
+* The compiler now accepts the Astrobe extension of ASSERT(cond,code)
+* The compiler now accepts the leaf procedure and interrupt handler syntax of the Astrobe Oberon-07 compiler (/a option). In leaf procedures no run-time checking is performed and the LNK register not saved/not restored.
 
 ***
 
