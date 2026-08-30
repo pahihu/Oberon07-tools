@@ -446,6 +446,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
   PROCEDURE StandProc(pno: LONGINT);
     VAR nap, npar: LONGINT; (*nof actual/formal parameters*)
       x, y, z: ORG.Item;
+      assert12: BOOLEAN;
   BEGIN Check(ORS.lparen, "no (");
     npar := pno MOD 10; pno := pno DIV 10; expression(x); nap := 1;
     IF sym = ORS.comma THEN
@@ -454,7 +455,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     ELSE y.type := ORB.noType
     END ;
     Check(ORS.rparen, "no )");
-    IF (npar = nap) OR (pno IN {0, 1}) THEN 
+    assert12 := astrobe & (pno = 4) & (nap IN {1,2}); (*ASSERT(cond,code)*)
+    IF (npar = nap) OR (pno IN {0, 1}) OR assert12 THEN
       IF pno IN {0, 1} THEN (*INC, DEC*)
         CheckInt(x); CheckReadOnly(x);
         IF y.type # ORB.noType THEN CheckInt(y) END ;

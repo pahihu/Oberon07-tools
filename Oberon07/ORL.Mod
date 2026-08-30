@@ -274,7 +274,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
       body, adr, offset: Sys.Integer;
       instr: Sys.Integer;
       i, p: Sys.Integer;
-  BEGIN Texts.WriteLn(W); Texts.WriteString(W, "  initialize modules");
+  BEGIN Texts.WriteLn(W); Texts.WriteString(W, "  initializing modules");
     nmods := 0; p := AllocPtr;
     mod := root; IF mod # NIL THEN nmods := mod.num END;
     WHILE mod # NIL DO
@@ -358,8 +358,8 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
         WHILE i < AllocPtr DO Get4(i, x); Sys.WriteInt(R, x); INC(i, 4) END ;
         Texts.WriteLn(W);
         Texts.WriteString(W, "  total code="); Texts.WriteInt(W, codeSize, 1);
-        Texts.WriteString(W, "  data="); Texts.WriteInt(W, dataSize, 1);
-        Texts.WriteString(W, "  (");
+        Texts.WriteString(W, " data="); Texts.WriteInt(W, dataSize, 1);
+        Texts.WriteString(W, " (");
         Texts.WriteInt(W, AllocPtr - Start, 1);
         Texts.WriteString(W, " bytes)");
         Files.Register(F)

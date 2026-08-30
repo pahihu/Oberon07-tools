@@ -22,8 +22,10 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     intMd: BOOLEAN; (*INT mode*)
     intEnb: BOOLEAN; (*INT enabled*)
     cnt: LONGINT; (*number of instr.*)
+    clk: LONGINT; (*number of clks*)
     SW: INTEGER;
     absTime: BOOLEAN;
+    dlyTx: INTEGER;
 
   PROCEDURE Sign(a: LONGINT): INTEGER;
     VAR ret: INTEGER;
@@ -160,11 +162,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       TIM0: Timer.Timer;
       ch: CHAR;
       MaxMem: INTEGER;
+      prevClk: LONGINT;
   BEGIN MaxMem := Sys.Short(LEN(M) * 4);
     PC := entry.ToWords() (*0*); R[13] := pc.ToBytes();
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
+      prevClk := clk;
       IR := M[PC]; RISCEmu.Status(W, PC, IR, R, H, Flags(), IntFlags()); INC(PC);
       a := IR DIV 1000000H MOD 10H;
       b := IR DIV 100000H MOD 10H;
@@ -202,13 +206,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                  IF ODD(u) & ~Y THEN DEC(A) END;
                  Y := B < C;
                  V := (Sign(B) # Sign(C)) & (Sign(B) # Sign(A)); |
-            MUL: Mul32(B, C, H, A, ODD(u)); |
-            Div: A := B DIV C; H := B MOD C |
+            MUL: Mul32(B, C, H, A, ODD(u)); INC(clk,32) |
+            Div: A := B DIV C; H := B MOD C; INC(clk,32) |
             FAD, FSB:
                  IF op = FSB THEN C := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, 7FFFFFFFH-1) / SYSTEM.VAL(SET, C)) END;
-                 A := FSum(B, C, u, v) |
-            FML: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) * SYSTEM.VAL(REAL, C)) |
-            FDV: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) / SYSTEM.VAL(REAL, C))
+                 A := FSum(B, C, u, v); INC(clk, 2) |
+            FML: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) * SYSTEM.VAL(REAL, C)); INC(clk, 24) |
+            FDV: A := SYSTEM.VAL(LONGINT, SYSTEM.VAL(REAL, B) / SYSTEM.VAL(REAL, C)); INC(clk, 25)
          END ;
          R[a] := A; N := A < 0; Z := A = 0
       ELSIF ~ODD(q) THEN (*p & ~q: memory instruction*)
@@ -241,7 +245,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                 END
             ELSIF adr = -15 THEN (* switch *) R[a] := SW
             ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
-            ELSIF adr = -13 THEN (* RS-232 status, always rdy *) R[a] := 3
+            ELSIF adr = -13 THEN (* RS-232 status, always rdyRx *)
+              IF dlyTx = 0 THEN R[a] := 3 ELSE R[a] := 1 END
             END 
           END
         ELSE
@@ -265,8 +270,17 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSIF adr =  -2 THEN (* WriteChar *) Texts.Write(W, CHR(R[a] MOD 80H))
             ELSIF adr =  -3 THEN (* WriteLn *) Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
             ELSIF adr = -15 THEN (* LEDs*) ShowLEDs(W, R[a] MOD 100H)
-            ELSIF adr = -14 THEN (* RS-232 TX *) Texts.Write(W, CHR(R[a] MOD 80H)); Texts.Append(Oberon.Log, W.buf)
+            ELSIF adr = -14 THEN (* RS-232 TX *)
+              IF dlyTx = 0 THEN
+                dlyTx := 1042;
+                Texts.Write(W, CHR(R[a] MOD 80H));
+                Texts.Append(Oberon.Log, W.buf)
+              ELSE
+                Texts.WriteString(W, "RS-232 TX busy");
+                Texts.Append(Oberon.Log, W.buf)
+              END
             ELSIF adr = -13 THEN (* RS-232 ctrl *)
+              IF ~ODD(R[a] DIV 2) THEN dlyTx := 0 END
             END
           END
         END
@@ -299,14 +313,20 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             END
           END
         END
-      END; INC(cnt);
+      END; INC(cnt); INC(clk);
+      IF dlyTx # 0 THEN
+        DEC(dlyTx, clk - prevClk);
+        IF dlyTx < 0 THEN dlyTx := 0 END ;
+      END ;
       IF intPnd & intEnb & ~intMd THEN (*check INT*)
         SPC := SYSTEM.VAL(LONGINT, Flags()) * 400000H + PC;
         PC := 1;
         intMd := TRUE
       END
     UNTIL (IR = -18000001H) (*OR (cnt > 10000)*); (*HALT B -1*)
-    Texts.WriteLn(W); Texts.WriteString(W, "#instr="); Texts.WriteInt(W, cnt, 0);
+    Texts.WriteLn(W);
+    Texts.WriteString(W, "#clks="); Texts.WriteInt(W, clk, 0);
+    Texts.WriteString(W, "  #instr="); Texts.WriteInt(W, cnt, 0);
     Texts.Append(Oberon.Log, W.buf)
   END Execute;
 
@@ -322,7 +342,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   BEGIN absTime := TRUE
   END UseAbsTime;
 
-BEGIN absTime := FALSE; cnt := 0; In.Open
+BEGIN In.Open;
+  absTime := FALSE; cnt := 0; clk := 0; dlyTx := 0
 END RISC.
 
 (* vim:set ts=2 sw=2 et: *)
