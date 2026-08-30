@@ -135,15 +135,15 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   END SplitReal;
 
   PROCEDURE ShowLEDs(VAR W: Texts.Writer; value: LONGINT);
-  VAR n, pos: INTEGER;
-      i: INTEGER;
+  VAR n, i: INTEGER;
+      ch: CHAR;
   BEGIN
-    Texts.WriteLn(W);
-    Texts.WriteString(W, "LEDs=");
+    Texts.WriteLn(W); Texts.WriteString(W, "LEDs=");
     n := value;
     FOR i := 1 TO 8 DO
-      IF n >= pos THEN Texts.Write(W, "O") ELSE Texts.Write(W, ".") END;
-      n := n DIV 2; pos := pos DIV 2
+      IF n >= 128 THEN ch := "O"; DEC(n, 128) ELSE ch := "." END ;
+      Texts.Write(W, ch);
+      n := n * 2;
     END;
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   END ShowLEDs;
@@ -178,12 +178,12 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         ELSE (*q&v*) C := Sys.BinOr(im, 0FFFF0000H)
         END ;
         CASE op OF
-            MOV: IF ~ODD(u) THEN A := C (*u=0*)
-                 ELSE (*u=1*)
+            MOV: IF ODD(u) THEN (*u=1 special*)
                    IF ODD(q) THEN (*F1*) A := Sys.Ash(C, 16);
-                   ELSIF ~ODD(v) THEN A := H (*F0,v=0*)
-                   ELSE A := SYSTEM.VAL(LONGINT,Flags()) (*F0,v=1*)
+                   ELSIF ODD(v) THEN A := SYSTEM.VAL(LONGINT,Flags()) (*F0,v=1*)
+                   ELSE A := H (*F0,v=0*)
                    END
+                 ELSE A := C (*u=0*)
                  END |
             LSL: A := SYSTEM.LSH(B, C) |
             ASR: A := Sys.Short(ASH(B, -C)) |

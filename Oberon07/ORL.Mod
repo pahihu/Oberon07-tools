@@ -32,6 +32,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
     Mem: POINTER TO ARRAY MemSize OF CHAR;
     cmd: ARRAY 32 OF CHAR;
     details, modInit: BOOLEAN;
+    codeSize, dataSize: LONGINT;
     
   (*==================================================================*)
 
@@ -180,12 +181,12 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
         Put4(mod.num * 4 + MTOrg, p);  (*module table entry*)
         Sys.ReadInt(R, n); DetailStats(" tdesc=", n);
         WHILE n > 0 DO Sys.ReadInt(R, w); Put4(p, w); INC(p, 4); DEC(n, 4) END ;  (*type descriptors*)
-        Sys.ReadInt(R, n); Stats(" data=", n);
+        Sys.ReadInt(R, n); Stats(" data=", n); INC(dataSize, n);
         WHILE n > 0 DO Put4(p, 0); INC(p, 4); DEC(n, 4) END ;  (*variable space*)
         Sys.ReadInt(R, n); DetailStats(" strings=", n);
         WHILE n > 0 DO Files.Read(R, ch); Put1(p, ch); INC(p); DEC(n) END ;   (*strings*)
         mod.code := p;  (*program*)
-        Sys.ReadInt(R, n); Stats(" code=", n * 4);
+        Sys.ReadInt(R, n); Stats(" code=", n * 4); INC(codeSize, n * 4);
         WHILE n > 0 DO Sys.ReadInt(R, w); Put4(p, w); INC(p, 4); DEC(n) END ;  (*program code*)
         mod.imp := p;  (*copy imports*)
         i := 0;
@@ -356,9 +357,11 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
         MakeFileName(fname, name, ".bin"); F := Files.New(fname); Files.Set(R, F, 0); i := Start;
         WHILE i < AllocPtr DO Get4(i, x); Sys.WriteInt(R, x); INC(i, 4) END ;
         Texts.WriteLn(W);
-        Texts.WriteString(W, "  ");
+        Texts.WriteString(W, "  total code="); Texts.WriteInt(W, codeSize, 1);
+        Texts.WriteString(W, "  data="); Texts.WriteInt(W, dataSize, 1);
+        Texts.WriteString(W, "  (");
         Texts.WriteInt(W, AllocPtr - Start, 1);
-        Texts.WriteString(W, " bytes");
+        Texts.WriteString(W, " bytes)");
         Files.Register(F)
       ELSE
         Texts.WriteString(W, "Link error:  "); Texts.WriteString(W, importing);
@@ -420,6 +423,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
 
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Boot linker/loader  AP 1.5.23"); EndLine;
   NEW(Mem); MemBase := SYSTEM.VAL(Sys.Address, Mem); limit := MemSize;
+  codeSize := 0; dataSize := 0;
   Oberon.Run
 END ORL.
 

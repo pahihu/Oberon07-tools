@@ -107,7 +107,7 @@ MODULE ORTool;  (*NW 18.2.2013*)
     ELSIF r = 12 THEN Texts.WriteString(W, "MT")
     ELSIF r = 13 THEN Texts.WriteString(W, "SB")
     ELSIF r = 14 THEN Texts.WriteString(W, "SP")
-    ELSE Texts.WriteString(W, "LR")
+    ELSE Texts.WriteString(W, "LNK")
     END
   END WriteReg;
 
