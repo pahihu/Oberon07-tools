@@ -1,4 +1,4 @@
-MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 / AP 13.12.24*)
+MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 / AP 13.12.24 / Phu 30.8.26*)
   IMPORT Texts, Oberon, ORS, ORB, ORG, BIF07, Sys := System;
   (*Author: Niklaus Wirth, 2014.
     Parser of Oberon-RISC compiler. Uses Scanner ORS to obtain symbols (tokens),
@@ -28,6 +28,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     dummy: ORB.Object;
     W: Texts.Writer;
     astrobe: BOOLEAN;   (*Astrobe Oberon-07*)
+    leaf: BOOLEAN;	(*leaf procedure*)
 
   PROCEDURE Check(s: INTEGER; msg: ARRAY OF CHAR);
   BEGIN
@@ -759,6 +760,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     obj := first;
     WHILE obj # NIL DO
       INC(nofpar); obj.class := SHORT(cl); obj.type := tp; obj.rdo := rdo; obj.lev := level; obj.val := adr;
+      IF leaf THEN INC(obj.val, 64) END ;
       adr := adr + parsize; obj := obj.next
     END ;
     IF adr >= 52 THEN ORS.Mark("too many parameters") END
@@ -905,6 +907,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
           obj.type := tp; obj.lev := level;
           IF tp.size > 1 THEN varsize := (varsize + 3) DIV 4 * 4 (*align*) END ;
           obj.val := varsize; varsize := varsize + obj.type.size;
+	  IF leaf THEN INC(obj.val, 64) END ;
           IF obj.expo THEN obj.exno := SHORT(exno); INC(exno) END ;
           obj := obj.next
         END ;
@@ -926,8 +929,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       procid: ORS.Ident;
       x: ORG.Item;
       locblksize, parblksize, L: LONGINT;
-      int, leaf: BOOLEAN;
-  BEGIN (* ProcedureDecl *) leaf := FALSE; int := FALSE; ORS.Get(sym); 
+      int: BOOLEAN;
+  BEGIN (* ProcedureDecl *) leaf := FALSE; int := FALSE; ORS.Get(sym);
     IF sym = ORS.times THEN ORS.Get(sym);
       leaf := astrobe; int := ~astrobe
     END ;
@@ -948,7 +951,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         IF ~int THEN ProcedureType(type, parblksize) END ; (*formal parameter list*)
       ELSE ProcedureType(type, parblksize);  (*formal parameter list*)
       END ;
-      Check(ORS.semicolon, "no ;"); locblksize := parblksize; 
+      Check(ORS.semicolon, "no ;"); locblksize := parblksize;
       Declarations(locblksize);
       proc.val := ORG.Here() * 4; proc.type.dsc := ORB.topScope.next;
       IF sym = ORS.procedure THEN
@@ -1077,6 +1080,7 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Compiler  8.3.2020 / numeric
   Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   NEW(dummy); dummy.class := ORB.Var; dummy.type := ORB.intType;
   expression := expression0; Type := Type0; FormalType := FormalType0;
+  leaf := FALSE;
 
   Oberon.Run
 END ORP.
