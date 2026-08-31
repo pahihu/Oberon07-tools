@@ -361,7 +361,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       IF x.mode = ORB.Var THEN
         IF x.r > 0 THEN Put0(Add, yr, SP, yr); INC(x.a, frame)
         ELSE GetSB(x.r);
-          IF x.r = 0 THEN Put0(Add, yr, RH, yr)
+          IF x.r = 0 THEN
+            IF s = 1 THEN Put0(Add, yr, RH, y.r)
+            ELSE Put0(Add, yr, RH, yr)
+            END
           ELSE Put1a(Add, RH, RH, x.a); Put0(Add, yr, RH, yr); x.a := 0
           END
         END ;
