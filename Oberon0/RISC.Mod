@@ -25,7 +25,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     clk: LONGINT; (*number of clks*)
     SW: INTEGER;
     absTime: BOOLEAN;
-    dlyTx: INTEGER;
+    delayTxCounter: INTEGER;
+    DelayTX: INTEGER;
 
   PROCEDURE Sign(a: LONGINT): INTEGER;
     VAR ret: INTEGER;
@@ -246,7 +247,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSIF adr = -15 THEN (* switch *) R[a] := SW
             ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
             ELSIF adr = -13 THEN (* RS-232 status, always rdyRx *)
-              IF dlyTx = 0 THEN R[a] := 3 ELSE R[a] := 1 END
+              IF delayTxCounter = 0 THEN R[a] := 3 ELSE R[a] := 1 END
             END 
           END
         ELSE
@@ -271,8 +272,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSIF adr =  -3 THEN (* WriteLn *) Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
             ELSIF adr = -15 THEN (* LEDs*) ShowLEDs(W, R[a] MOD 100H)
             ELSIF adr = -14 THEN (* RS-232 TX *)
-              IF dlyTx = 0 THEN
-                dlyTx := 1042;
+              IF delayTxCounter = 0 THEN
+                delayTxCounter := DelayTX;
                 Texts.Write(W, CHR(R[a] MOD 80H));
                 Texts.Append(Oberon.Log, W.buf)
               ELSE
@@ -280,7 +281,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                 Texts.Append(Oberon.Log, W.buf)
               END
             ELSIF adr = -13 THEN (* RS-232 ctrl *)
-              IF ~ODD(R[a] DIV 2) THEN dlyTx := 0 END
+              IF ~ODD(R[a] DIV 2) THEN delayTxCounter := 0 END
             END
           END
         END
@@ -314,9 +315,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           END
         END
       END; INC(cnt); INC(clk);
-      IF dlyTx # 0 THEN
-        DEC(dlyTx, clk - prevClk);
-        IF dlyTx < 0 THEN dlyTx := 0 END ;
+      IF delayTxCounter # 0 THEN
+        DEC(delayTxCounter, clk - prevClk);
+        IF delayTxCounter < 0 THEN delayTxCounter := 0 END ;
       END ;
       IF intPnd & intEnb & ~intMd THEN (*check INT*)
         SPC := SYSTEM.VAL(LONGINT, Flags()) * 400000H + PC;
@@ -339,11 +340,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   END SetSW;
 
   PROCEDURE UseAbsTime*;
-  BEGIN absTime := TRUE
+  BEGIN absTime := TRUE; DelayTX := 0
   END UseAbsTime;
 
 BEGIN In.Open;
-  absTime := FALSE; cnt := 0; clk := 0; dlyTx := 0
+  absTime := FALSE;
+  cnt := 0; clk := 0;
+  delayTxCounter := 0; DelayTX := 1042
 END RISC.
 
 (* vim:set ts=2 sw=2 et: *)
