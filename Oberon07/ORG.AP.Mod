@@ -17,6 +17,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     Ldr = 8; Str = 10;
     BR = 0; BLR = 1; BC = 2; BL = 3;
     MI = 0; PL = 8; EQ = 1; NE = 9; CS = 2; CC = 10; LT = 5; GE = 13; LE = 6; GT = 14;
+    Debug = FALSE;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -250,7 +251,13 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       ELSE GetSB(x.r); Put1a(Add, RH, RH, x.a)
       END ;
       x.r := RH; incR
-    ELSIF x.mode = ORB.Par THEN Put2(Ldr, RH, SP, x.a + frame);
+    ELSIF x.mode = ORB.Par THEN
+      IF ~isRegVar(x) THEN
+        Put2(Ldr, RH, SP, x.a + frame);
+      ELSE
+        IF Debug THEN ORS.Twain("loadAdr", x.a) END ;
+        Put0(Mov, RH, 0, regVar(x));
+      END ;
       IF x.b # 0 THEN Put1a(Add, RH, RH, x.b) END ;
       x.r := RH; incR
     ELSIF x.mode = RegI THEN
@@ -364,7 +371,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
           Put2(Ldr, RH, SP, x.a + frame);
           Put0(Add, y.r, RH, y.r);
         ELSE
-          Put0(Add, yr, regVar(x), y.r);
+          Put0(Add, yr, regVar(x), yr);
         END ;
         x.mode := RegI; x.r := yr; x.a := x.b
       ELSIF x.mode = RegI THEN Put0(Add, x.r, x.r, y.r); DEC(RH)
@@ -775,7 +782,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     loadStringAdr(y);
     Put2(Ldr, RH, y.r, 0); Put1(Add, y.r, y.r, 4);
     Put2(Str, RH, x.r, 0); Put1(Add, x.r, x.r, 4);
-    Put1(Asr, RH, RH, 24); Put3(BC, NE,  -6);  RH := 0
+    Put1(Asr, RH, RH, 24); Put3(BC, NE,  -6); RH := leafRH
    END CopyString;
 
   (* Code generation for parameters *)
@@ -922,7 +929,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         IF leaf THEN incR ELSE Put2(Str, r, SP, a); INC(r) END ;
         INC(a, 4)
       END ;
-      genLeaf := leaf; IF genLeaf THEN leafRH := RH; ORS.Twain("leafRH=", leafRH) END ;
+      genLeaf := leaf;
+      IF genLeaf THEN leafRH := RH; IF Debug THEN ORS.Twain("leafRH=", leafRH) END END ;
     ELSE (*interrupt procedure*)
       Put1(Sub, SP, SP, locblksize); Put2(Str, 0, SP, 0); Put2(Str, 1, SP, 4); Put2(Str, 2, SP, 8)
       (*R0, R1, R2 saved on stack*)
@@ -931,7 +939,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Return*(form: INTEGER; VAR x: Item; size: LONGINT; int, leaf: BOOLEAN);
   BEGIN
-    IF form # ORB.NoTyp THEN load(x) END ;
+    IF form # ORB.NoTyp THEN
+      IF leaf & isRegVar(x) THEN
+        Put0(Mov, 0, 0, regVar(x))
+      ELSE load(x)
+      END
+    END ;
     IF ~int THEN (*procedure epilog*)
       IF ~leaf THEN Put2(Ldr, LNK, SP, 0) END ;
       IF size # 0 THEN Put1(Add, SP, SP, size); END ;
@@ -1096,7 +1109,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF x.type.len >= 0 THEN
       IF x.mode = RegI THEN DEC(RH) END ;
       x.mode := ORB.Const; x.a := x.type.len
-    ELSE (*open array*) Put2(Ldr, RH, SP, x.a + 4 + frame); x.mode := Reg; x.r := RH; incR
+    ELSE (*open array*)
+      IF ~isRegVar(x) THEN
+        Put2(Ldr, RH, SP, x.a + 4 + frame); x.mode := Reg; x.r := RH; incR
+      ELSE
+        Put0(Mov, RH, 0, regVar(x) + 1); x.mode := Reg; x.r := RH; incR
+      END
     END 
   END Len;
 
@@ -1270,6 +1288,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END Close;
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
-genLeaf := FALSE; forStore := 0
+genLeaf := FALSE; forStore := 0; leafRH := 0
 END ORG.
 (* vim:set ts=2 sw=2 et: *)
