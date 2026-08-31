@@ -69,6 +69,19 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     INC(errcnt); errpos := p + 4
   END Mark;
 
+  PROCEDURE Twain*(msg: ARRAY OF CHAR; arg: LONGINT);
+    VAR p: LONGINT;
+  BEGIN p := Pos();
+    IF (p > errpos) & (errcnt < 25) THEN
+      Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1);
+      Texts.WriteLn(W); Texts.WriteString(W, "--- ");
+      Texts.WriteString(W, msg);
+      Texts.WriteInt(W, arg, 8);
+      Texts.Append(Oberon.Log, W.buf)
+    END ;
+    (*INC(errcnt);*) errpos := p + 4
+  END Twain;
+
   PROCEDURE Identifier(VAR sym: INTEGER);
     VAR i, k: INTEGER;
   BEGIN i := 0;

@@ -54,7 +54,26 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     data: ARRAY maxTD OF LONGINT;  (*type descriptors*)
     str: ARRAY maxStrx OF CHAR;
     genLeaf: BOOLEAN;
-    forStore: BOOLEAN;
+    forStore: INTEGER;
+    leafRH: LONGINT;
+
+  (*leaf procedures*)
+
+  PROCEDURE regVar(x: Item): LONGINT;
+  BEGIN RETURN (x.a - 64) DIV 4
+  END regVar;
+
+  PROCEDURE isRegVar(x: Item): BOOLEAN;
+  BEGIN RETURN x.a >= 64
+  END isRegVar;
+
+  PROCEDURE patchRegTmp(d: INTEGER);
+  VAR instr, diff: LONGINT;
+  BEGIN
+    instr := code[pc - 1];
+    diff := RH - 1 + d - (instr DIV C24) MOD 10H;
+    INC(code[pc - 1], diff * C24);
+  END patchRegTmp;
 
   (*instruction assemblers according to formats*)
 
@@ -102,12 +121,15 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE CheckRegs*;
   BEGIN
     IF ~genLeaf & (RH # 0) THEN ORS.Mark("Reg Stack"); RH := 0 END ;
+    IF genLeaf & (RH # leafRH) THEN ORS.Twain("Reg Stack", RH); RH := leafRH END ;
     IF pc >= maxCode - 40 THEN ORS.Mark("program too long") END ;
     IF frame # 0 THEN ORS.Mark("frame error"); frame := 0 END
   END CheckRegs;
 
   PROCEDURE SetCC(VAR x: Item; n: LONGINT);
-  BEGIN x.mode := Cond; x.a := 0; x.b := 0; x.r := n
+  BEGIN 
+    IF genLeaf & isRegVar(x) THEN patchRegTmp(1) END ;
+    x.mode := Cond; x.a := 0; x.b := 0; x.r := n
   END SetCC;
 
   PROCEDURE Trap(cond, num: LONGINT);
@@ -175,14 +197,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE NilCheck;
   BEGIN IF check THEN Trap(EQ, 4) END
   END NilCheck;
-
-  PROCEDURE regVar(x: Item): LONGINT;
-  BEGIN RETURN (x.a - 64) DIV 4
-  END regVar;
-
-  PROCEDURE isRegVar(x: Item): BOOLEAN;
-  BEGIN RETURN x.a >= 64
-  END isRegVar;
 
   PROCEDURE load(VAR x: Item);
     VAR op: LONGINT;
@@ -312,6 +326,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Index*(VAR x, y: Item);   (* x := x[y] *)
     VAR s, lim: LONGINT;
+        yr: LONGINT;
+        release: BOOLEAN;
   BEGIN s := x.type.base.size; lim := x.type.len;
     IF (y.mode = ORB.Const) & (lim >= 0) THEN
       IF (y.a < 0) OR (y.a >= lim) THEN ORS.Mark("bad index") END ;
@@ -328,23 +344,29 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         END ;
         Trap(CC, 1)
       END ;
-      IF s = 4 THEN Put1(Lsl, y.r, y.r, 2) ELSIF s > 1 THEN Put1a(Mul, y.r, y.r, s) END ;
+      release := FALSE;
+      IF genLeaf & isRegVar(y) THEN yr := RH-1 ELSE yr := y.r END ;
+      IF s = 4 THEN
+        Put1(Lsl, yr, y.r, 2)
+      ELSIF s > 1 THEN
+        Put1a(Mul, yr, y.r, s)
+      END ;
       IF x.mode = ORB.Var THEN
-        IF x.r > 0 THEN Put0(Add, y.r, SP, y.r); INC(x.a, frame)
+        IF x.r > 0 THEN Put0(Add, yr, SP, yr); INC(x.a, frame)
         ELSE GetSB(x.r);
-          IF x.r = 0 THEN Put0(Add, y.r, RH, y.r)
-          ELSE Put1a(Add, RH, RH, x.a); Put0(Add, y.r, RH, y.r); x.a := 0
+          IF x.r = 0 THEN Put0(Add, yr, RH, yr)
+          ELSE Put1a(Add, RH, RH, x.a); Put0(Add, yr, RH, yr); x.a := 0
           END
         END ;
-        x.r := y.r; x.mode := RegI
+        x.r := yr; x.mode := RegI;
       ELSIF x.mode = ORB.Par THEN
         IF ~isRegVar(x) THEN
           Put2(Ldr, RH, SP, x.a + frame);
           Put0(Add, y.r, RH, y.r);
         ELSE
-          Put0(Add, y.r, regVar(x), y.r);
+          Put0(Add, yr, regVar(x), y.r);
         END ;
-        x.mode := RegI; x.r := y.r; x.a := x.b
+        x.mode := RegI; x.r := yr; x.a := x.b
       ELSIF x.mode = RegI THEN Put0(Add, x.r, x.r, y.r); DEC(RH)
       END
     END
@@ -418,8 +440,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       IF ~varpar THEN fix(pc0, pc - pc0 - 1) END ;
       IF isguard THEN
         IF check THEN Trap(NE, 2) END
-      ELSE SetCC(x, EQ);
-        IF ~varpar THEN DEC(RH) END
+      ELSE IF ~varpar THEN DEC(RH) END ;
+        SetCC(x, EQ)
       END
     END
   END TypeTest;
@@ -655,9 +677,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   BEGIN x.type := ORB.charType; DEC(strx, 4); x.a := ORD(str[x.a])
   END StrToChar;
 
+
   PROCEDURE Store*(VAR x, y: Item); (* x := y *)
     VAR op: LONGINT;
-        instr, diff: LONGINT;
+        instr: LONGINT;
   BEGIN  load(y);
     IF x.type.size = 1 THEN op := Str+1 ELSE op := Str END ;
     IF x.mode = ORB.Var THEN
@@ -665,13 +688,21 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         IF ~isRegVar(x) THEN
           (*local*) Put2(op, y.r, SP, x.a + frame)
         ELSE
-          (*op regVar(x), ...*)
-          instr := code[pc - 1];
-          code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
-          IF forStore THEN
+          IF forStore = 1 THEN (*Mov regVar(x), y.r*)
+            Put0(Mov, regVar(x), 0, y.r)
+          ELSIF forStore = 2 THEN
+            patchRegTmp(0);
+            y.r := RH - 1;
+            Put0(Mov, regVar(x), 0, y.r)
+          ELSE
+            instr := code[pc - 1];
+            code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
+          END
+
+          (*IF forStore THEN
             (*local*) y.r := regVar(x); incR
           END
-          (*IF y.r >= leafRH THEN
+          IF y.r >= leafRH THEN
             instr := code[pc - 1];
             code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
             (*incR*)
@@ -692,11 +723,16 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       ELSE
         Put2(op, y.r, regVar(x), x.b);
       END ;
-    ELSIF x.mode = RegI THEN Put2(op, y.r, x.r, x.a); DEC(RH);
+    ELSIF x.mode = RegI THEN
+      Put2(op, y.r, x.r, x.a); DEC(RH);
     ELSE ORS.Mark("bad mode in Store")
     END ;
     DEC(RH)
   END Store;
+
+  PROCEDURE StoreFor(VAR x, y: Item; n: INTEGER);
+  BEGIN forStore := n; Store(x, y); forStore := 0
+  END StoreFor;
 
   PROCEDURE StoreStruct*(VAR x, y: Item); (* x := y, frame = 0 *)
     VAR s, pc0: LONGINT;
@@ -772,7 +808,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   (*For Statements*)
 
   PROCEDURE For0*(VAR x, y: Item);
-  BEGIN load(y); IF genLeaf THEN forStore := TRUE; Store(x, y); forStore := FALSE END
+  BEGIN load(y)
   END For0;
 
   PROCEDURE For1*(VAR x, y, z, w: Item; VAR L: LONGINT);
@@ -785,11 +821,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     ELSIF w.a < 0 THEN Put3(BC, LT, 0)
     ELSE ORS.Mark("zero increment"); Put3(BC, MI, 0)
     END ;
-    IF ~genLeaf THEN Store(x, y) END
+    StoreFor(x, y, 1)
   END For1;
 
   PROCEDURE For2*(VAR x, y, w: Item);
-  BEGIN load(x); DEC(RH); Put1a(Add, x.r, x.r, w.a)
+  BEGIN load(x); DEC(RH); Put1a(Add, x.r, x.r, w.a);
+    IF genLeaf & isRegVar(x) THEN Put0(Mov, RH, 0, regVar(x)) END
   END For2;
 
   (* Branches, procedure calls, procedure prolog and epilog *)
@@ -873,12 +910,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF int OR leaf THEN oldcheck := check; check := FALSE END ;
     IF ~int THEN (*procedure prolog*)
       IF locblksize >= 10000H THEN ORS.Mark("too many locals") END ;
+      IF locblksize # 0 THEN Put1(Sub, SP, SP, locblksize) END ;
       IF leaf THEN
-        a := 0; DEC(locblksize, parblksize);
-        WHILE a < locblksize DO incR; INC(a, 4) END ;
         a := 0;
       ELSE
-        Put1(Sub, SP, SP, locblksize);
         Put2(Str, LNK, SP, 0);
         a := 4;
       END ;
@@ -887,7 +922,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         IF leaf THEN incR ELSE Put2(Str, r, SP, a); INC(r) END ;
         INC(a, 4)
       END ;
-      genLeaf := leaf
+      genLeaf := leaf; IF genLeaf THEN leafRH := RH; ORS.Twain("leafRH=", leafRH) END ;
     ELSE (*interrupt procedure*)
       Put1(Sub, SP, SP, locblksize); Put2(Str, 0, SP, 0); Put2(Str, 1, SP, 4); Put2(Str, 2, SP, 8)
       (*R0, R1, R2 saved on stack*)
@@ -899,14 +934,14 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF form # ORB.NoTyp THEN load(x) END ;
     IF ~int THEN (*procedure epilog*)
       IF ~leaf THEN Put2(Ldr, LNK, SP, 0) END ;
-      IF ~leaf THEN Put1(Add, SP, SP, size); END ;
+      IF size # 0 THEN Put1(Add, SP, SP, size); END ;
       Put3(BR, 7, LNK);
       genLeaf := FALSE;
     ELSE (*interrupt return, restore R2, R1, R0*)
       Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
       Put3(BR, 7, 10H) (*RTI*)
     END ;
-    IF int OR leaf THEN check := oldcheck END ; genLeaf := FALSE;
+    IF int OR leaf THEN check := oldcheck END ; genLeaf := FALSE; leafRH := 0;
     RH := 0;
   END Return;
 
@@ -1040,7 +1075,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END Abs;
 
   PROCEDURE Odd*(VAR x: Item);
-  BEGIN load(x); Put1(And, x.r, x.r, 1); SetCC(x, NE); DEC(RH)
+  BEGIN load(x); Put1(And, x.r, x.r, 1); DEC(RH); SetCC(x, NE)
   END Odd;
 
   PROCEDURE Floor*(VAR x: Item);
@@ -1235,6 +1270,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END Close;
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
-genLeaf := FALSE; forStore := FALSE
+genLeaf := FALSE; forStore := 0
 END ORG.
 (* vim:set ts=2 sw=2 et: *)

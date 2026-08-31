@@ -856,7 +856,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     END
   END Type0;
 
-  PROCEDURE Declarations(VAR varsize: LONGINT);
+  PROCEDURE Declarations(VAR varsize: LONGINT; VAR stksize: LONGINT);
     VAR obj, first: ORB.Object;
       x: ORG.Item; tp: ORB.Type; ptbase: PtrBase;
       expo: BOOLEAN; id: ORS.Ident;
@@ -905,9 +905,16 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         obj := first;
         WHILE obj # NIL DO
           obj.type := tp; obj.lev := level;
-          IF tp.size > 1 THEN varsize := (varsize + 3) DIV 4 * 4 (*align*) END ;
-          obj.val := varsize; varsize := varsize + obj.type.size;
-	  IF leaf THEN INC(obj.val, 64) END ;
+          IF leaf & ((tp.form = ORB.Record) OR (tp.form = ORB.Array)) THEN
+            IF tp.size > 1 THEN stksize := (stksize + 3) DIV 4 * 4 (*align*) END ;
+            obj.val := stksize;
+            stksize := stksize + obj.type.size;
+          ELSE
+            IF tp.size > 1 THEN varsize := (varsize + 3) DIV 4 * 4 (*align*) END ;
+            obj.val := varsize;
+            varsize := varsize + obj.type.size;
+            IF leaf THEN INC(obj.val, 64) END ;
+          END ;
           IF obj.expo THEN obj.exno := SHORT(exno); INC(exno) END ;
           obj := obj.next
         END ;
@@ -915,6 +922,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       END
     END ;
     varsize := (varsize + 3) DIV 4 * 4;
+    IF leaf THEN stksize := (stksize + 3) DIV 4 * 4; END ;
     ptbase := pbsList;
     WHILE ptbase # NIL DO
       IF ptbase.type.base.form = ORB.Int THEN ORS.Mark("undefined pointer base of") END ;
@@ -930,6 +938,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       x: ORG.Item;
       locblksize, parblksize, L: LONGINT;
       int: BOOLEAN;
+      stkblksize: LONGINT;
   BEGIN (* ProcedureDecl *) leaf := FALSE; int := FALSE; ORS.Get(sym);
     IF sym = ORS.times THEN ORS.Get(sym);
       leaf := astrobe; int := ~astrobe
@@ -952,7 +961,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       ELSE ProcedureType(type, parblksize);  (*formal parameter list*)
       END ;
       Check(ORS.semicolon, "no ;"); locblksize := parblksize;
-      Declarations(locblksize);
+      stkblksize := 0;
+      Declarations(locblksize, stkblksize);
+      IF leaf THEN parblksize := locblksize; locblksize := stkblksize END ;
       proc.val := ORG.Here() * 4; proc.type.dsc := ORB.topScope.next;
       IF sym = ORS.procedure THEN
         L := 0; ORG.FJump(L);
@@ -999,6 +1010,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
 
   PROCEDURE Module;
     VAR key: LONGINT;
+        dummy: LONGINT;
   BEGIN Texts.WriteString(W, "  compiling "); ORS.Get(sym);
     IF sym = ORS.module THEN
       ORS.Get(sym);
@@ -1015,7 +1027,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         WHILE sym = ORS.comma DO ORS.Get(sym); Import END ;
         Check(ORS.semicolon, "; missing")
       END ;
-      ORG.Open(version); Declarations(dc); ORG.SetDataSize((dc + 3) DIV 4 * 4);
+      ORG.Open(version); dummy := 0; Declarations(dc, dummy); ORG.SetDataSize((dc + 3) DIV 4 * 4);
       WHILE sym = ORS.procedure DO ProcedureDecl; Check(ORS.semicolon, "no ;") END ;
       ORG.Header;
       IF sym = ORS.begin THEN ORS.Get(sym); StatSequence END ;
@@ -1084,3 +1096,4 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Compiler  8.3.2020 / numeric
 
   Oberon.Run
 END ORP.
+(* vim:set ts=2 sw=2 et: *)
