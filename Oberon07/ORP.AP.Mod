@@ -597,12 +597,14 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
             END
           ELSIF sym = ORS.eql THEN ORS.Mark("should be :="); ORS.Get(sym); expression(y)
           ELSIF sym = ORS.lparen THEN (*procedure call*)
+            IF leaf THEN ORS.Mark("leaf procedure") END ;
             ORS.Get(sym);
             IF (x.type.form = ORB.Proc) & (x.type.base.form = ORB.NoTyp) THEN
               ORG.PrepCall(x, rx); ParamList(x); ORG.Call(x, rx)
             ELSE ORS.Mark("not a procedure"); ParamList(x)
             END
           ELSIF x.type.form = ORB.Proc THEN (*procedure call without parameters*)
+            IF leaf THEN ORS.Mark("leaf procedure") END ;
             IF x.type.nofpar > 0 THEN ORS.Mark("missing parameters") END ;
             IF x.type.base.form = ORB.NoTyp THEN ORG.PrepCall(x, rx); ORG.Call(x, rx) ELSE ORS.Mark("not a procedure") END
           ELSIF x.mode = ORB.Typ THEN ORS.Mark("illegal assignment")

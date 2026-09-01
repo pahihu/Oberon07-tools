@@ -832,7 +832,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     RH := 0
   END StoreStruct;
 
-  PROCEDURE CopyString*(VAR x, y: Item);  (* x := y *) 
+  PROCEDURE CopyString*(VAR x, y: Item);  (* x := y *) (*TODO Modules.Mod.txt*)
      VAR len: LONGINT;
    BEGIN loadAdr(x); len := x.type.len;
     IF len >= 0 THEN
