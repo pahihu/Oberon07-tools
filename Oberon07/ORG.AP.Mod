@@ -60,11 +60,13 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     baseRH: LONGINT;
     sectionStart: LONGINT;  (*pc at BeginSection*)
     sectionFixorgD: LONGINT;  (*fixorgD at BeginSection*)
+    mergeOpStore: BOOLEAN;  (*merge op X, X, Z + Mov X, X*)
 
   (*leaf procedures*)
 
   PROCEDURE regVar(x: Item): LONGINT;
-  BEGIN RETURN (x.a - 64) DIV 4
+  BEGIN ASSERT((64 <= x.a) & (x.a <= 64 + 14*4));
+    RETURN (x.a - 64) DIV 4
   END regVar;
 
   PROCEDURE isRegVar(x: Item): BOOLEAN;
@@ -92,7 +94,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE EndSection*(drop: BOOLEAN);
   BEGIN ASSERT(sectionStart # NoSection);
-    IF FALSE (*drop*) THEN
+    IF drop THEN
       pc := sectionStart;
       fixorgD := sectionFixorgD;
     END;
@@ -108,7 +110,17 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Put0(op, a, b, c: LONGINT);
   BEGIN (*emit format-0 instruction*)
-    code[pc] := ((a*10H + b) * 10H + op) * 10000H + c; INC(pc)
+    IF Debug THEN
+      ORS.Twain("Put0=", pc);
+      ORS.Twain("   a=", a);
+      ORS.Twain("   b=", b);
+      ORS.Twain("  op=", op);
+      ORS.Twain("   c=", c);
+    END ;
+    code[pc] := ((a*10H + b) * 10H + op) * 10000H + c; INC(pc);
+    IF Debug THEN
+      ORS.Twain("Put0=", code[pc-1]);
+    END
   END Put0;
 
   PROCEDURE Put1(op, a, b, im: LONGINT);
@@ -152,7 +164,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE SetCC(VAR x: Item; n: LONGINT);
   BEGIN 
-    IF isRegVar(x) THEN patchRegTmp(1) END ;
     x.mode := Cond; x.a := 0; x.b := 0; x.r := n
   END SetCC;
 
@@ -224,7 +235,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE load(VAR x: Item);
     VAR op: LONGINT;
-  BEGIN
+  BEGIN mergeOpStore := TRUE;
     IF x.type.size = 1 THEN op := Ldr+1 ELSE op := Ldr END ;
     IF x.mode # Reg THEN
       IF x.mode = ORB.Const THEN
@@ -244,7 +255,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
           IF ~isRegVar(x) THEN
             Put2(op, RH, SP, x.a + frame);
             x.r := RH; incR
-          ELSE x.r := regVar(x); incR
+          ELSE mergeOpStore := FALSE; x.r := regVar(x); incR
           END
         ELSE
           GetSB(x.r); Put2(op, RH, RH, x.a);
@@ -609,12 +620,14 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   (* Code generation for REAL operators *)
 
   PROCEDURE RealOp*(op: INTEGER; VAR x, y: Item);   (* x := x op y *)
+    VAR s: ARRAY 4 OF CHAR;
   BEGIN load(x); load(y);
-    IF op = ORS.plus THEN Put0(Fad, RH-2, x.r, y.r)
-    ELSIF op = ORS.minus THEN Put0(Fsb, RH-2, x.r, y.r)
-    ELSIF op = ORS.times THEN Put0(Fml, RH-2, x.r, y.r)
-    ELSIF op = ORS.rdiv THEN Put0(Fdv, RH-2, x.r, y.r)
+    IF op = ORS.plus THEN Put0(Fad, RH-2, x.r, y.r); s := "FAD";
+    ELSIF op = ORS.minus THEN Put0(Fsb, RH-2, x.r, y.r); s := "FSB";
+    ELSIF op = ORS.times THEN Put0(Fml, RH-2, x.r, y.r); s := "FML";
+    ELSIF op = ORS.rdiv THEN Put0(Fdv, RH-2, x.r, y.r); s := "FDV";
     END ;
+    IF Debug THEN ORS.Twain(s, pc - 1) END ;
     DEC(RH); x.r := RH-1
   END RealOp;
 
@@ -686,22 +699,24 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   (* Code generation for relations *)
 
   PROCEDURE IntRelation*(op: INTEGER; VAR x, y: Item);   (* x := x < y *)
+    VAR xr: LONGINT;
   BEGIN
     IF (y.mode = ORB.Const) & (y.type.form # ORB.Proc) THEN
-      load(x);
-      IF (y.a # 0) OR ~(op IN {ORS.eql, ORS.neq}) OR (code[pc-1] DIV 40000000H # -2) THEN Put1a(Cmp, x.r, x.r, y.a) END ;
+      xr := loadXR(x);
+      IF isRegVar(x) OR (y.a # 0) OR ~(op IN {ORS.eql, ORS.neq}) OR (code[pc-1] DIV 40000000H # -2) THEN Put1a(Cmp, xr, x.r, y.a); x.r := xr END ;
       DEC(RH)
     ELSE
       IF (x.mode = Cond) OR (y.mode = Cond) THEN ORS.Mark("not implemented") END ;
-      load(x); load(y); Put0(Cmp, x.r, x.r, y.r); DEC(RH, 2)
+      xr := loadXR(x); load(y); Put0(Cmp, xr, x.r, y.r); x.r := xr; DEC(RH, 2)
     END ;
     SetCC(x, relmap[op - ORS.eql])
   END IntRelation;
 
   PROCEDURE RealRelation*(op: INTEGER; VAR x, y: Item);   (* x := x < y *)
-  BEGIN load(x);
-    IF (y.mode = ORB.Const) & (y.a = 0) THEN DEC(RH)
-    ELSE load(y); Put0(Fsb, x.r, x.r, y.r); DEC(RH, 2)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x);
+    IF ~isRegVar(x) & (y.mode = ORB.Const) & (y.a = 0) THEN DEC(RH)
+    ELSE load(y); Put0(Fsb, xr, x.r, y.r); x.r := xr; DEC(RH, 2)
     END ;
     SetCC(x, relmap[op - ORS.eql])
   END RealRelation;
@@ -736,15 +751,20 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
           (*local*) Put2(op, y.r, SP, x.a + frame)
         ELSE
           IF forStore = 1 THEN (*Mov regVar(x), y.r*)
+            IF Debug THEN ORS.Twain("forStore1", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
           ELSIF forStore = 2 THEN
             patchRegTmp(0);
             y.r := RH - 1;
+            IF Debug THEN ORS.Twain("forStore2", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
-          ELSE
-            (*TODO: regVarX := regVarY*)
+          ELSIF mergeOpStore THEN
+            IF Debug THEN ORS.Twain("mergeOpStore", pc - 1) END ;
             instr := code[pc - 1];
             code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
+          ELSE (*regVarX := regVarY*)
+            IF Debug THEN ORS.Twain("~mergeOpStore", pc) END ;
+            Put0(Mov, regVar(x), 0, y.r)
           END
 
           (*IF forStore THEN
@@ -981,14 +1001,18 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Return*(form: INTEGER; VAR x: Item; size: LONGINT; int, leaf: BOOLEAN);
   BEGIN
     IF form # ORB.NoTyp THEN
-      IF isRegVar(x) THEN
-        Put0(Mov, 0, 0, regVar(x))
-      ELSE load(x)
+      IF Debug THEN ORS.Twain("x.mode=",x.mode) END ;
+      IF x.mode = Reg THEN
+        Put0(Mov, 0, 0, x.r);
+        IF Debug THEN ORS.Twain("MOV", pc - 1) END ;
+      ELSE load(x);
+        IF Debug THEN ORS.Twain("load(x)", pc - 1) END ;
       END
     END ;
     IF ~int THEN (*procedure epilog*)
       IF ~leaf THEN Put2(Ldr, LNK, SP, 0) END ;
-      IF size # 0 THEN Put1(Add, SP, SP, size); END ;
+      IF size # 0 THEN Put1(Add, SP, SP, size) END ;
+      IF Debug THEN ORS.Twain("B LNK", pc) END ;
       Put3(BR, 7, LNK);
       genLeaf := FALSE;
     ELSE (*interrupt return, restore R2, R1, R0*)
@@ -1344,6 +1368,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END Close;
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
-genLeaf := FALSE; forStore := 0; baseRH := 0; sectionStart := NoSection;
+genLeaf := FALSE; baseRH := 0; sectionStart := NoSection;
+forStore := 0; mergeOpStore := FALSE;
 END ORG.
 (* vim:set ts=2 sw=2 et: *)

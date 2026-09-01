@@ -748,6 +748,14 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     typ.form := ORB.Record; typ.dsc := bot; typ.size := (offset + 3) DIV 4 * 4; type := typ
   END RecordType;
 
+  PROCEDURE MarkReg(VAR obj: ORB.Object);
+  BEGIN
+    IF leaf THEN
+      IF obj.val > 14 * 4 THEN ORS.Mark("Reg overflow") END ;
+      INC(obj.val, 64)
+    END ;
+  END MarkReg;
+
   PROCEDURE FPSection(VAR adr: LONGINT; VAR nofpar: INTEGER);
     VAR obj, first: ORB.Object; tp: ORB.Type;
       parsize: LONGINT; cl: INTEGER; rdo: BOOLEAN;
@@ -762,7 +770,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     obj := first;
     WHILE obj # NIL DO
       INC(nofpar); obj.class := SHORT(cl); obj.type := tp; obj.rdo := rdo; obj.lev := level; obj.val := adr;
-      IF leaf THEN INC(obj.val, 64) END ;
+      MarkReg(obj);
       adr := adr + parsize; obj := obj.next
     END ;
     IF adr >= 52 THEN ORS.Mark("too many parameters") END
@@ -915,7 +923,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
             IF tp.size > 1 THEN varsize := (varsize + 3) DIV 4 * 4 (*align*) END ;
             obj.val := varsize;
             varsize := varsize + obj.type.size;
-            IF leaf THEN INC(obj.val, 64) END ;
+            MarkReg(obj);
           END ;
           IF obj.expo THEN obj.exno := SHORT(exno); INC(exno) END ;
           obj := obj.next
@@ -1064,6 +1072,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         FOR i := 0 TO S.len DO 
              IF S.s[0] = "s" THEN   newSF := TRUE
           ELSIF S.s[0] = "a" THEN astrobe := TRUE
+          ELSIF S.s[0] = "w" THEN ORS.Warning
           END
         END
       END
@@ -1086,7 +1095,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
   END Compile;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/as]...");
+  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/asw]...");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
 

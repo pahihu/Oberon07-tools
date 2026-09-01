@@ -31,7 +31,6 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     var* = 65; procedure* = 66; begin* = 67; import* = 68; module* = 69; eot = 70;
 
     verbose* = FALSE;
-    warn = TRUE;
 
   TYPE Ident* = ARRAY IdLen OF CHAR;
        LONGINT = Sys.INT32;
@@ -51,6 +50,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     KWX: ARRAY 10 OF INTEGER;
     keyTab: ARRAY NKW OF
         RECORD sym: INTEGER; id: ARRAY 12 OF CHAR END;
+    warn: BOOLEAN;
   
   PROCEDURE CopyId*(VAR ident: Ident);
   BEGIN ident := id
@@ -286,6 +286,10 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   BEGIN COPY(name, keyTab[k].id); keyTab[k].sym := sym; INC(k)
   END EnterKW;
 
+  PROCEDURE Warning*;
+  BEGIN warn := TRUE
+  END Warning;
+
 BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   EnterKW(if, "IF");
   EnterKW(do, "DO");
@@ -326,5 +330,7 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   EnterKW(pointer, "POINTER");
   KWX[7] := k; KWX[8] := k;
   EnterKW(procedure, "PROCEDURE");
-  KWX[9] := k
+  KWX[9] := k;
+  warn := FALSE
 END ORS.
+(* vim:set ts=2 sw=2 et: *)
