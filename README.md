@@ -9,9 +9,11 @@ The original sources depend on the assumption, that `SIZE(INTEGER) = 4`. Hence I
 `INTEGER` and `LONGINT` with `INT32` declared in `lib/System.Mod`. It is declared as `LONGINT` on 32bit systems and `INTEGER` on 64bit systems in O2C.
 
 ***
+Register allocated parameters, local variables are available in the numeric CASE compiler.
 
 Changes:
-* The numcase compiler stores parameters/local variables in registers (still experimental).
+* Eliminate ASSERTs in leaf procedures.
+* The compiler stores parameters/local variables in registers in leaf procedures.
 * The compiler now accepts the Astrobe extension of ASSERT(cond,code)
 * The compiler now accepts the leaf procedure and interrupt handler syntax of the Astrobe Oberon-07 compiler (/a option). In leaf procedures no run-time checking is performed and the LNK register not saved/not restored.
 
