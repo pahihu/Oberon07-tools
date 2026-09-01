@@ -18,6 +18,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     BR = 0; BLR = 1; BC = 2; BL = 3;
     MI = 0; PL = 8; EQ = 1; NE = 9; CS = 2; CC = 10; LT = 5; GE = 13; LE = 6; GT = 14;
     Debug = FALSE;
+    NoSection = -1;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -56,7 +57,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     str: ARRAY maxStrx OF CHAR;
     genLeaf: BOOLEAN;
     forStore: INTEGER;
-    leafRH: LONGINT;
+    baseRH: LONGINT;
+    sectionStart: LONGINT;  (*pc at BeginSection*)
+    sectionFixorgD: LONGINT;  (*fixorgD at BeginSection*)
 
   (*leaf procedures*)
 
@@ -65,8 +68,14 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END regVar;
 
   PROCEDURE isRegVar(x: Item): BOOLEAN;
-  BEGIN RETURN x.a >= 64
+  BEGIN RETURN genLeaf & (x.a >= 64)
   END isRegVar;
+
+  PROCEDURE GetXR(VAR x: Item): LONGINT;
+    VAR ret: LONGINT;
+  BEGIN IF isRegVar(x) THEN ret := RH - 1 ELSE ret := x.r END ;
+    RETURN ret
+  END GetXR;
 
   PROCEDURE patchRegTmp(d: INTEGER);
   VAR instr, diff: LONGINT;
@@ -75,6 +84,20 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     diff := RH - 1 + d - (instr DIV C24) MOD 10H;
     INC(code[pc - 1], diff * C24);
   END patchRegTmp;
+
+  PROCEDURE BeginSection*;
+  BEGIN ASSERT(sectionStart = NoSection);
+    sectionStart := pc; sectionFixorgD := fixorgD;
+  END BeginSection;
+
+  PROCEDURE EndSection*(drop: BOOLEAN);
+  BEGIN ASSERT(sectionStart # NoSection);
+    IF FALSE (*drop*) THEN
+      pc := sectionStart;
+      fixorgD := sectionFixorgD;
+    END;
+    sectionStart := NoSection
+  END EndSection;
 
   (*instruction assemblers according to formats*)
 
@@ -121,15 +144,15 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE CheckRegs*;
   BEGIN
-    IF ~genLeaf & (RH # 0) THEN ORS.Mark("Reg Stack"); RH := 0 END ;
-    IF genLeaf & (RH # leafRH) THEN ORS.Twain("Reg Stack", RH); RH := leafRH END ;
+    (*IF RH # 0 THEN ORS.Mark("Reg Stack"); RH := 0 END ;*)
+    IF RH # baseRH THEN ORS.Twain("Reg Stack", RH); RH := baseRH END ;
     IF pc >= maxCode - 40 THEN ORS.Mark("program too long") END ;
     IF frame # 0 THEN ORS.Mark("frame error"); frame := 0 END
   END CheckRegs;
 
   PROCEDURE SetCC(VAR x: Item; n: LONGINT);
   BEGIN 
-    IF genLeaf & isRegVar(x) THEN patchRegTmp(1) END ;
+    IF isRegVar(x) THEN patchRegTmp(1) END ;
     x.mode := Cond; x.a := 0; x.b := 0; x.r := n
   END SetCC;
 
@@ -244,6 +267,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     END
   END load;
 
+  PROCEDURE loadXR(VAR x: Item): LONGINT;
+  BEGIN load(x); RETURN GetXR(x)
+  END loadXR;
+
   PROCEDURE loadAdr(VAR x: Item);
   BEGIN
     IF x.mode = ORB.Var THEN
@@ -352,7 +379,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         Trap(CC, 1)
       END ;
       release := FALSE;
-      IF genLeaf & isRegVar(y) THEN yr := RH-1 ELSE yr := y.r END ;
+      IF isRegVar(y) THEN yr := RH-1 ELSE yr := y.r END ;
       IF s = 4 THEN
         Put1(Lsl, yr, y.r, 2)
       ELSIF s > 1 THEN
@@ -492,34 +519,36 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   (* Code generation for arithmetic operators *)
 
   PROCEDURE Neg*(VAR x: Item);   (* x := -x *)
+    VAR xr: LONGINT;
   BEGIN
     IF x.type.form = ORB.Int THEN
       IF x.mode = ORB.Const THEN x.a := -x.a
-      ELSE load(x); Put1(Mov, RH, 0, 0); Put0(Sub, x.r, RH, x.r)
+      ELSE xr := loadXR(x); Put1(Mov, RH, 0, 0); Put0(Sub, xr, RH, x.r); x.r := xr
       END
     ELSIF x.type.form = ORB.Real THEN
       IF x.mode = ORB.Const THEN x.a := x.a + 7FFFFFFFH + 1
-      ELSE load(x); Put1(Mov, RH, 0, 0); Put0(Fsb, x.r, RH, x.r)
+      ELSE xr := loadXR(x); Put1(Mov, RH, 0, 0); Put0(Fsb, xr, RH, x.r); x.r := xr
       END
     ELSE (*form = Set*)
       IF x.mode = ORB.Const THEN x.a := -x.a-1 
-      ELSE load(x); Put1(Xor, x.r, x.r, -1)
+      ELSE xr := loadXR(x); Put1(Xor, xr, x.r, -1); x.r := xr
       END
     END
   END Neg;
 
   PROCEDURE AddOp*(op: LONGINT; VAR x, y: Item);   (* x := x +- y *)
+    VAR xr: LONGINT;
   BEGIN
     IF op = ORS.plus THEN
       IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN x.a := x.a + y.a
-      ELSIF y.mode = ORB.Const THEN load(x);
-        IF y.a # 0 THEN Put1a(Add, x.r, x.r, y.a) END
+      ELSIF y.mode = ORB.Const THEN xr := loadXR(x);
+        IF y.a # 0 THEN Put1a(Add, xr, x.r, y.a); x.r := xr END
       ELSE load(x); load(y); Put0(Add, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
       END
     ELSE (*op = ORS.minus*)
       IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN x.a := x.a - y.a
-      ELSIF y.mode = ORB.Const THEN load(x);
-        IF y.a # 0 THEN Put1a(Sub, x.r, x.r, y.a) END
+      ELSIF y.mode = ORB.Const THEN xr := loadXR(x);
+        IF y.a # 0 THEN Put1a(Sub, xr, x.r, y.a); x.r := xr END
       ELSE load(x); load(y); Put0(Sub, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
       END
     END
@@ -533,25 +562,29 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   
   PROCEDURE MulOp*(VAR x, y: Item);   (* x := x * y *)
     VAR e: LONGINT;
+        xr: LONGINT;
   BEGIN
     IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN x.a := x.a * y.a
-    ELSIF (y.mode = ORB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); Put1(Lsl, x.r, x.r, e)
-    ELSIF y.mode = ORB.Const THEN load(x); Put1a(Mul, x.r, x.r, y.a)
-    ELSIF (x.mode = ORB.Const) & (x.a >= 2) & (log2(x.a, e) = 1) THEN load(y); Put1(Lsl, y.r, y.r, e); x.mode := Reg; x.r := y.r
-    ELSIF x.mode = ORB.Const THEN load(y); Put1a(Mul, y.r, y.r, x.a); x.mode := Reg; x.r := y.r
+    ELSIF (y.mode = ORB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN xr := loadXR(x); Put1(Lsl, xr, x.r, e); x.r := xr
+    ELSIF y.mode = ORB.Const THEN xr := loadXR(x); Put1a(Mul, xr, x.r, y.a); x.r := xr
+    ELSIF (x.mode = ORB.Const) & (x.a >= 2) & (log2(x.a, e) = 1) THEN xr := loadXR(y); Put1(Lsl, xr, y.r, e); x.mode := Reg; x.r := xr
+    ELSIF x.mode = ORB.Const THEN xr := loadXR(y); Put1a(Mul, xr, y.r, x.a); x.mode := Reg; x.r := xr
     ELSE load(x); load(y); Put0(Mul, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
     END
   END MulOp;
 
   PROCEDURE DivOp*(op: LONGINT; VAR x, y: Item);   (* x := x op y *)
     VAR e: LONGINT;
+        xr: LONGINT;
   BEGIN
     IF op = ORS.div THEN
       IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN
         IF y.a > 0 THEN x.a := x.a DIV y.a ELSE ORS.Mark("bad divisor") END
-      ELSIF (y.mode = ORB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x); Put1(Asr, x.r, x.r, e)
+      ELSIF (y.mode = ORB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN
+        xr := loadXR(x); Put1(Asr, xr, x.r, e); x.r := xr
       ELSIF y.mode = ORB.Const THEN
-        IF y.a > 0 THEN load(x); Put1a(Div, x.r, x.r, y.a) ELSE ORS.Mark("bad divisor") END
+        IF y.a > 0 THEN xr := loadXR(x); Put1a(Div, xr, x.r, y.a); x.r := xr
+        ELSE ORS.Mark("bad divisor") END
       ELSE load(y);
         IF check THEN Trap(LE, 6) END ;
         load(x); Put0(Div, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
@@ -559,10 +592,13 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     ELSE (*op = ORS.mod*)
       IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN
         IF y.a > 0 THEN x.a := x.a MOD y.a ELSE ORS.Mark("bad modulus") END
-      ELSIF (y.mode = ORB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN load(x);
-        IF e <= 16 THEN Put1(And, x.r, x.r, y.a-1) ELSE Put1(Lsl, x.r, x.r, 32-e); Put1(Ror, x.r, x.r, 32-e) END
+      ELSIF (y.mode = ORB.Const) & (y.a >= 2) & (log2(y.a, e) = 1) THEN xr := loadXR(x);
+        IF e <= 16 THEN Put1(And, xr, x.r, y.a-1) ELSE Put1(Lsl, xr, x.r, 32-e); Put1(Ror, xr, xr, 32-e) END ;
+        x.r := xr
       ELSIF y.mode = ORB.Const THEN
-        IF y.a > 0 THEN load(x); Put1a(Div, x.r, x.r, y.a); Put0(Mov+U, x.r, 0, 0) ELSE ORS.Mark("bad modulus") END
+        IF y.a > 0 THEN xr := loadXR(x);
+          Put1a(Div, xr, x.r, y.a); Put0(Mov+U, xr, 0, 0); x.r := xr
+        ELSE ORS.Mark("bad modulus") END
       ELSE load(y);
         IF check THEN Trap(LE, 6) END ;
         load(x); Put0(Div, RH-2, x.r, y.r); Put0(Mov+U, RH-2, 0, 0); DEC(RH); x.r := RH-1
@@ -585,9 +621,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   (* Code generation for set operators *)
 
   PROCEDURE Singleton*(VAR x: Item);  (* x := {x} *)
+    VAR xr: LONGINT;
   BEGIN
     IF x.mode = ORB.Const THEN x.a := BIF07.LSL(1, x.a)
-    ELSE load(x); Put1(Mov, RH, 0, 1); Put0(Lsl, x.r, RH,  x.r)
+    ELSE xr := loadXR(x); Put1(Mov, RH, 0, 1); Put0(Lsl, xr, RH,  x.r); x.r := xr
     END
   END Singleton;
 
@@ -691,7 +728,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Store*(VAR x, y: Item); (* x := y *)
     VAR op: LONGINT;
         instr: LONGINT;
-  BEGIN  load(y);
+  BEGIN load(y);
     IF x.type.size = 1 THEN op := Str+1 ELSE op := Str END ;
     IF x.mode = ORB.Var THEN
       IF x.r > 0 THEN
@@ -705,6 +742,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
             y.r := RH - 1;
             Put0(Mov, regVar(x), 0, y.r)
           ELSE
+            (*TODO: regVarX := regVarY*)
             instr := code[pc - 1];
             code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
           END
@@ -712,7 +750,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
           (*IF forStore THEN
             (*local*) y.r := regVar(x); incR
           END
-          IF y.r >= leafRH THEN
+          IF y.r >= baseRH THEN
             instr := code[pc - 1];
             code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
             (*incR*)
@@ -785,7 +823,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     loadStringAdr(y);
     Put2(Ldr, RH, y.r, 0); Put1(Add, y.r, y.r, 4);
     Put2(Str, RH, x.r, 0); Put1(Add, x.r, x.r, 4);
-    Put1(Asr, RH, RH, 24); Put3(BC, NE,  -6); RH := leafRH
+    Put1(Asr, RH, RH, 24); Put3(BC, NE,  -6); RH := baseRH
    END CopyString;
 
   (* Code generation for parameters *)
@@ -836,7 +874,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE For2*(VAR x, y, w: Item);
   BEGIN load(x); DEC(RH); Put1a(Add, x.r, x.r, w.a);
-    IF genLeaf & isRegVar(x) THEN Put0(Mov, RH, 0, regVar(x)) END
+    IF isRegVar(x) THEN Put0(Mov, RH, 0, regVar(x)) END
   END For2;
 
   (* Branches, procedure calls, procedure prolog and epilog *)
@@ -933,7 +971,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         INC(a, 4)
       END ;
       genLeaf := leaf;
-      IF genLeaf THEN leafRH := RH; IF Debug THEN ORS.Twain("leafRH=", leafRH) END END ;
+      IF genLeaf THEN baseRH := RH; IF Debug THEN ORS.Twain("baseRH=", baseRH) END END ;
     ELSE (*interrupt procedure*)
       Put1(Sub, SP, SP, locblksize); Put2(Str, 0, SP, 0); Put2(Str, 1, SP, 4); Put2(Str, 2, SP, 8)
       (*R0, R1, R2 saved on stack*)
@@ -943,7 +981,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Return*(form: INTEGER; VAR x: Item; size: LONGINT; int, leaf: BOOLEAN);
   BEGIN
     IF form # ORB.NoTyp THEN
-      IF leaf & isRegVar(x) THEN
+      IF isRegVar(x) THEN
         Put0(Mov, 0, 0, regVar(x))
       ELSE load(x)
       END
@@ -957,7 +995,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
       Put3(BR, 7, 10H) (*RTI*)
     END ;
-    IF int OR leaf THEN check := oldcheck END ; genLeaf := FALSE; leafRH := 0;
+    IF int OR leaf THEN check := oldcheck END ; genLeaf := FALSE; baseRH := 0;
     RH := 0;
   END Return;
 
@@ -991,14 +1029,20 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Increment*(upordown: LONGINT; VAR x, y: Item);
     VAR op, zr, v: LONGINT;
+        xr: LONGINT;
   BEGIN (*frame = 0*)
     IF upordown = 0 THEN op := Add ELSE op := Sub END ;
     IF x.type = ORB.byteType THEN v := 1 ELSE v := 0 END ;
     IF y.type.form = ORB.NoTyp THEN y.mode := ORB.Const; y.a := 1 END ;
     IF (x.mode = ORB.Var) & (x.r > 0) THEN
-      zr := RH; Put2(Ldr+v, zr, SP, x.a); incR;
-      IF y.mode = ORB.Const THEN Put1a(op, zr, zr, y.a) ELSE load(y); Put0(op, zr, zr, y.r); DEC(RH) END ;
-      Put2(Str+v, zr, SP, x.a); DEC(RH)
+      IF isRegVar(x) THEN
+        xr := regVar(x);
+        IF y.mode = ORB.Const THEN Put1a(op, xr, xr, y.a) ELSE load(y); Put0(op, xr, xr, y.r) END
+      ELSE
+        zr := RH; Put2(Ldr+v, zr, SP, x.a); incR;
+        IF y.mode = ORB.Const THEN Put1a(op, zr, zr, y.a) ELSE load(y); Put0(op, zr, zr, y.r); DEC(RH) END ;
+        Put2(Str+v, zr, SP, x.a); DEC(RH)
+      END
     ELSE loadAdr(x); zr := RH; Put2(Ldr+v, RH, x.r, 0); incR;
       IF y.mode = ORB.Const THEN Put1a(op, zr, zr, y.a) ELSE load(y); Put0(op, zr, zr, y.r); DEC(RH) END ;
       Put2(Str+v, zr, x.r, 0); DEC(RH, 2)
@@ -1081,25 +1125,29 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   (*In-line code functions*)
 
   PROCEDURE Abs*(VAR x: Item);
+    VAR xr: LONGINT;
   BEGIN
     IF x.mode = ORB.Const THEN x.a := ABS(x.a)
-    ELSE load(x);
-      IF x.type.form = ORB.Real THEN Put1(Lsl, x.r, x.r, 1); Put1(Ror, x.r, x.r, 1)
-      ELSE Put1(Cmp, x.r, x.r, 0); Put3(BC, GE, 2); Put1(Mov, RH, 0, 0); Put0(Sub, x.r, RH, x.r)
+    ELSE xr := loadXR(x);
+      IF x.type.form = ORB.Real THEN Put1(Lsl, xr, x.r, 1); Put1(Ror, xr, xr, 1); x.r := xr
+      ELSE Put1(Cmp, xr, x.r, 0); Put3(BC, GE, 2); Put1(Mov, RH, 0, 0); Put0(Sub, xr, RH, xr); x.r := xr
       END
     END
   END Abs;
 
   PROCEDURE Odd*(VAR x: Item);
-  BEGIN load(x); Put1(And, x.r, x.r, 1); DEC(RH); SetCC(x, NE)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x); Put1(And, xr, x.r, 1); x.r := xr; DEC(RH); SetCC(x, NE)
   END Odd;
 
   PROCEDURE Floor*(VAR x: Item);
-  BEGIN load(x); Put1(Mov+U, RH, 0, 4B00H); Put0(Fad+V, x.r, x.r, RH)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x); Put1(Mov+U, RH, 0, 4B00H); Put0(Fad+V, xr, x.r, RH); x.r := xr
   END Floor;
 
   PROCEDURE Float*(VAR x: Item);
-  BEGIN load(x); Put1(Mov+U, RH, 0, 4B00H);  Put0(Fad+U, x.r, x.r, RH)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x); Put1(Mov+U, RH, 0, 4B00H);  Put0(Fad+U, xr, x.r, RH); x.r := xr
   END Float;
 
   PROCEDURE Ord*(VAR x: Item);
@@ -1123,29 +1171,34 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Shift*(fct: LONGINT; VAR x, y: Item);
     VAR op: LONGINT;
-  BEGIN load(x);
+        xr: LONGINT;
+  BEGIN xr := loadXR(x);
     IF fct = 0 THEN op := Lsl ELSIF fct = 1 THEN op := Asr ELSE op := Ror END ;
-    IF y.mode = ORB.Const THEN Put1(op, x.r, x.r, y.a MOD 20H)
+    IF y.mode = ORB.Const THEN Put1(op, xr, x.r, y.a MOD 20H); x.r := xr
     ELSE load(y); Put0(op, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
     END
   END Shift;
 
   PROCEDURE ADC*(VAR x, y: Item);
-  BEGIN load(x); load(y); Put0(Add+2000H, x.r, x.r, y.r); DEC(RH)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x); load(y); Put0(Add+2000H, xr, x.r, y.r); x.r := xr; DEC(RH)
   END ADC;
 
   PROCEDURE SBC*(VAR x, y: Item);
-  BEGIN load(x); load(y); Put0(Sub+2000H, x.r, x.r, y.r); DEC(RH)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x); load(y); Put0(Sub+2000H, xr, x.r, y.r); x.r := xr; DEC(RH)
   END SBC;
 
   PROCEDURE UML*(VAR x, y: Item);
-  BEGIN load(x); load(y); Put0(Mul+2000H, x.r, x.r, y.r); DEC(RH)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x); load(y); Put0(Mul+2000H, xr, x.r, y.r); x.r := xr; DEC(RH)
   END UML;
 
   PROCEDURE Bit*(VAR x, y: Item);
-  BEGIN load(x); Put2(Ldr, x.r, x.r, 0);
-    IF y.mode = ORB.Const THEN Put1(Ror, x.r, x.r, y.a+1); DEC(RH)
-    ELSE load(y); Put1(Add, y.r, y.r, 1); Put0(Ror, x.r, x.r, y.r); DEC(RH, 2)
+    VAR xr, yr: LONGINT;
+  BEGIN xr := loadXR(x); Put2(Ldr, xr, x.r, 0);
+    IF y.mode = ORB.Const THEN Put1(Ror, xr, xr, y.a+1); x.r := xr; DEC(RH)
+    ELSE yr := loadXR(y); Put1(Add, yr, y.r, 1); Put0(Ror, xr, x.r, yr); x.r := xr; DEC(RH, 2)
     END ;
     SetCC(x, MI)
   END Bit;
@@ -1155,7 +1208,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     Put0(Mov, RH, 0, x.a MOD 10H); x.mode := Reg; x.r := RH; incR
   END Register;
 
-  PROCEDURE H*(VAR x: Item);
+  PROCEDURE H*(VAR x: Item); (*NYI*)
   BEGIN (*x.mode = Const*)
     Put0(Mov + U + x.a MOD 2 * V, RH, 0, 0); x.mode := Reg; x.r := RH; incR
   END H;
@@ -1291,6 +1344,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END Close;
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
-genLeaf := FALSE; forStore := 0; leafRH := 0
+genLeaf := FALSE; forStore := 0; baseRH := 0; sectionStart := NoSection;
 END ORG.
 (* vim:set ts=2 sw=2 et: *)

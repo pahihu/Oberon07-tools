@@ -31,7 +31,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     var* = 65; procedure* = 66; begin* = 67; import* = 68; module* = 69; eot = 70;
 
     verbose* = FALSE;
-    warn = FALSE;
+    warn = TRUE;
 
   TYPE Ident* = ARRAY IdLen OF CHAR;
        LONGINT = Sys.INT32;

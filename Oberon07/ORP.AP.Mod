@@ -451,7 +451,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     VAR nap, npar: LONGINT; (*nof actual/formal parameters*)
       x, y, z: ORG.Item;
       assert12: BOOLEAN;
-  BEGIN Check(ORS.lparen, "no (");
+      drop: BOOLEAN;
+  BEGIN Check(ORS.lparen, "no ("); ORG.BeginSection; drop := FALSE;
     npar := pno MOD 10; pno := pno DIV 10; expression(x); nap := 1;
     IF sym = ORS.comma THEN
       ORS.Get(sym); expression(y); nap := 2; z.type := ORB.noType;
@@ -467,7 +468,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         ORG.Increment(pno, x, y)
       ELSIF pno IN {2, 3} THEN (*INCL, EXCL*)
         CheckSet(x); CheckReadOnly(x); CheckInt(y); ORG.Include(pno-2, x, y)
-      ELSIF pno = 4 THEN CheckBool(x); ORG.Assert(x)
+      ELSIF pno = 4 THEN CheckBool(x); ORG.Assert(x); drop := leaf;
       ELSIF pno = 5 THEN(*NEW*) CheckReadOnly(x);
          IF (x.type.form = ORB.Pointer) & (x.type.base.form = ORB.Record) THEN ORG.New(x)
          ELSE ORS.Mark("not a pointer to record")
@@ -483,7 +484,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       ELSIF pno = 14 THEN CheckInt(x); ORG.LDREG(x, y)
       END
     ELSE ORS.Mark("wrong nof parameters")
-    END
+    END ;
+    ORG.EndSection(drop)
   END StandProc;
 
   PROCEDURE StatSequence;
