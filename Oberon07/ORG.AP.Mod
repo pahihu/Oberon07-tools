@@ -1028,6 +1028,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         IF ORS.debug THEN ORS.Twain("MOV", pc - 1) END ;
       ELSE load(x);
         IF ORS.debug THEN ORS.Twain("load(x)", pc - 1) END ;
+        IF isRegVar(x) THEN Put0(Mov, 0, 0, regVar(x)) END ;
       END
     END ;
     IF ~int THEN (*procedure epilog*)
@@ -1120,19 +1121,22 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Pack*(VAR x, y: Item);
     VAR z: Item;
-  BEGIN z := x; load(x); load(y);
-    Put1(Lsl, y.r, y.r, 23); Put0(Add, x.r, x.r, y.r); DEC(RH); Store(z, x)
+        xr, yr: LONGINT;
+  BEGIN z := x; xr := loadXR(x); yr := loadXR(y);
+    Put1(Lsl, yr, y.r, 23); Put0(Add, xr, x.r, yr); x.r := xr; y.r := yr; DEC(RH); Store(z, x)
   END Pack;
 
   PROCEDURE Unpk*(VAR x, y: Item);
     VAR z, e0: Item;
-  BEGIN  z := x; load(x); e0.mode := Reg; e0.r := RH; e0.type := ORB.intType;
+        xr: LONGINT;
+  BEGIN  z := x; xr := loadXR(x); e0.mode := Reg; e0.r := RH; e0.type := ORB.intType;
     Put1(Asr, RH, x.r, 23); Put1(Sub, RH, RH, 127); Store(y, e0); incR;
-    Put1(Lsl, RH, RH, 23); Put0(Sub, x.r, x.r, RH); Store(z, x)
+    Put1(Lsl, RH, RH, 23); Put0(Sub, xr, x.r, RH); x.r := xr; Store(z, x)
   END Unpk;
 
   PROCEDURE Led*(VAR x: Item);
-  BEGIN load(x); Put1(Mov, RH, 0, -60); Put2(Str, x.r, RH, 0); DEC(RH)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x); Put1(Mov, RH, 0, -60); Put2(Str, xr, RH, 0); x.r := xr; DEC(RH)
   END Led;
 
   PROCEDURE Get*(VAR x, y: Item);
