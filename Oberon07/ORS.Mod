@@ -50,7 +50,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     KWX: ARRAY 10 OF INTEGER;
     keyTab: ARRAY NKW OF
         RECORD sym: INTEGER; id: ARRAY 12 OF CHAR END;
-    warn: BOOLEAN;
+    debug*, warning*: BOOLEAN;
   
   PROCEDURE CopyId*(VAR ident: Ident);
   BEGIN ident := id
@@ -72,7 +72,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
 
   PROCEDURE Twain*(msg: ARRAY OF CHAR; arg: LONGINT);
     VAR p: LONGINT;
-  BEGIN IF ~warn THEN Mark(msg); RETURN END ;
+  BEGIN IF ~warning THEN Mark(msg); RETURN END ;
     p := Pos();
     IF (p > errpos) & (errcnt < 25) THEN
       Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1); Texts.WriteString(W, " ");
@@ -286,9 +286,13 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   BEGIN COPY(name, keyTab[k].id); keyTab[k].sym := sym; INC(k)
   END EnterKW;
 
-  PROCEDURE Warning*;
-  BEGIN warn := TRUE
-  END Warning;
+  PROCEDURE EnableTwainWarning*;
+  BEGIN warning := TRUE
+  END EnableTwainWarning;
+
+  PROCEDURE EnableDebug*;
+  BEGIN debug := TRUE
+  END EnableDebug;
 
 BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   EnterKW(if, "IF");
@@ -331,6 +335,6 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   KWX[7] := k; KWX[8] := k;
   EnterKW(procedure, "PROCEDURE");
   KWX[9] := k;
-  warn := FALSE
+  warning := FALSE; debug := FALSE;
 END ORS.
 (* vim:set ts=2 sw=2 et: *)

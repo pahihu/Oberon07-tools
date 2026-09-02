@@ -119,21 +119,29 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
 
   PROCEDURE TypeTest(VAR x: ORG.Item; T: ORB.Type; guard: BOOLEAN);
     VAR xt: ORB.Type;
+        nguard: LONGINT;
   BEGIN xt := x.type;
     IF (T.form = xt.form ) & ((T.form = ORB.Pointer) OR (T.form = ORB.Record) & (x.mode = ORB.Par)) THEN
       WHILE (xt # T) & (xt # NIL) DO xt := xt.base END ;
       IF xt # T THEN xt := x.type;
+        IF guard THEN nguard := 1 ELSE nguard := 0 END ;
         IF xt.form = ORB.Pointer THEN
-          IF IsExtension(xt.base, T.base) THEN ORG.TypeTest(x, T.base, FALSE, guard); x.type := T
+          IF IsExtension(xt.base, T.base) THEN
+            IF ORS.debug THEN ORS.Twain("TypeTest Pointer", nguard) END ;
+            ORG.TypeTest(x, T.base, FALSE, guard); x.type := T
           ELSE ORS.Mark("not an extension")
           END
         ELSIF (xt.form = ORB.Record) & (x.mode = ORB.Par) THEN
-          IF IsExtension(xt, T) THEN  ORG.TypeTest(x, T, TRUE, guard); x.type := T
+          IF IsExtension(xt, T) THEN
+            IF ORS.debug THEN ORS.Twain("TypeTest VAR Record", nguard) END ;
+            ORG.TypeTest(x, T, TRUE, guard); x.type := T
           ELSE ORS.Mark("not an extension")
           END
         ELSE ORS.Mark("incompatible types")
         END
-      ELSIF ~guard THEN ORG.TypeTest(x, NIL, FALSE, FALSE)
+      ELSIF ~guard THEN
+        IF ORS.debug THEN ORS.Twain("TypeTest ~guard", nguard) END ;
+        ORG.TypeTest(x, NIL, FALSE, FALSE)
       END
     ELSE ORS.Mark("type mismatch")
     END ;
@@ -753,6 +761,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
   PROCEDURE MarkReg(VAR obj: ORB.Object);
   BEGIN
     IF leaf THEN
+      IF ORS.debug THEN ORS.Twain("MarkReg=",obj.val) END ;
       IF obj.val > 14 * 4 THEN ORS.Mark("Reg overflow") END ;
       INC(obj.val, 64)
     END ;
@@ -975,6 +984,11 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       Check(ORS.semicolon, "no ;"); locblksize := parblksize;
       stkblksize := 0;
       Declarations(locblksize, stkblksize);
+      IF ORS.debug THEN
+        ORS.Twain("parblksize=",parblksize);
+        ORS.Twain("locblksize=",locblksize);
+        ORS.Twain("stkblksize=",stkblksize);
+      END ;
       IF leaf THEN parblksize := locblksize; locblksize := stkblksize END ;
       proc.val := ORG.Here() * 4; proc.type.dsc := ORB.topScope.next;
       IF sym = ORS.procedure THEN
@@ -993,6 +1007,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         ORS.Mark("function without result"); type.base := ORB.noType
       END ;
       ORG.Return(type.base.form, x, locblksize, int, leaf);
+      leaf := FALSE;
       ORB.CloseScope; DEC(level); Check(ORS.end, "no END");
       IF sym = ORS.ident THEN
         IF ORS.id # procid THEN ORS.Mark("no match") END ;
@@ -1072,9 +1087,10 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       Texts.Scan(S); Texts.Scan(S); 
       IF S.class = Texts.Name THEN
         FOR i := 0 TO S.len DO 
-             IF S.s[0] = "s" THEN   newSF := TRUE
-          ELSIF S.s[0] = "a" THEN astrobe := TRUE
-          ELSIF S.s[0] = "w" THEN ORS.Warning
+             IF S.s[i] = "s" THEN newSF := TRUE
+          ELSIF S.s[i] = "a" THEN astrobe := TRUE
+          ELSIF S.s[i] = "w" THEN ORS.warning := TRUE
+          ELSIF S.s[i] = "g" THEN ORS.debug := TRUE
           END
         END
       END
@@ -1097,7 +1113,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
   END Compile;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/asw]...");
+  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/as]...");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
 

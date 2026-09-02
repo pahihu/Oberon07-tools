@@ -17,7 +17,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     Ldr = 8; Str = 10;
     BR = 0; BLR = 1; BC = 2; BL = 3;
     MI = 0; PL = 8; EQ = 1; NE = 9; CS = 2; CC = 10; LT = 5; GE = 13; LE = 6; GT = 14;
-    Debug = FALSE;
     NoSection = -1;
 
   TYPE
@@ -110,7 +109,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Put0(op, a, b, c: LONGINT);
   BEGIN (*emit format-0 instruction*)
-    IF Debug THEN
+    IF ORS.debug THEN
       ORS.Twain("Put0=", pc);
       ORS.Twain("   a=", a);
       ORS.Twain("   b=", b);
@@ -118,7 +117,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       ORS.Twain("   c=", c);
     END ;
     code[pc] := ((a*10H + b) * 10H + op) * 10000H + c; INC(pc);
-    IF Debug THEN
+    IF ORS.debug THEN
       ORS.Twain("Put0=", code[pc-1]);
     END
   END Put0;
@@ -285,7 +284,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE loadAdr(VAR x: Item);
   BEGIN
     IF x.mode = ORB.Var THEN
-      IF x.r > 0 THEN (*local*) Put1a(Add, RH, SP, x.a + frame)
+      IF x.r > 0 THEN
+        IF isRegVar(x) THEN ORS.Mark("unable load Reg adr") END ;
+        (*local*) Put1a(Add, RH, SP, x.a + frame)
       ELSE GetSB(x.r); Put1a(Add, RH, RH, x.a)
       END ;
       x.r := RH; incR
@@ -293,7 +294,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       IF ~isRegVar(x) THEN
         Put2(Ldr, RH, SP, x.a + frame);
       ELSE
-        IF Debug THEN ORS.Twain("loadAdr", x.a) END ;
+        IF ORS.debug THEN ORS.Twain("loadAdr=", x.a) END ;
         Put0(Mov, RH, 0, regVar(x));
       END ;
       IF x.b # 0 THEN Put1a(Add, RH, RH, x.b) END ;
@@ -362,7 +363,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   BEGIN;
     IF x.mode = ORB.Var THEN
       IF x.r >= 0 THEN x.a := x.a + y.val
-      ELSE loadAdr(x); x.mode := RegI; x.a := y.val
+      ELSE
+        loadAdr(x); x.mode := RegI; x.a := y.val
       END
     ELSIF x.mode = RegI THEN x.a := x.a + y.val
     ELSIF x.mode = ORB.Par THEN x.b := x.b + y.val
@@ -372,7 +374,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Index*(VAR x, y: Item);   (* x := x[y] *)
     VAR s, lim: LONGINT;
         yr: LONGINT;
-        release: BOOLEAN;
   BEGIN s := x.type.base.size; lim := x.type.len;
     IF (y.mode = ORB.Const) & (lim >= 0) THEN
       IF (y.a < 0) OR (y.a >= lim) THEN ORS.Mark("bad index") END ;
@@ -389,7 +390,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         END ;
         Trap(CC, 1)
       END ;
-      release := FALSE;
       IF isRegVar(y) THEN yr := RH-1 ELSE yr := y.r END ;
       IF s = 4 THEN
         Put1(Lsl, yr, y.r, 2)
@@ -422,11 +422,28 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE DeRef*(VAR x: Item);
   BEGIN
+    IF ORS.debug THEN ORS.Twain("DeRef=",pc) END ;
     IF x.mode = ORB.Var THEN
-      IF x.r > 0 THEN (*local*) Put2(Ldr, RH, SP, x.a + frame) ELSE GetSB(x.r); Put2(Ldr, RH, RH, x.a) END ;
+      IF x.r > 0 THEN (*local*)
+        IF isRegVar(x) THEN
+          Put2(Mov, RH, 0, regVar(x));
+        ELSE
+          Put2(Ldr, RH, SP, x.a + frame)
+        END ;
+      ELSE
+        GetSB(x.r); Put2(Ldr, RH, RH, x.a)
+      END ;
       NilCheck; x.r := RH; incR
     ELSIF x.mode = ORB.Par THEN
-      Put2(Ldr, RH, SP, x.a + frame); Put2(Ldr, RH, RH, x.b); NilCheck; x.r := RH; incR
+      IF isRegVar(x) THEN
+        IF isRegVar(x) THEN
+          Put2(Mov, RH, 0, regVar(x));
+        ELSE
+          Put2(Ldr, RH, SP, x.a + frame);
+        END ;
+        Put2(Ldr, RH, RH, x.b);
+      END ;
+      NilCheck; x.r := RH; incR
     ELSIF x.mode = RegI THEN Put2(Ldr, x.r, x.r, x.a); NilCheck
     ELSIF x.mode # Reg THEN ORS.Mark("bad mode in DeRef")
     END ;
@@ -475,9 +492,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   BEGIN
     IF T = NIL THEN
       IF x.mode >= Reg THEN DEC(RH) END ;
+      IF isRegVar(x) THEN Put0(Mov, RH, 0, regVar(x)) END ;
+      IF ORS.debug THEN ORS.Twain("TypeTest T=NIL",pc) END ;
       SetCC(x, 7)
     ELSE (*fetch tag into RH*)
-      IF varpar THEN Put2(Ldr, RH, SP, x.a+4+frame)
+      IF varpar THEN
+        IF isRegVar(x) THEN Put0(Mov, RH, 0, regVar(x)+1) ELSE Put2(Ldr, RH, SP, x.a+4+frame) END
       ELSE load(x);
         pc0 := pc; Put3(BC, EQ, 0);  (*NIL belongs to every pointer type*)
         Put2(Ldr, RH, x.r, -8)
@@ -627,7 +647,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     ELSIF op = ORS.times THEN Put0(Fml, RH-2, x.r, y.r); s := "FML";
     ELSIF op = ORS.rdiv THEN Put0(Fdv, RH-2, x.r, y.r); s := "FDV";
     END ;
-    IF Debug THEN ORS.Twain(s, pc - 1) END ;
+    IF ORS.debug THEN ORS.Twain(s, pc - 1) END ;
     DEC(RH); x.r := RH-1
   END RealOp;
 
@@ -751,19 +771,19 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
           (*local*) Put2(op, y.r, SP, x.a + frame)
         ELSE
           IF forStore = 1 THEN (*Mov regVar(x), y.r*)
-            IF Debug THEN ORS.Twain("forStore1", pc) END ;
+            IF ORS.debug THEN ORS.Twain("forStore1", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
           ELSIF forStore = 2 THEN
             patchRegTmp(0);
             y.r := RH - 1;
-            IF Debug THEN ORS.Twain("forStore2", pc) END ;
+            IF ORS.debug THEN ORS.Twain("forStore2", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
           ELSIF mergeOpStore THEN
-            IF Debug THEN ORS.Twain("mergeOpStore", pc - 1) END ;
+            IF ORS.debug THEN ORS.Twain("mergeOpStore", pc - 1) END ;
             instr := code[pc - 1];
             code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
           ELSE (*regVarX := regVarY*)
-            IF Debug THEN ORS.Twain("~mergeOpStore", pc) END ;
+            IF ORS.debug THEN ORS.Twain("~mergeOpStore", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
           END
 
@@ -805,6 +825,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE StoreStruct*(VAR x, y: Item); (* x := y, frame = 0 *)
     VAR s, pc0: LONGINT;
   BEGIN
+    IF ORS.debug THEN ORS.Twain("StoreStruct=", pc) END ;
     IF y.type.size # 0 THEN
       loadAdr(x); loadAdr(y);
       IF (x.type.form = ORB.Array) &  (x.type.len > 0) THEN
@@ -829,7 +850,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       Put2(Str, RH+1, x.r, 0); Put1(Add, x.r, x.r, 4);
       Put1(Sub, RH, RH, 1); Put3(BC, NE, -6)
     END ;
-    RH := 0
+    RH := baseRH
   END StoreStruct;
 
   PROCEDURE CopyString*(VAR x, y: Item);  (* x := y *) (*TODO Modules.Mod.txt*)
@@ -991,7 +1012,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         INC(a, 4)
       END ;
       genLeaf := leaf;
-      IF genLeaf THEN baseRH := RH; IF Debug THEN ORS.Twain("baseRH=", baseRH) END END ;
+      IF genLeaf THEN baseRH := RH; IF ORS.debug THEN ORS.Twain("baseRH=", baseRH) END END ;
     ELSE (*interrupt procedure*)
       Put1(Sub, SP, SP, locblksize); Put2(Str, 0, SP, 0); Put2(Str, 1, SP, 4); Put2(Str, 2, SP, 8)
       (*R0, R1, R2 saved on stack*)
@@ -1001,18 +1022,18 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Return*(form: INTEGER; VAR x: Item; size: LONGINT; int, leaf: BOOLEAN);
   BEGIN
     IF form # ORB.NoTyp THEN
-      IF Debug THEN ORS.Twain("x.mode=",x.mode) END ;
+      IF ORS.debug THEN ORS.Twain("x.mode=",x.mode) END ;
       IF x.mode = Reg THEN
         Put0(Mov, 0, 0, x.r);
-        IF Debug THEN ORS.Twain("MOV", pc - 1) END ;
+        IF ORS.debug THEN ORS.Twain("MOV", pc - 1) END ;
       ELSE load(x);
-        IF Debug THEN ORS.Twain("load(x)", pc - 1) END ;
+        IF ORS.debug THEN ORS.Twain("load(x)", pc - 1) END ;
       END
     END ;
     IF ~int THEN (*procedure epilog*)
       IF ~leaf THEN Put2(Ldr, LNK, SP, 0) END ;
       IF size # 0 THEN Put1(Add, SP, SP, size) END ;
-      IF Debug THEN ORS.Twain("B LNK", pc) END ;
+      IF ORS.debug THEN ORS.Twain("B LNK", pc) END ;
       Put3(BR, 7, LNK);
       genLeaf := FALSE;
     ELSE (*interrupt return, restore R2, R1, R0*)
