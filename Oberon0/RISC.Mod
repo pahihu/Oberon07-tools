@@ -170,6 +170,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       ch: CHAR;
       MaxMem: INTEGER;
       prevClk: LONGINT;
+      done: BOOLEAN;
   BEGIN MaxMem := Sys.Short(LEN(M) * 4);
     PC := entry.ToWords() (*0*); R[13] := pc.ToBytes();
     Timer.Start(TIM0);
@@ -329,8 +330,12 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         SPC := SYSTEM.VAL(LONGINT, Flags()) * 400000H + PC;
         PC := 1;
         intMd := TRUE
+      END ;
+      done := (IR = -18000001H); (*HALT B -1*)
+      IF RISCEmu.verbose THEN
+        done := done OR (cnt > 10000);
       END
-    UNTIL (IR = -18000001H) (*OR (cnt > 10000)*); (*HALT B -1*)
+    UNTIL done;
     Texts.WriteLn(W);
     Texts.WriteString(W, "#clks="); Texts.WriteInt(W, clk, 0);
     Texts.WriteString(W, "  #instr="); Texts.WriteInt(W, cnt, 0);

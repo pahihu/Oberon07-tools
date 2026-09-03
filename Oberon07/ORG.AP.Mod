@@ -1136,7 +1136,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     VAR z, e0: Item;
         xr: LONGINT;
   BEGIN  z := x; xr := loadXR(x); e0.mode := Reg; e0.r := RH; e0.type := ORB.intType;
-    Put1(Asr, RH, x.r, 23); Put1(Sub, RH, RH, 127); Store(y, e0); incR;
+    Put1(Asr, RH, x.r, 23); Put1(Sub, RH, RH, 127); StoreFor(y, e0, 1); incR;
     Put1(Lsl, RH, RH, 23); Put0(Sub, xr, x.r, RH); x.r := xr; Store(z, x)
   END Unpk;
 
@@ -1400,6 +1400,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
 genLeaf := FALSE; baseRH := 0; sectionStart := NoSection;
-forStore := 0; mergeOpStore := FALSE;
+forStore := 0; mergeOpStore := FALSE
 END ORG.
 (* vim:set ts=2 sw=2 et: *)
