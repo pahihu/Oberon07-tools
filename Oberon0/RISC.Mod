@@ -23,6 +23,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     intEnb: BOOLEAN; (*INT enabled*)
     cnt: LONGINT; (*number of instr.*)
     clk: LONGINT; (*number of clks*)
+    memrd: LONGINT; (*number of memory reads*)
+    memwr: LONGINT; (*number of memory writes*)
     SW: INTEGER;
     absTime: BOOLEAN;
     delayTxCounter: INTEGER;
@@ -232,7 +234,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         END;
         IF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
-            A := M[adr];
+            A := M[adr]; INC(memrd);
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
                 Texts.WriteLn(W);
@@ -270,8 +272,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                 Texts.WriteHex(W, badr);
                 Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
               END;
-              M[adr] := InsertByte(W, M[adr], R[a] MOD 100H, badr MOD 4)
-            ELSE M[adr] := R[a];
+              M[adr] := InsertByte(W, M[adr], R[a] MOD 100H, badr MOD 4); INC(memwr)
+            ELSE M[adr] := R[a]; INC(memwr)
             END
           ELSE (*output*);
                IF adr =  -1 THEN (* WriteInt *) Texts.WriteInt(W, R[a], 4)
@@ -339,6 +341,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     Texts.WriteLn(W);
     Texts.WriteString(W, "#clks="); Texts.WriteInt(W, clk, 0);
     Texts.WriteString(W, "  #instr="); Texts.WriteInt(W, cnt, 0);
+    Texts.WriteString(W, "  #memrd="); Texts.WriteInt(W, memrd, 0);
+    Texts.WriteString(W, "  #memwr="); Texts.WriteInt(W, memwr, 0);
     Texts.Append(Oberon.Log, W.buf)
   END Execute;
 

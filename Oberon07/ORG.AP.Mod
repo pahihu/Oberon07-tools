@@ -390,13 +390,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         END ;
         Trap(CC, 1)
       END ;
-      IF isRegVar(y) THEN
-        Put0(Mov, yr, 0, y.r);
-      END ;
       IF s = 4 THEN
         Put1(Lsl, yr, y.r, 2)
       ELSIF s > 1 THEN
         Put1a(Mul, yr, y.r, s)
+      ELSIF isRegVar(y) THEN
+        Put0(Mov, yr, 0, y.r);
       END ;
       IF x.mode = ORB.Var THEN
         IF x.r > 0 THEN Put0(Add, yr, SP, yr); INC(x.a, frame)
