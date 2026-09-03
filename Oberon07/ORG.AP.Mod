@@ -380,7 +380,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       IF x.mode IN {ORB.Var, RegI} THEN x.a := y.a * s + x.a
       ELSIF x.mode = ORB.Par THEN x.b := y.a * s + x.b
       END
-    ELSE load(y);
+    ELSE yr := loadXR(y);
       IF check THEN  (*check array bounds*)
         IF lim >= 0 THEN Put1a(Cmp, RH, y.r, lim)
         ELSE (*open array*)
@@ -390,7 +390,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         END ;
         Trap(CC, 1)
       END ;
-      IF isRegVar(y) THEN yr := RH-1 ELSE yr := y.r END ;
+      IF isRegVar(y) THEN
+        Put0(Mov, yr, 0, y.r);
+      END ;
       IF s = 4 THEN
         Put1(Lsl, yr, y.r, 2)
       ELSIF s > 1 THEN
@@ -1083,7 +1085,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF (x.mode = ORB.Var) & (x.r > 0) THEN
       IF isRegVar(x) THEN
         xr := regVar(x);
-        IF y.mode = ORB.Const THEN Put1a(op, xr, xr, y.a) ELSE load(y); Put0(op, xr, xr, y.r) END
+        IF y.mode = ORB.Const THEN Put1a(op, xr, xr, y.a) ELSE load(y); Put0(op, xr, xr, y.r); DEC(RH) END ;
+        x.r := xr
       ELSE
         zr := RH; Put2(Ldr+v, zr, SP, x.a); incR;
         IF y.mode = ORB.Const THEN Put1a(op, zr, zr, y.a) ELSE load(y); Put0(op, zr, zr, y.r); DEC(RH) END ;
@@ -1096,13 +1099,16 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END Increment;
 
   PROCEDURE Include*(inorex: LONGINT; VAR x, y: Item);
-    VAR op, zr: LONGINT;
-  BEGIN loadAdr(x); zr := RH; Put2(Ldr, RH, x.r, 0); incR;
-    IF inorex = 0 THEN op := Ior ELSE op := Ann END ;
-    IF y.mode = ORB.Const THEN Put1a(op, zr, zr, BIF07.LSL(1, y.a))
-    ELSE load(y); Put1(Mov, RH, 0, 1); Put0(Lsl, y.r, RH, y.r); Put0(op, zr, zr, y.r); DEC(RH)
+    VAR op, zr, yr: LONGINT;
+        indirect: BOOLEAN;
+  BEGIN IF inorex = 0 THEN op := Ior ELSE op := Ann END ;
+    IF isRegVar(x) THEN zr := regVar(x);
+    ELSE loadAdr(x); zr := RH; Put2(Ldr, RH, x.r, 0); incR; indirect := TRUE
     END ;
-    Put2(Str, zr, x.r, 0); DEC(RH, 2)
+    IF y.mode = ORB.Const THEN Put1a(op, zr, zr, BIF07.LSL(1, y.a))
+    ELSE yr := loadXR(y); Put1(Mov, RH, 0, 1); Put0(Lsl, yr, RH, y.r); y.r := yr; Put0(op, zr, zr, y.r); DEC(RH)
+    END ;
+    IF indirect THEN Put2(Str, zr, x.r, 0); DEC(RH, 2) END ;
   END Include;
 
   PROCEDURE Assert*(VAR x: Item);
