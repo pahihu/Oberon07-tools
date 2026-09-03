@@ -54,12 +54,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     code: ARRAY maxCode OF LONGINT;
     data: ARRAY maxTD OF LONGINT;  (*type descriptors*)
     str: ARRAY maxStrx OF CHAR;
-    genLeaf: BOOLEAN;
-    forStore: INTEGER;
-    baseRH: LONGINT;
+    genLeaf: BOOLEAN; (*generate leaf procedure*)
+    forceRegStore: BOOLEAN; (*force reg store*)
+    baseRH: LONGINT; (*reg.allocated params/locals*)
     sectionStart: LONGINT;  (*pc at BeginSection*)
     sectionFixorgD: LONGINT;  (*fixorgD at BeginSection*)
-    mergeOpStore: BOOLEAN;  (*merge op X, X, Z + Mov X, X*)
+    mergeOpStore: BOOLEAN;  (*merge Op tmp,x,y Mov r,tmp*)
 
   (*leaf procedures*)
 
@@ -767,41 +767,21 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   BEGIN load(y);
     IF x.type.size = 1 THEN op := Str+1 ELSE op := Str END ;
     IF x.mode = ORB.Var THEN
-      IF x.r > 0 THEN
+      IF x.r > 0 THEN (*local*)
         IF ~isRegVar(x) THEN
-          (*local*) Put2(op, y.r, SP, x.a + frame)
+          Put2(op, y.r, SP, x.a + frame)
         ELSE
-          IF forStore = 1 THEN (*Mov regVar(x), y.r*)
-            IF ORS.debug THEN ORS.Twain("forStore1", pc) END ;
+          IF forceRegStore THEN (*Mov r, y.r*)
+            IF ORS.debug THEN ORS.Twain("forceRegStore", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
-          ELSIF forStore = 2 THEN
-            patchRegTmp(0);
-            y.r := RH - 1;
-            IF ORS.debug THEN ORS.Twain("forStore2", pc) END ;
-            Put0(Mov, regVar(x), 0, y.r)
-          ELSIF mergeOpStore THEN
+          ELSIF mergeOpStore THEN (*Op z,x,y Mov r,z => Op r,x,y*)
             IF ORS.debug THEN ORS.Twain("mergeOpStore", pc - 1) END ;
             instr := code[pc - 1];
             code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
-          ELSE (*regVarX := regVarY*)
+          ELSE (*Mov r, y.r*)
             IF ORS.debug THEN ORS.Twain("~mergeOpStore", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
           END
-
-          (*IF forStore THEN
-            (*local*) y.r := regVar(x); incR
-          END
-          IF y.r >= baseRH THEN
-            instr := code[pc - 1];
-            code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
-            (*incR*)
-          ELSE
-            instr := code[pc - 1];
-            diff := RH - 1 - (instr DIV C24) MOD 10H;
-            INC(code[pc - 1], diff * C24);
-            y.r := RH - 1; (*incR;*)
-            (*local*) Put0(Mov, regVar(x), 0, y.r)
-          END*)
         END
       ELSE GetSB(x.r); Put2(op, y.r, RH, x.a)
       END
@@ -819,9 +799,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     DEC(RH)
   END Store;
 
-  PROCEDURE StoreFor(VAR x, y: Item; n: INTEGER);
-  BEGIN forStore := n; Store(x, y); forStore := 0
-  END StoreFor;
+  PROCEDURE ForceRegStore(VAR x, y: Item);
+  BEGIN forceRegStore := TRUE; Store(x, y); forceRegStore := FALSE
+  END ForceRegStore;
 
   PROCEDURE StoreStruct*(VAR x, y: Item); (* x := y, frame = 0 *)
     VAR s, pc0: LONGINT;
@@ -911,7 +891,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     ELSIF w.a < 0 THEN Put3(BC, LT, 0)
     ELSE ORS.Mark("zero increment"); Put3(BC, MI, 0)
     END ;
-    StoreFor(x, y, 1)
+    ForceRegStore(x, y)
   END For1;
 
   PROCEDURE For2*(VAR x, y, w: Item);
@@ -1135,7 +1115,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     VAR z, e0: Item;
         xr: LONGINT;
   BEGIN  z := x; xr := loadXR(x); e0.mode := Reg; e0.r := RH; e0.type := ORB.intType;
-    Put1(Asr, RH, x.r, 23); Put1(Sub, RH, RH, 127); StoreFor(y, e0, 1); incR;
+    Put1(Asr, RH, x.r, 23); Put1(Sub, RH, RH, 127); ForceRegStore(y, e0); incR;
     Put1(Lsl, RH, RH, 23); Put0(Sub, xr, x.r, RH); x.r := xr; Store(z, x)
   END Unpk;
 
@@ -1399,6 +1379,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
 genLeaf := FALSE; baseRH := 0; sectionStart := NoSection;
-forStore := 0; mergeOpStore := FALSE
+forceRegStore := FALSE; mergeOpStore := FALSE
 END ORG.
 (* vim:set ts=2 sw=2 et: *)
