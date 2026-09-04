@@ -1,2 +1,2 @@
-ORTool0$(EXE): ORTool0.Mod Disasm.Mod RISC.Mod RISCEmu.Mod
+ORTool0$(EXE): ORTool0.Mod Disasm.Mod RISC.Mod RISCEmu.Mod MemCtrl.Mod WAddress.Mod
 OSP$(EXE): OSP.Mod OSS.Mod OSG.Mod

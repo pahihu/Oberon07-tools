@@ -1,5 +1,5 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
-  IMPORT SYSTEM, Texts, Oberon, Sys := System, In, RISCEmu, WA := WAddress, Timer;
+  IMPORT SYSTEM, Texts, Oberon, Sys := System, In, RISCEmu, WA := WAddress, Timer, MemCtrl;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -21,10 +21,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     intPnd: BOOLEAN; (*INT pending*)
     intMd: BOOLEAN; (*INT mode*)
     intEnb: BOOLEAN; (*INT enabled*)
-    cnt: LONGINT; (*number of instr.*)
     clk: LONGINT; (*number of clks*)
-    memrd: LONGINT; (*number of memory reads*)
-    memwr: LONGINT; (*number of memory writes*)
     SW: INTEGER;
     absTime: BOOLEAN;
     delayTxCounter: INTEGER;
@@ -159,27 +156,26 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   END ShowLEDs;
 
-  PROCEDURE Execute*(VAR M: ARRAY OF LONGINT; entry, pc: WA.ADDR;
-      VAR S: Texts.Scanner; VAR W: Texts.Writer);
+  PROCEDURE Execute*(entry, pc: WA.ADDR; VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
-      badr, adr, A, B, C: LONGINT;
-      MemSize: LONGINT;
+      badr, adr, tmp, A, B, C: LONGINT;
       cond: BOOLEAN;
       d1: LONGINT;
       flags: SET;
       p,q,u,v: Sys.Address;
       TIM0: Timer.Timer;
       ch: CHAR;
-      MaxMem: INTEGER;
       prevClk: LONGINT;
       done: BOOLEAN;
-  BEGIN MaxMem := Sys.Short(LEN(M) * 4);
+      hitRate: LONGREAL;
+  BEGIN
     PC := entry.ToWords() (*0*); R[13] := pc.ToBytes();
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
       prevClk := clk;
-      IR := M[PC]; RISCEmu.Status(W, PC, IR, R, H, Flags(), IntFlags()); INC(PC);
+      IR := MemCtrl.Fetch(PC); INC(clk, MemCtrl.elapsedClks);
+      RISCEmu.Status(W, PC, IR, R, H, Flags(), IntFlags()); INC(PC);
       a := IR DIV 1000000H MOD 10H;
       b := IR DIV 100000H MOD 10H;
       op := IR DIV 10000H MOD 10H;
@@ -234,7 +230,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         END;
         IF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
-            A := M[adr]; INC(memrd);
+            A := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks);
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
                 Texts.WriteLn(W);
@@ -251,7 +247,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSIF adr =  -2 THEN (* eot *) IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
             ELSIF adr = -16 THEN (* msec counter *)
                 IF absTime THEN R[a] := SHORT(Timer.Elapsed(TIM0))
-                ELSE R[a] := cnt DIV 12000 (*12MHz clock*)
+                ELSE R[a] := MemCtrl.cntFetch DIV 12000 (*12MHz clock*)
                 END
             ELSIF adr = -15 THEN (* switch *) R[a] := SW
             ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
@@ -272,8 +268,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                 Texts.WriteHex(W, badr);
                 Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
               END;
-              M[adr] := InsertByte(W, M[adr], R[a] MOD 100H, badr MOD 4); INC(memwr)
-            ELSE M[adr] := R[a]; INC(memwr)
+              tmp := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks);
+              MemCtrl.Write(adr, InsertByte(W, tmp, R[a] MOD 100H, badr MOD 4)); INC(clk, MemCtrl.elapsedClks)
+            ELSE MemCtrl.Write(adr, R[a]); INC(clk, MemCtrl.elapsedClks)
             END
           ELSE (*output*);
                IF adr =  -1 THEN (* WriteInt *) Texts.WriteInt(W, R[a], 4)
@@ -317,13 +314,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                   OR (a = 7);
           IF (b < 8) & cond OR (b > 7) & ~cond THEN
             IF ODD(v) THEN R[LNK] := PC * 4 END ;
-            IF ODD(u) THEN PC := (PC + IR MOD 1000000H) MOD MaxMem
-            ELSIF d1 = 8 THEN PC := (PC + R[IR MOD 10H]) MOD MaxMem (* Astrobe RISC5 Bcc PC,Rn *)
-            ELSE PC := (R[IR MOD 10H] DIV 4) MOD MaxMem
+            IF ODD(u) THEN PC := (PC + IR MOD 1000000H) MOD MemCtrl.MaxMem
+            ELSIF d1 = 8 THEN PC := (PC + R[IR MOD 10H]) MOD MemCtrl.MaxMem (* Astrobe RISC5 Bcc PC,Rn *)
+            ELSE PC := (R[IR MOD 10H] DIV 4) MOD MemCtrl.MaxMem
             END
           END
         END
-      END; INC(cnt); INC(clk);
+      END; INC(clk);
       IF delayTxCounter # 0 THEN
         DEC(delayTxCounter, clk - prevClk);
         IF delayTxCounter < 0 THEN delayTxCounter := 0 END ;
@@ -335,14 +332,21 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       END ;
       done := (IR = -18000001H); (*HALT B -1*)
       IF RISCEmu.verbose THEN
-        done := done OR (cnt > 10000);
+        done := done OR (MemCtrl.cntFetch > 10000);
       END
     UNTIL done;
+    MemCtrl.Flush; INC(clk, MemCtrl.elapsedClks);
+
     Texts.WriteLn(W);
     Texts.WriteString(W, "#clks="); Texts.WriteInt(W, clk, 0);
-    Texts.WriteString(W, "  #instr="); Texts.WriteInt(W, cnt, 0);
-    Texts.WriteString(W, "  #memrd="); Texts.WriteInt(W, memrd, 0);
-    Texts.WriteString(W, "  #memwr="); Texts.WriteInt(W, memwr, 0);
+    Texts.WriteLn(W); Texts.WriteString(W, "  #instr="); Texts.WriteInt(W, MemCtrl.cntFetch, 0);
+    Texts.WriteLn(W); Texts.WriteString(W, "  #memrd="); Texts.WriteInt(W, MemCtrl.cntMemRd, 0);
+    Texts.WriteLn(W); Texts.WriteString(W, "  #memwr="); Texts.WriteInt(W, MemCtrl.cntMemWr, 0);
+    IF MemCtrl.enabled THEN
+      Texts.WriteLn(W); Texts.WriteString(W, "  #hit="); Texts.WriteInt(W, MemCtrl.cntHit, 0);
+      Texts.WriteLn(W); Texts.WriteString(W, "  #miss="); Texts.WriteInt(W, MemCtrl.cntMiss, 0);
+      Texts.WriteLn(W); Texts.WriteString(W, "  #efficiency="); Texts.WriteReal(W, MemCtrl.Efficiency(), 0)
+    END ;
     Texts.Append(Oberon.Log, W.buf)
   END Execute;
 
@@ -360,7 +364,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
 
 BEGIN In.Open;
   absTime := FALSE;
-  cnt := 0; clk := 0;
+  clk := 0;
   delayTxCounter := 0; DelayTX := 1042
 END RISC.
 

@@ -1,11 +1,11 @@
 MODULE ORTool0;  (*NW 18.2.2013*)
-  IMPORT Files := Files07, Texts, Oberon, Sys := System, Disasm, RISC, RISCEmu, WA := WAddress;
+  IMPORT Files := Files07, Texts, Oberon, Sys := System, Disasm, RISC, RISCEmu, WA := WAddress, MemCtrl;
 
   CONST TAB = 9X;
     MaxModules = 8;
     MaxExports = 64;
     MaxImports = 16;
-    MaxMem = 32768; MaxHeap = 4096; (*words*)
+    MaxHeap = 4096; (*words*)
     MemAdr = 12; StackAdr = 24; MT = 12; SP = 14; LNK = 15;
 
   TYPE
@@ -32,7 +32,6 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   VAR W: Texts.Writer;
     Form: INTEGER;  (*result of ReadType*)
     GF: WA.ADDR;
-    code: ARRAY MaxMem OF LONGINT;
     wcode, wdata: WA.ADDR;
     modules: Module;
     exports: ARRAY MaxExports OF LONGINT; (*addr. of exported procs*)
@@ -114,9 +113,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       (*embed the GF ptr in the code section*)
       L.IncBy(modbase);
       WHILE (L.ToWords() - modbase.ToWords()) # 0 DO
-        Tab; Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Ln;
-        L1 := code[L.ToWords()] MOD 10000H;
-        code[L.ToWords()] := (code[L.ToWords()] DIV 1000000H - 40H) * 1000000H + gf; (*LDR => MOV reg,imm*)
+        Tab; Int(L.ToWords(), 4); Tab; Hex(MemCtrl.M[L.ToWords()]); Ln;
+        L1 := MemCtrl.M[L.ToWords()] MOD 10000H;
+        MemCtrl.M[L.ToWords()] := (MemCtrl.M[L.ToWords()] DIV 1000000H - 40H) * 1000000H + gf; (*LDR => MOV reg,imm*)
         L.Dec(L1)
       END;
       GF.Inc((ndata+3) DIV 4)
@@ -142,9 +141,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       String(" fixing imports "); Ln;
       L.IncBy(base);
       WHILE (L.ToWords() - base.ToWords()) # 0 DO
-        Tab; Int(L.ToWords(), 4); Tab; Hex(code[L.ToWords()]); Tab;
-        L1 := code[L.ToWords()] MOD 1000H; (*F7106001*)
-        mno := (code[L.ToWords()] DIV 1000H) MOD 1000H;
+        Tab; Int(L.ToWords(), 4); Tab; Hex(MemCtrl.M[L.ToWords()]); Tab;
+        L1 := MemCtrl.M[L.ToWords()] MOD 1000H; (*F7106001*)
+        mno := (MemCtrl.M[L.ToWords()] DIV 1000H) MOD 1000H;
         eno := mno MOD 100H; mno := (mno DIV 100H) MOD 10H;
         ASSERT(0 < mno, 10); ASSERT(0 < eno, 20);
         Int(mno, 0); Char(":"); Int(eno, 0);
@@ -165,7 +164,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
                 PrInt(" disp=", wdisp.ToBytes(), 4);
                 PrHex(" disp=", disp)
               END;
-              code[L.ToWords()] := (code[L.ToWords()] DIV 1000000H) * 1000000H + disp;
+              MemCtrl.M[L.ToWords()] := (MemCtrl.M[L.ToWords()] DIV 1000000H) * 1000000H + disp;
             ELSE Err(" invalid eno ");
             END
           END
@@ -200,7 +199,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   BEGIN
     IF verbose THEN Ln; String("LoadBin...") END;
     len := Sys.Short(Files.Length(F)); len := len DIV 4;
-    IF len > MaxMem THEN Err(" binary too large ")
+    IF len > MemCtrl.MaxMem THEN Err(" binary too large ")
     ELSE
       Files.Set(R, F, 0);
       IF verbose THEN Ln; PrInt("len=", len, 1) END;
@@ -210,10 +209,10 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         IF verbose THEN
           Ln; Int(base.ToWords() + i, 4); Tab; Hex(data);
         END;
-        code[wcode.ToWords()] := data; wcode.Next
+        MemCtrl.M[wcode.ToWords()] := data; wcode.Next
       END;
-      code[MemAdr DIV 4] := MaxMem * 4;
-      code[StackAdr DIV 4] := 4 * (MaxMem - MaxHeap); (*heap*)
+      MemCtrl.M[MemAdr DIV 4] := MemCtrl.MaxMem * 4;
+      MemCtrl.M[StackAdr DIV 4] := 4 * (MemCtrl.MaxMem - MaxHeap); (*heap*)
     END;
     IF verbose THEN Ln; String("done") END
   END LoadBin;
@@ -261,7 +260,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     Files.ReadInt(R, n); i := 0;
     WHILE i < n DO
       Files.ReadInt(R, data); Int(base.ToWords() + i, 4); Tab; Hex(data);
-      IF wcode.ToWords() < MaxMem THEN code[wcode.ToWords()] := data; wcode.Next
+      IF wcode.ToWords() < MemCtrl.MaxMem THEN MemCtrl.M[wcode.ToWords()] := data; wcode.Next
       ELSE Err(" code space full ");
       END;
       Tab; Disasm.Opcode(W, data); Ln; INC(i)
@@ -354,10 +353,19 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END GetFileExt;
 
   PROCEDURE Option(VAR S: Texts.Scanner);
+    VAR i: INTEGER;
+        ch: CHAR;
   BEGIN
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S);
-      IF (S.class = Texts.Name) & (S.s[0] = "t") THEN RISC.UseAbsTime END
+      IF S.class = Texts.Name THEN
+        FOR i := 0 TO S.len DO
+          ch := S.s[i];
+             IF ch = "t" THEN RISC.UseAbsTime
+          ELSIF ch = "c" THEN MemCtrl.Enable
+          END
+        END
+      END
     END
   END Option;
 
@@ -393,23 +401,23 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     IF bin THEN
       wentry.FromWords(0); (* wcode points to the end of the loaded binary *)
       RISC.SetReg(MT, 20H);
-      RISC.SetReg(SP, 4 * (MaxMem - MaxHeap));
+      RISC.SetReg(SP, 4 * (MemCtrl.MaxMem - MaxHeap));
       RISC.SetReg(LNK, 0)
     ELSE
       prev := Verbose(TRUE);
       PrInt(" code=", wcode.ToWords(), 4);
       PrInt(" data=", wdata.ToWords(), 4);
-      IF wcode.ToWords() + wdata.ToWords() > MaxMem THEN Err(" space full ")
+      IF wcode.ToWords() + wdata.ToWords() > MemCtrl.MaxMem THEN Err(" space full ")
       ELSIF (m # NIL) & (errno = 0) THEN (*call last module entry*)
         GF.FromWords(wcode.ToWords()); Link(modules);
         wentry.FromBytes(m.entry); wentry.IncBy(m.base);
       END ;
-      RISC.SetReg(SP, 4 * MaxMem);
+      RISC.SetReg(SP, 4 * MemCtrl.MaxMem);
       RISC.SetReg(LNK, 0)
     END;
     IF errno = 0 THEN
       RISCEmu.verbose := debug;
-      RISC.Execute(code, wentry, wcode, S, W)
+      RISC.Execute(wentry, wcode, S, W)
     END
   END ExecObj;
 
@@ -422,7 +430,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END Debug;
 
   PROCEDURE Help*;
-  BEGIN String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin[/t]..."); Ln
+  BEGIN String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin[/ct]..."); Ln
   END Help;
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
