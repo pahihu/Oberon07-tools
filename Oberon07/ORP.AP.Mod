@@ -1,5 +1,5 @@
 MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 / AP 13.12.24 / Phu 30.8.26*)
-  IMPORT Texts, Oberon, ORS, ORB, ORG, BIF07, Sys := System;
+  IMPORT Texts, Oberon, ORS, ORB, ORG, BIF07, Sys := System, Kernel;
   (*Author: Niklaus Wirth, 2014.
     Parser of Oberon-RISC compiler. Uses Scanner ORS to obtain symbols (tokens),
     ORB for definition of data structures and for handling import and export, and
@@ -349,6 +349,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       IF obj.class = ORB.SFunc THEN StandFunc(x, obj.val, obj.type)
       ELSE ORG.MakeItem(x, obj, level); selector(x);
         IF sym = ORS.lparen THEN
+          IF leaf THEN ORS.Mark("leaf procedure") END ;
           ORS.Get(sym);
           IF (x.type.form = ORB.Proc) & (x.type.base.form # ORB.NoTyp) THEN
             ORG.PrepCall(x, rx); ParamList(x); ORG.Call(x, rx); x.type := x.type.base
@@ -764,7 +765,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     IF leaf THEN
       IF ORS.debug THEN ORS.Twain("MarkReg=",obj.val) END ;
       IF obj.val > 14 * 4 THEN ORS.Mark("Reg overflow") END ;
-      INC(obj.val, 64)
+      INC(obj.val, 64); obj.val := -obj.val
     END ;
   END MarkReg;
 
@@ -783,6 +784,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     WHILE obj # NIL DO
       INC(nofpar); obj.class := SHORT(cl); obj.type := tp; obj.rdo := rdo; obj.lev := level; obj.val := adr;
       MarkReg(obj);
+      IF leaf THEN parsize := ((parsize + 3) DIV 4) * 4 END ;
       adr := adr + parsize; obj := obj.next
     END ;
     IF adr >= 52 THEN ORS.Mark("too many parameters") END
@@ -882,6 +884,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     VAR obj, first: ORB.Object;
       x: ORG.Item; tp: ORB.Type; ptbase: PtrBase;
       expo: BOOLEAN; id: ORS.Ident;
+      objsize: LONGINT;
   BEGIN (*sync*) pbsList := NIL;
     IF (sym < ORS.const) & (sym # ORS.end) & (sym # ORS.return) THEN ORS.Mark("declaration?");
       REPEAT ORS.Get(sym) UNTIL (sym >= ORS.const) OR (sym = ORS.end) OR (sym = ORS.return)
@@ -934,7 +937,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
           ELSE
             IF tp.size > 1 THEN varsize := (varsize + 3) DIV 4 * 4 (*align*) END ;
             obj.val := varsize;
-            varsize := varsize + obj.type.size;
+            objsize := obj.type.size;
+            IF leaf THEN objsize := ((obj.type.size + 3) DIV 4) * 4 END ;
+            varsize := varsize + objsize;
             MarkReg(obj);
           END ;
           IF obj.expo THEN obj.exno := SHORT(exno); INC(exno) END ;
@@ -1110,7 +1115,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
       END ;
       IF (T.len # 0) & (ORS.errcnt = 0) THEN Texts.Scan(S) ELSE S.class := 0 END
-    END
+    END ;
+    Kernel.Exit(SHORT(ORS.errcnt))
   END Compile;
 
   PROCEDURE Help*;

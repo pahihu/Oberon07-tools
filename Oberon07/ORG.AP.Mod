@@ -60,16 +60,17 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     sectionStart: LONGINT;  (*pc at BeginSection*)
     sectionFixorgD: LONGINT;  (*fixorgD at BeginSection*)
     mergeOpStore: BOOLEAN;  (*merge Op tmp,x,y Mov r,tmp*)
+    lastStoreAdr: LONGINT;
 
   (*leaf procedures*)
 
   PROCEDURE regVar(x: Item): LONGINT;
-  BEGIN ASSERT((64 <= x.a) & (x.a <= 64 + 14*4));
-    RETURN (x.a - 64) DIV 4
+  BEGIN ASSERT((-64 - 14*4 <= x.a) & (x.a <= -64));
+    RETURN ((-x.a) - 64) DIV 4
   END regVar;
 
   PROCEDURE isRegVar(x: Item): BOOLEAN;
-  BEGIN RETURN genLeaf & (x.a >= 64)
+  BEGIN RETURN genLeaf & ((-64 - 14*4 <= x.a) & (x.a <= -64));
   END isRegVar;
 
   PROCEDURE GetXR(VAR x: Item): LONGINT;
@@ -85,6 +86,13 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     diff := RH - 1 + d - (instr DIV C24) MOD 10H;
     INC(code[pc - 1], diff * C24);
   END patchRegTmp;
+
+  PROCEDURE patchMergeOpStore(r: LONGINT);
+    VAR instr: LONGINT;
+  BEGIN
+    IF ORS.debug THEN ORS.Twain("mergeOpStore", pc - 1) END ;                       instr := code[pc - 1];
+    code[pc - 1] := (instr DIV C28) * C28 + r * C24 + instr MOD C24;
+  END patchMergeOpStore;
 
   PROCEDURE BeginSection*;
   BEGIN ASSERT(sectionStart = NoSection);
@@ -376,6 +384,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         yr: LONGINT;
   BEGIN s := x.type.base.size; lim := x.type.len;
     IF (y.mode = ORB.Const) & (lim >= 0) THEN
+      IF ORS.debug THEN ORS.Twain("Index/Const", x.a) END ;
       IF (y.a < 0) OR (y.a >= lim) THEN ORS.Mark("bad index") END ;
       IF x.mode IN {ORB.Var, RegI} THEN x.a := y.a * s + x.a
       ELSIF x.mode = ORB.Par THEN x.b := y.a * s + x.b
@@ -398,10 +407,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         Put0(Mov, yr, 0, y.r);
       END ;
       IF x.mode = ORB.Var THEN
+        IF ORS.debug THEN ORS.Twain("Index/Var", x.a) END ;
         IF x.r > 0 THEN Put0(Add, yr, SP, yr); INC(x.a, frame)
         ELSE GetSB(x.r);
+          IF ORS.debug THEN ORS.Twain("Index/GetSB", x.a) END ;
           IF x.r = 0 THEN
-            IF s = 1 THEN Put0(Add, yr, RH, y.r)
+            IF s = 1 THEN Put0(Add, yr, RH, yr)
             ELSE Put0(Add, yr, RH, yr)
             END
           ELSE Put1a(Add, RH, RH, x.a); Put0(Add, yr, RH, yr); x.a := 0
@@ -409,6 +420,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         END ;
         x.r := yr; x.mode := RegI;
       ELSIF x.mode = ORB.Par THEN
+        IF ORS.debug THEN ORS.Twain("Index/Par",x.a) END ;
         IF ~isRegVar(x) THEN
           Put2(Ldr, RH, SP, x.a + frame);
           Put0(Add, y.r, RH, y.r);
@@ -775,9 +787,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
             IF ORS.debug THEN ORS.Twain("forceRegStore", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
           ELSIF mergeOpStore THEN (*Op z,x,y Mov r,z => Op r,x,y*)
-            IF ORS.debug THEN ORS.Twain("mergeOpStore", pc - 1) END ;
-            instr := code[pc - 1];
-            code[pc - 1] := (instr DIV C28) * C28 + regVar(x) * C24 + instr MOD C24;
+            patchMergeOpStore(regVar(x));
           ELSE (*Mov r, y.r*)
             IF ORS.debug THEN ORS.Twain("~mergeOpStore", pc) END ;
             Put0(Mov, regVar(x), 0, y.r)
@@ -796,7 +806,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       Put2(op, y.r, x.r, x.a); DEC(RH);
     ELSE ORS.Mark("bad mode in Store")
     END ;
-    DEC(RH)
+    DEC(RH);
+    lastStoreAdr := pc - 1
   END Store;
 
   PROCEDURE ForceRegStore(VAR x, y: Item);
@@ -1003,13 +1014,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Return*(form: INTEGER; VAR x: Item; size: LONGINT; int, leaf: BOOLEAN);
   BEGIN
     IF form # ORB.NoTyp THEN
-      IF ORS.debug THEN ORS.Twain("x.mode=",x.mode) END ;
-      IF x.mode = Reg THEN
-        Put0(Mov, 0, 0, x.r);
-        IF ORS.debug THEN ORS.Twain("MOV", pc - 1) END ;
-      ELSE load(x);
-        IF ORS.debug THEN ORS.Twain("load(x)", pc - 1) END ;
-        IF isRegVar(x) THEN Put0(Mov, 0, 0, regVar(x)) END ;
+      IF ORS.debug THEN ORS.Twain("Return/x.mode=",x.mode) END ;
+      load(x);
+      IF leaf & (x.r # 0) THEN
+        IF lastStoreAdr = pc -1 THEN Put0(Mov, 0, 0, x.r)
+        ELSE patchMergeOpStore(0)
+        END
       END
     END ;
     IF ~int THEN (*procedure epilog*)
