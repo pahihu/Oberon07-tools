@@ -3,7 +3,7 @@
 
 O2C=o2c
 O2EF=o2ef
-O2CFLAGS=-M -v
+O2CFLAGS=-M
 
 MODS=OSP.Mod ORTool0.Mod
 BINS=$(MODS:.Mod=$(EXE))

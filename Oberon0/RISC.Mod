@@ -1,5 +1,6 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
-  IMPORT SYSTEM, Texts, Oberon, Sys := System, In, RISCEmu, WA := WAddress, Timer, MemCtrl;
+  IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
+    RISCEmu, WA := WAddress, Timer, MemCtrl, Kernel;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -27,11 +28,39 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     delayTxCounter: INTEGER;
     DelayTX: INTEGER;
 
+  (*text output utilities*)
+
+  PROCEDURE Ln(VAR W: Texts.Writer);
+  BEGIN Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+  END Ln;
+
+  PROCEDURE String(VAR W: Texts.Writer; s: ARRAY OF CHAR);
+  BEGIN Texts.WriteString(W, s)
+  END String;
+
+  PROCEDURE Hex(VAR W: Texts.Writer; x: LONGINT);
+  BEGIN Texts.WriteHex(W, x)
+  END Hex;
+
+  PROCEDURE Int(VAR W: Texts.Writer; x: LONGINT);
+  BEGIN Texts.WriteInt(W, x, 0)
+  END Int;
+
   PROCEDURE ShowABC(VAR W: Texts.Writer; s: ARRAY OF CHAR; A, B, C: LONGINT);
   BEGIN
-    Texts.WriteLn(W); Texts.WriteString(W, s); Texts.WriteString(W, "--->");
-    Texts.WriteLn(W); Texts.WriteHex(W, A); Texts.WriteHex(W, B); Texts.WriteHex(W, C);
+    Ln(W); String(W, s); String(W, "--->");
+    Ln(W); Hex(W, A); Hex(W, B); Hex(W, C)
   END ShowABC;
+
+  PROCEDURE ShowInt(VAR W: Texts.Writer; s: ARRAY OF CHAR; x: LONGINT);
+  BEGIN Ln(W); String(W, s); Int(W, x)
+  END ShowInt;
+
+  PROCEDURE ShowHex(VAR W: Texts.Writer; s: ARRAY OF CHAR; x: LONGINT);
+  BEGIN Ln(W); String(W, s); Hex(W, x)
+  END ShowHex;
+
+  (*arithmetic utilities*)
 
   PROCEDURE Sign(a: LONGINT): INTEGER;
     VAR ret: INTEGER;
@@ -44,11 +73,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         ret: LONGINT;
   BEGIN
     IF Debug THEN
-      Texts.WriteLn(W);
-      Texts.WriteString(W, "  m="); Texts.WriteHex(W,   m); Texts.WriteLn(W);
-      Texts.WriteString(W, "val="); Texts.WriteHex(W, val); Texts.WriteLn(W);
-      Texts.WriteString(W, "pos="); Texts.WriteInt(W, pos, 1); Texts.WriteLn(W);
-      Texts.Append(Oberon.Log, W.buf)
+      ShowHex(W, "  m=", m); ShowHex(W, "val=", val); ShowInt(W, "pos=", pos)
     END;
     CASE pos OF
       0: hi := 100H * (m DIV 100H); lo := 0 |
@@ -57,9 +82,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       3: lo := m MOD 1000000H; hi := 0 |
     END;
     ret := hi + Sys.Ash(val, 8 * pos) + lo;
-    IF Debug THEN
-      Texts.WriteString(W, "ret="); Texts.WriteHex(W, ret); Texts.WriteLn(W);
-    END;
+    IF Debug THEN ShowHex(W, "ret=", ret) END;
     RETURN ret
   END InsertByte;
 
@@ -223,21 +246,19 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
          R[a] := A; N := A < 0; Z := A = 0
       ELSIF ~ODD(q) THEN (*p & ~q: memory instruction*)
         badr := R[b] + IR MOD 100000H; adr := badr DIV 4;
-        IF Debug THEN
-          Texts.WriteLn(W);
-          Texts.WriteString(W, "badr="); Texts.WriteHex(W, badr); Texts.WriteLn(W);
-          Texts.WriteString(W, " adr="); Texts.WriteHex(W,  adr); Texts.WriteLn(W);
-        END;
+        IF adr >= MemCtrl.MaxMem THEN
+          RISCEmu.verbose := TRUE;
+          RISCEmu.Status(W, PC - 1, IR, R, H, Flags(), IntFlags());
+          Ln(W); ShowHex(W, "Error: address out of range", badr); Ln(W);
+          Kernel.Exit(1);
+        END ;
+        IF Debug THEN ShowHex(W, "badr=", badr); ShowHex(W, " adr=", adr) END ;
         IF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
             A := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks);
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
-                Texts.WriteLn(W);
-                Texts.WriteHex(W, A);
-                Texts.WriteString(W, " @");
-                Texts.WriteHex(W, badr);
-                Texts.WriteLn(W);
+                Ln(W); Hex(W, A); String(W, " @"); Hex(W, badr); Ln(W);
               END;
               A := Sys.Ash(A, -8*(badr MOD 4)) MOD 100H
             END;
@@ -262,11 +283,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             END;
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
-                Texts.WriteLn(W);
-                Texts.WriteHex(W, A);
-                Texts.WriteString(W, " @");
-                Texts.WriteHex(W, badr);
-                Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+                Ln(W); Hex(W, A); String(W, " @"); Hex(W, badr); Ln(W);
               END;
               tmp := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks);
               MemCtrl.Write(adr, InsertByte(W, tmp, R[a] MOD 100H, badr MOD 4)); INC(clk, MemCtrl.elapsedClks)
@@ -337,15 +354,14 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     UNTIL done;
     MemCtrl.Flush; INC(clk, MemCtrl.elapsedClks);
 
-    Texts.WriteLn(W);
-    Texts.WriteString(W, "#clks="); Texts.WriteInt(W, clk, 0);
-    Texts.WriteLn(W); Texts.WriteString(W, "  #instr="); Texts.WriteInt(W, MemCtrl.cntFetch, 0);
-    Texts.WriteLn(W); Texts.WriteString(W, "  #memrd="); Texts.WriteInt(W, MemCtrl.cntMemRd, 0);
-    Texts.WriteLn(W); Texts.WriteString(W, "  #memwr="); Texts.WriteInt(W, MemCtrl.cntMemWr, 0);
+    ShowInt(W, "#clks=", clk);
+    ShowInt(W, "  #instr=", MemCtrl.cntFetch);
+    ShowInt(W, "  #memrd=", MemCtrl.cntMemRd);
+    ShowInt(W, "  #memwr=", MemCtrl.cntMemWr);
     IF MemCtrl.enabled THEN
-      Texts.WriteLn(W); Texts.WriteString(W, "  #hit="); Texts.WriteInt(W, MemCtrl.cntHit, 0);
-      Texts.WriteLn(W); Texts.WriteString(W, "  #miss="); Texts.WriteInt(W, MemCtrl.cntMiss, 0);
-      Texts.WriteLn(W); Texts.WriteString(W, "  #efficiency="); Texts.WriteReal(W, MemCtrl.Efficiency(), 0)
+      ShowInt(W, "  #hit=", MemCtrl.cntHit);
+      ShowInt(W, "  #miss=", MemCtrl.cntMiss);
+      Ln(W); String(W, "  #efficiency="); Texts.WriteReal(W, MemCtrl.Efficiency(), 0)
     END ;
     Texts.Append(Oberon.Log, W.buf)
   END Execute;

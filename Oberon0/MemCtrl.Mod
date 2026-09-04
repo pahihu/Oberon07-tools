@@ -153,6 +153,7 @@ MODULE MemCtrl;
     VAR ret: Word;
         tag, idx, wsel: INTEGER;
   BEGIN
+    ASSERT((0 <= adr) & (adr < MaxMem), 10);
     DebugInt(TRUE, "READ", adr);
     elapsedClks := 0;
     IF enabled THEN
@@ -174,6 +175,7 @@ MODULE MemCtrl;
   PROCEDURE Write*(adr: Address; data: Word);
     VAR tag, idx, wsel: INTEGER;
   BEGIN
+    ASSERT((0 <= adr) & (adr < MaxMem), 10);
     DebugInt(TRUE, "WRITE", adr);
     elapsedClks := 0;
     IF enabled THEN
@@ -209,6 +211,7 @@ MODULE MemCtrl;
     VAR ret: Word;
         tag, idx, wsel: INTEGER;
   BEGIN
+    ASSERT((0 <= adr) & (adr < MaxMem), 10);
     DebugInt(TRUE, "FETCH", adr);
     elapsedClks := 0;
     IF enabled THEN
