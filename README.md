@@ -13,7 +13,7 @@ Register allocated parameters, local variables are available in the numeric CASE
 
 Changes:
 * Eliminate ASSERTs in leaf procedures.
-* Stores parameters/local variables in registers in leaf procedures.
+* Store parameters/local variables (except ARRAYs/RECORDs) in registers in leaf procedures.
 * Support the Astrobe extension of ASSERT(cond,code)
 * Support the leaf procedure and interrupt handler syntax of the Astrobe Oberon-07 compiler (/a option). In leaf procedures no run-time checking is performed and the LNK register not saved/not restored.
 
