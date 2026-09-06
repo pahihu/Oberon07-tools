@@ -28,6 +28,12 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
 
   (* ------------- Toolbox of file system ---------------*)
 
+  PROCEDURE Length(s: ARRAY OF CHAR): INTEGER;
+    VAR n: INTEGER;
+  BEGIN n := 0; WHILE s[n] # 0X DO INC(n) END ;
+    RETURN n
+  END Length;
+
   PROCEDURE List(name: FileDir.FileName; adr: LONGINT; VAR cont: BOOLEAN);
     VAR i0, i, j0, j: INTEGER; hp: FileDir.FileHeader;
   BEGIN
@@ -48,6 +54,7 @@ MODULE POSystem; (*JG 3.10.90 / NW 12.10.93 / NW 20.6.2016*)
     END ;
     IF (name[i0] = 0X) & (pat[j0] = 0X) THEN (*found*)
       Texts.WriteString(W, name);
+      i := Length(name); WHILE i < 16 DO Texts.Write(W, " "); INC(i) END ;
       IF pat[j0+1] = "!" THEN (*option*)
         Kernel.GetSector(adr, hp);
         Texts.Write(W, 9X); Texts.WriteClock(W, hp.date);
