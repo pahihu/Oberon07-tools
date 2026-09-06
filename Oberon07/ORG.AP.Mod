@@ -60,7 +60,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     sectionStart: LONGINT;  (*pc at BeginSection*)
     sectionFixorgD: LONGINT;  (*fixorgD at BeginSection*)
     mergeOpStore: BOOLEAN;  (*merge Op tmp,x,y Mov r,tmp*)
-    lastStoreAdr: LONGINT;
+    lastStoreAdr, lastBranchAdr: LONGINT;
 
   (*leaf procedures*)
 
@@ -158,6 +158,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Put3(op, cond, off: LONGINT);
   BEGIN (*emit branch instruction*)
+    lastBranchAdr := pc;
     code[pc] := ((op+12) * 10H + cond) * 1000000H + (off MOD 1000000H); INC(pc)
   END Put3;
 
@@ -1038,7 +1039,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       IF ORS.debug THEN ORS.Twain("Return/x.mode=",x.mode) END ;
       load(x);
       IF leaf & (x.r # 0) THEN
-        IF lastStoreAdr = pc -1 THEN Put0(Mov, 0, 0, x.r)
+        IF (lastStoreAdr = pc - 1) OR (lastBranchAdr = pc - 1) THEN Put0(Mov, 0, 0, x.r)
         ELSE patchMergeOpStore(0)
         END
       END
