@@ -439,12 +439,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         IF ORS.debug THEN ORS.Twain("Index/Par",x.a) END ;
         IF ~isRegVar(x) THEN
           Put2(Ldr, RH, SP, x.a + frame);
-          Put0(Add, y.r, RH, y.r);
+          Put0(Add, yr, RH, yr);
         ELSE
           Put0(Add, yr, regVar(x), yr);
         END ;
         x.mode := RegI; x.r := yr; x.a := x.b
-      ELSIF x.mode = RegI THEN Put0(Add, x.r, x.r, y.r); DEC(RH)
+      ELSIF x.mode = RegI THEN Put0(Add, x.r, x.r, yr); DEC(RH)
       END
     END
   END Index;
