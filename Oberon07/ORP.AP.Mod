@@ -1096,7 +1096,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
              IF S.s[i] = "s" THEN newSF := TRUE
           ELSIF S.s[i] = "a" THEN astrobe := TRUE
           ELSIF S.s[i] = "w" THEN ORS.warning := TRUE
-          ELSIF S.s[i] = "g" THEN ORS.debug := TRUE
+          ELSIF S.s[i] = "g" THEN ORS.warning := TRUE; ORS.debug := TRUE
           END
         END
       END

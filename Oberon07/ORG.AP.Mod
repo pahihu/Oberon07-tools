@@ -383,11 +383,27 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     VAR s, lim: LONGINT;
         yr: LONGINT;
   BEGIN s := x.type.base.size; lim := x.type.len;
+    IF ORS.debug THEN ORS.Twain("Index/ymode", y.mode) END ;
+    IF ORS.debug THEN ORS.Twain("Index/s", s) END ;
+    IF ORS.debug THEN ORS.Twain("Index/lim", lim) END ;
     IF (y.mode = ORB.Const) & (lim >= 0) THEN
       IF ORS.debug THEN ORS.Twain("Index/Const", x.a) END ;
       IF (y.a < 0) OR (y.a >= lim) THEN ORS.Mark("bad index") END ;
       IF x.mode IN {ORB.Var, RegI} THEN x.a := y.a * s + x.a
       ELSIF x.mode = ORB.Par THEN x.b := y.a * s + x.b
+      END
+    ELSIF genLeaf & isRegVar(x) & (y.mode = ORB.Const) THEN
+      IF ORS.debug THEN ORS.Twain("IndexLeaf/Const", x.a) END ;
+      IF y.a < 0 THEN ORS.Mark("bad index") END ;
+      IF x.mode = RegI THEN x.a := y.a * s + x.a
+      ELSIF x.mode = ORB.Var THEN
+        IF ORS.debug THEN ORS.Twain("IndexLeaf/Var", x.a) END ;
+        ASSERT(FALSE);
+        x.a := y.a * s + x.a
+      ELSIF x.mode = ORB.Par THEN
+        IF ORS.debug THEN ORS.Twain("IndexLeaf/Par", x.a) END ;
+        Put1a(Add, RH, regVar(x), y.a * s);
+        x.mode := RegI; x.r := RH; x.a := 0; incR
       END
     ELSE yr := loadXR(y);
       IF check THEN  (*check array bounds*)
@@ -675,16 +691,18 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END Singleton;
 
   PROCEDURE Set*(VAR x, y: Item);   (* x := {x .. y} *)
+    VAR xr, yr: LONGINT;
   BEGIN
     IF (x.mode = ORB.Const) & ( y.mode = ORB.Const) THEN
       IF x.a <= y.a THEN x.a := BIF07.LSL(2, y.a) - BIF07.LSL(1, x.a) ELSE x.a := 0 END
     ELSE
       IF (x.mode = ORB.Const) & (x.a <= 16) THEN x.a := BIF07.LSL(-1, x.a)
-      ELSE load(x); Put1(Mov, RH, 0, -1); Put0(Lsl, x.r, RH, x.r)
+      ELSE xr := loadXR(x); Put1(Mov, RH, 0, -1); Put0(Lsl, xr, RH, x.r); x.r := xr
       END ;
       IF (y.mode = ORB.Const) & (y.a < 16) THEN Put1(Mov, RH, 0, BIF07.LSL(-2, y.a)); y.mode := Reg; y.r := RH; incR
-      ELSE load(y); Put1(Mov, RH, 0, -2); Put0(Lsl, y.r, RH, y.r)
+      ELSE yr := loadXR(y); Put1(Mov, RH, 0, -2); Put0(Lsl, yr, RH, y.r); y.r := yr
       END ;
+      (*NB here x.r and y.r is temp reg due to loadXR()*)
       IF x.mode = ORB.Const THEN
         IF x.a # 0 THEN Put1(Xor, y.r, y.r, -1); Put1a(And, RH-1, y.r, x.a) END ;
         x.mode := Reg; x.r := RH-1
@@ -694,15 +712,17 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END Set;
 
   PROCEDURE In*(VAR x, y: Item);  (* x := x IN y *)
-  BEGIN load(y);
-    IF x.mode = ORB.Const THEN Put1(Ror, y.r, y.r, (x.a + 1) MOD 20H); DEC(RH)
-    ELSE load(x); Put1(Add, x.r, x.r, 1); Put0(Ror, y.r, y.r, x.r); DEC(RH, 2)
+    VAR xr, yr: LONGINT;
+  BEGIN yr := loadXR(y);
+    IF x.mode = ORB.Const THEN Put1(Ror, yr, y.r, (x.a + 1) MOD 20H); y.r := yr; DEC(RH)
+    ELSE xr := loadXR(x); Put1(Add, xr, x.r, 1); Put0(Ror, yr, y.r, xr); x.r := xr; DEC(RH, 2)
     END ;
     SetCC(x, MI)
   END In;
 
   PROCEDURE SetOp*(op: LONGINT; VAR x, y: Item);   (* x := x op y *)
     VAR xset, yset: SET; (*x.type.form = Set*)
+        xr: LONGINT;
   BEGIN
     IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN
       xset := SYSTEM.VAL(SET, x.a); yset := SYSTEM.VAL(SET, y.a);
@@ -713,12 +733,13 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       END ;
       x.a := SYSTEM.VAL(LONGINT, xset)
     ELSIF y.mode = ORB.Const THEN
-      load(x);
-      IF op = ORS.plus THEN Put1a(Ior, x.r, x.r, y.a)
-      ELSIF op = ORS.minus THEN Put1a(Ann, x.r, x.r, y.a)
-      ELSIF op = ORS.times THEN Put1a(And, x.r, x.r, y.a)
-      ELSIF op = ORS.rdiv THEN Put1a(Xor, x.r, x.r, y.a)
+      xr := loadXR(x);
+      IF op = ORS.plus THEN Put1a(Ior, xr, x.r, y.a)
+      ELSIF op = ORS.minus THEN Put1a(Ann, xr, x.r, y.a)
+      ELSIF op = ORS.times THEN Put1a(And, xr, x.r, y.a)
+      ELSIF op = ORS.rdiv THEN Put1a(Xor, xr, x.r, y.a)
       END ;
+      x.r := xr;
     ELSE load(x); load(y);
       IF op = ORS.plus THEN Put0(Ior, RH-2, x.r, y.r)
       ELSIF op = ORS.minus THEN Put0(Ann, RH-2, x.r, y.r)
