@@ -393,7 +393,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       IF x.mode IN {ORB.Var, RegI} THEN x.a := y.a * s + x.a
       ELSIF x.mode = ORB.Par THEN x.b := y.a * s + x.b
       END
-    ELSIF genLeaf & isRegVar(x) & (y.mode = ORB.Const) THEN
+    ELSIF isRegVar(x) & (y.mode = ORB.Const) THEN
       IF ORS.debug THEN ORS.Twain("IndexLeaf/Const", x.a) END ;
       IF y.a < 0 THEN ORS.Mark("bad index") END ;
       IF x.mode = RegI THEN x.a := y.a * s + x.a

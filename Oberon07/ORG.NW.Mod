@@ -10,6 +10,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     MT = 12; SP = 14; LNK = 15;   (*dedicated registers*)
     maxCode = 8800; maxStrx = 3200; maxTD = 160; C24 = 1000000H; (*AP 13.12.24*)
     Reg = 10; RegI = 11; Cond = 12;  (*internal item modes*)
+    NoSection = -1;
 
   (*frequently used opcodes*)  U = 2000H; V = 1000H;
     Mov = 0; Lsl = 1; Asr = 2; Ror= 3; And = 4; Ann = 5; Ior = 6; Xor = 7;
@@ -55,6 +56,23 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     str: ARRAY maxStrx OF CHAR;
 
     W: Texts.Writer;
+
+    sectionStart: LONGINT;  (*pc at BeginSection*)
+    sectionFixorgD: LONGINT;  (*fixorgD at BeginSection*)
+
+  PROCEDURE BeginSection*;
+  BEGIN ASSERT(sectionStart = NoSection);
+    sectionStart := pc; sectionFixorgD := fixorgD;
+  END BeginSection;
+
+  PROCEDURE EndSection*(drop: BOOLEAN);
+  BEGIN ASSERT(sectionStart # NoSection);
+    IF drop THEN
+      pc := sectionStart;
+      fixorgD := sectionFixorgD;
+    END;
+    sectionStart := NoSection
+  END EndSection;
 
   (*instruction assemblers according to formats*)
 
@@ -1135,4 +1153,5 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
   Texts.OpenWriter(W);
+  sectionStart := NoSection
 END ORG.
