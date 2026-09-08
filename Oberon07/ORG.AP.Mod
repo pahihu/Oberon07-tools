@@ -928,8 +928,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END For1;
 
   PROCEDURE For2*(VAR x, y, w: Item);
-  BEGIN load(x); DEC(RH); Put1a(Add, x.r, x.r, w.a);
-    IF isRegVar(x) THEN Put0(Mov, RH, 0, regVar(x)) END
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x); DEC(RH); Put1a(Add, xr, x.r, w.a); x.r := xr
   END For2;
 
   (* Branches, procedure calls, procedure prolog and epilog *)
