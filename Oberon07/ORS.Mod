@@ -1,5 +1,5 @@
 MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
-  IMPORT SYSTEM, Texts, Oberon, BIF07, Sys := System;
+  IMPORT SYSTEM, Texts, Oberon, BIF07, Sys := System, RedirFiles;
 
 (* Oberon Scanner does lexical analysis. Input is Oberon-Text, output is
   sequence of symbols, i.e identifiers, numbers, strings, and special symbols.
@@ -35,6 +35,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   TYPE Ident* = ARRAY IdLen OF CHAR;
        LONGINT = Sys.INT32;
        INTEGER = Sys.INT32;
+       Path* = RedirFiles.Path;
 
   VAR ival*, slen*: LONGINT;  (*results of Get*)
     rval*: REAL;
@@ -294,6 +295,11 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   BEGIN debug := TRUE
   END EnableDebug;
 
+  PROCEDURE ResolvePath*(VAR path: Path);
+    VAR found: BOOLEAN;
+  BEGIN found := RedirFiles.FindOld(path)
+  END ResolvePath;
+
 BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   EnterKW(if, "IF");
   EnterKW(do, "DO");
@@ -336,5 +342,7 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   EnterKW(procedure, "PROCEDURE");
   KWX[9] := k;
   warning := FALSE; debug := FALSE;
+
+  RedirFiles.InitFromEnv("ORPRED", "~/.orp.red")
 END ORS.
 (* vim:set ts=2 sw=2 et: *)

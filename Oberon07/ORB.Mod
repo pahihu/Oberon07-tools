@@ -224,11 +224,12 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
       thismod: Object;
       modname, fname: ORS.Ident;
       F: Files.File; R: Files.Rider;
+      path: ORS.Path;
   BEGIN
     IF modid1 = "SYSTEM" THEN
       thismod := ThisModule(modid, modid1, TRUE,  key); DEC(nofmod);
       thismod.lev := 0; thismod.dsc := system; thismod.rdo := TRUE
-    ELSE MakeFileName(fname, modid1, ".smb"); F := Files.Old(fname);
+    ELSE MakeFileName(fname, modid1, ".smb"); COPY(fname, path); ORS.ResolvePath(path); F := Files.Old(path);
       IF F # NIL THEN
         IF ORS.verbose THEN
           Texts.WriteString(W, "  reading "); Texts.WriteString(W, fname);
@@ -453,7 +454,7 @@ BEGIN
   enter("PUT", SProc, noType, 112);
   enter("GET", SProc, noType, 102);
 
-  Texts.OpenWriter(W);
+  Texts.OpenWriter(W)
 END ORB.
 
 (* vim:set ts=2 sw=2 et: *)

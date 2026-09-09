@@ -30,5 +30,7 @@ MODULE Kernal ["C"] EXTERNAL ["Kernal.c"];
   (*PROCEDURE GetModule* ["get_module"] (id: ModuleId): Module;*)
   PROCEDURE GetO2Time* ["get_o2time"] (sec: C.int; VAR t, d: C.longint);
 
+  PROCEDURE getenv* (name: ARRAY OF C.char): C.address;
+
 END Kernal.
 (* vim:set ts=2 sw=2 et: *)

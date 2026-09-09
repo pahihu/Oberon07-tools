@@ -1111,9 +1111,10 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     VAR beg, end, time: LONGINT;
       T: Texts.Text;
       S: Texts.Scanner;
+      path: ORS.Path;
   BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     WHILE S.class = Texts.Name DO
-      NEW(T); Texts.Open(T, S.s);
+      NEW(T); COPY(S.s, path); ORS.ResolvePath(path); Texts.Open(T, path);
       IF T.len > 0 THEN Option(S); ORS.Init(T, 0); Module
       ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
         Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)

@@ -1,5 +1,5 @@
 MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.8.26 *)
-  IMPORT SYSTEM, Files, Texts, Oberon, Args, Kernel := POKernel, Sys := System;
+  IMPORT SYSTEM, Files, Texts, Oberon, Args, Kernel := POKernel, Sys := System, RedirFiles;
   CONST versionkey = 1X; versionkey0 = 0X; MT = 12; DescSize = 80; MnLength = 32; BootSec = 2; BootSize = 64; FPrint = 12345678H;
     noerr* = 0; nofile* = 1; badversion* = 2; badkey* = 3; badfile* = 4; nospace* = 5;
     DestAdr = 8; MemAdr = 12; AllocAdr = 16; RootAdr = 20; StackAdr = 24; FPrintAdr = 28; MTAdr = 32; ModAdr = 256;
@@ -90,7 +90,13 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   PROCEDURE ThisFile(name: ARRAY OF CHAR): Files.File;
     VAR F: Files.File;
       filename: ModuleName;
-  BEGIN MakeFileName(filename, name, ".rsc"); F := Files.Old(filename); RETURN F
+      path: RedirFiles.Path;
+      found: BOOLEAN;
+  BEGIN
+    MakeFileName(filename, name, ".rsc");
+    COPY(filename, path); found := RedirFiles.FindOld(path);
+    F := Files.Old(path);
+    RETURN F
   END ThisFile;
 
   PROCEDURE error(n: INTEGER; name: ARRAY OF CHAR);
@@ -424,6 +430,8 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Boot linker/loader  AP 1.5.23"); EndLine;
   NEW(Mem); MemBase := SYSTEM.VAL(Sys.Address, Mem); limit := MemSize;
   codeSize := 0; dataSize := 0;
+  RedirFiles.InitFromEnv("ORPRED", "~/.orp.red");
+
   Oberon.Run
 END ORL.
 

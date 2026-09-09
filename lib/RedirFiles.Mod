@@ -1,7 +1,7 @@
 MODULE RedirFiles;
-  IMPORT Redir, Files, Out;
+  IMPORT Redir, Files, Out, Kernal, C := CType, SYSTEM;
   
-  TYPE Path = ARRAY 256 OF CHAR;
+  TYPE Path* = ARRAY 256 OF CHAR;
   VAR pat: Redir.Pattern;
       debug*: BOOLEAN;
   
@@ -42,6 +42,27 @@ MODULE RedirFiles;
   PROCEDURE Init*(name: ARRAY OF CHAR);
   BEGIN pat := Redir.Read(name)
   END Init;
+
+  PROCEDURE StrCopy(VAR dst: ARRAY OF CHAR; src: C.charPtr1d);
+    VAR i: INTEGER;
+  BEGIN i := 0;
+    WHILE src[i] # 0X DO dst[i] := src[i]; INC(i) END ;
+    dst[i] := 0X
+  END StrCopy;
+
+  PROCEDURE InitFromEnv*(var: ARRAY OF CHAR; default: ARRAY OF CHAR);
+    VAR tmp: ARRAY 256 OF CHAR;
+        adr: C.address;
+  BEGIN
+    adr := Kernal.getenv(var);
+    IF adr # 0 THEN
+        StrCopy(tmp, SYSTEM.VAL(C.charPtr1d, adr));
+        Init(tmp)
+    ELSE
+        Init(default)
+    END
+  END InitFromEnv;
   
 BEGIN pat := NIL; debug := FALSE;
 END RedirFiles.
+(* vim:set ts=2 sw=2 et: *)
