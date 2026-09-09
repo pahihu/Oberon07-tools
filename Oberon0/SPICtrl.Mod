@@ -9,6 +9,9 @@ MODULE SPICtrl;
         WriteSingleBlock = 24; WriteStartDate = 254; ReadSingleBlock = 17;
         NoError = 0; InIdleState = 1; Error = 80H; (*SPI response*)
         Idle = 0FFH;
+        Fast = 16; Word = 8; (*ctrl*)
+        BitDelayFast = 3; BitDelaySlow = 29; (*TODO check*)
+        RxRdy = 1; TxRdy = 0;
 
   TYPE
       Block = ARRAY BlockSize OF BYTE;
@@ -23,8 +26,14 @@ MODULE SPICtrl;
       buf: ARRAY 2 * BlockSize OF CHAR;
       bufLen: INTEGER;
       pos: INTEGER;
-      reponse: BYTE;
+      reponse: LONGINT;
       DoIO: Proc;
+
+      status*: SET;
+      ctrl*: SET;
+      data*: LONGINT;
+      delayRx*: LONGINT;
+      delayTx: LONGINT;
 
       BlockNo: LONGINT;
 
@@ -72,12 +81,12 @@ MODULE SPICtrl;
   BEGIN
   END DoNothing;
 
-  PROCEDURE Reset*;
+  PROCEDURE ResetIO*;
   BEGIN
     pos := 0; bufLen := 0;
     response := Idle;
     bufState := Undef
-  END Reset;
+  END ResetIO;
 
   PROCEDURE Recv(n: INTEGER; b: BYTE);
   BEGIN
@@ -97,11 +106,31 @@ MODULE SPICtrl;
   BEGIN response := b
   END Repond;
 
-  PROCEDURE Command*(cmd: BYTE; arg: LONGINT; crc: BYTE);
+  PROCECURE Get4(i: INTEGER): LONGINT;
+    VAR ret: LONGINT;
+  BEGIN
+    ASSERT((0 <= i) & (i + 4 <= bufLen));
+    ret := buf[i+3] * 100H) + buf[i+2]) * 100H + buf[i+1]) * 100H + buf[i];
+    RETURN ret
+  END Get4;
+
+  PROCEDURE CalcDelay(numBits: INTEGER): LONGINT;
+    VAR ret: LONGINT;
+  BEGIN
+    IF Fast IN ctrl THEN
+      ret := numBits * BitDelayFast
+    ELSE
+      ret := numBits * BitDelaySlow
+    END ;
+    RETURN ret
+  END CalcDelay;
+
+  PROCEDURE DoCommand;
     VAR tmp: Block;
   BEGIN
+    cmd := buf[0]; arg := Get4(1); crc := buf[5];
     resp := Idle;
-    Reset;
+    ResetIO;
     CASE cmd OF
       GoIdleState:
         resp := InIdleState |
@@ -133,30 +162,42 @@ MODULE SPICtrl;
     END
   END Command;
 
-  PROCEDURE Do*(inp: BYTE): BYTE;
-    VAR ret: BYTE;
+  PROCEDURE Do*(inp: BYTE): LONGINT;
+    VAR ret: LONGINT;
   BEGIN
     CASE bufState OF
       Undef:
         ret := Idle |
       Input:
-        IF pos < bufLen THEN (*TODO check input*)
-          IF buf[pos] # Any THEN
-            IF buf[pos] # inp THEN Warning("input mismatch ", pos) END
-          END ;
-          buf[pos] := inp; INC(pos)
+        IF delayRx = 0 THEN
+          IF pos < bufLen THEN (*TODO check input*)
+            IF buf[pos] # Any THEN
+              IF buf[pos] # inp THEN Warning("input mismatch ", pos) END
+            END ;
+            buf[pos] := inp; INC(pos)
+          ELSE
+            DoIO;
+            bufState := Idle;
+            ret := response
+          END
         ELSE
-          DoIO;
-          bufState := Idle;
-          ret := response
+          DEC(delayRx)
         END |
       Output:
-        IF pos < bufLen THEN
-          ret := buf[pos]; INC(pos)
+        IF delayTx = 0 THEN
+          IF pos < bufLen THEN
+            IF Word IN ctrl THEN
+              ret := Get4(pos); INC(pos, 4); delayTx := CalcDelay(32)
+            ELSE
+              ret := buf[pos]; INC(pos); delayTx := CalcDelay(8)
+            END ;
+          ELSE
+            DoIO;
+            bufState := Idle;
+            ret := response; delayTx := CalcDelay(8)
+          END
         ELSE
-          DoIO;
-          bufState := Idle;
-          ret := response
+          DEC(delayTx)
         END
     END ;
     RETURN ret
@@ -168,7 +209,8 @@ BEGIN
   ASSERT(maxSize MOD BlockSize = 0, 30);
   numBlocks := maxSize DIV BlockSize;
   Files.Set(R, F, 0);
-  Reset
+
+  status := {rxRdy, txRdy}; ctrl := {}; ResetIO;
 END SPICtrl.
 (* vim:set ts=2 sw=2 et: *)
 
