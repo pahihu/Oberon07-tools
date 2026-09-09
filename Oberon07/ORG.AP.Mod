@@ -61,6 +61,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     sectionFixorgD: LONGINT;  (*fixorgD at BeginSection*)
     mergeOpStore: BOOLEAN;  (*merge Op tmp,x,y Mov r,tmp*)
     lastStoreAdr, lastBranchAdr: LONGINT;
+    astrobe*: BOOLEAN; (*Astrobe Oberon-07*)
 
   (*leaf procedures*)
 
@@ -1061,13 +1062,19 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   (* Case Statements *)
 
   PROCEDURE CaseHead*(VAR x: Item; VAR L0: LONGINT);
-  BEGIN load(x);  (*value of case expression*)
+    VAR xr: LONGINT;
+  BEGIN xr := loadXR(x);  (*value of case expression*)
     L0 := pc; Put1(Cmp, RH, x.r, 0);  (*higher bound, fixed up in CaseTail*)
     Put3(BC, CC, 0);  (*branch to else, fixed up in CaseTail*)
-    Put1(Add, x.r, x.r, 0);  (*nof words between BL instruction at L0+4 and jump table, fixed up in CaseTail*)
-    Put1(Lsl, x.r, x.r, 2);
-    (*L0+4*) Put3(BL, 7, 0);  (*LNK := PC+1*)
-    Put0(Add, LNK, LNK, x.r); Put3(BR, 7, LNK); DEC(RH)
+    Put1(Add, xr, x.r, 0); (*nof words between BL instruction at L0+4 and jump table, fixed up in CaseTail*)
+    IF astrobe THEN
+      Put3(BR, 7, 80H + xr);
+    ELSE
+      Put1(Lsl, xr, xr, 2);
+      (*L0+4*) Put3(BL, 7, 0);  (*LNK := PC+1*)
+      Put0(Add, LNK, LNK, xr); Put3(BR, 7, LNK);
+    END ;
+    DEC(RH); x.r := xr
   END CaseHead;
 
   PROCEDURE CaseTail*(L0, L1: LONGINT; n: INTEGER; VAR tab: ARRAY OF LabelRange);  (*L1 = label for else*)
@@ -1076,7 +1083,11 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF n > 0 THEN fix1(L0, tab[n-1].high + 1) (*higher bound*) ELSIF L1 = 0 THEN ORS.Mark("empty case") END ;
     IF L1 = 0 THEN L1 := pc; Trap(7, 1) END ;  (*create else*)
     fix(L0+1, L1-L0-2);  (*branch to else*)
-    fix1(L0+2, pc-L0-5);  (*nof words between BL instruction at L0+4 and jump table*)
+    IF astrobe THEN
+      fix1(L0+2, pc-L0-4);  (*nof words between BL instruction at L0+4 and jump table*)
+    ELSE
+      fix1(L0+2, pc-L0-5);  (*nof words between BL instruction at L0+4 and jump table*)
+    END ;
     j := 0;
     FOR i := 0 TO n-1 DO  (*construct jump table*)
       WHILE j < tab[i].low DO BJump(L1); INC(j) END ;  (*else*)
@@ -1411,6 +1422,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
 genLeaf := FALSE; baseRH := 0; sectionStart := NoSection;
-forceRegStore := FALSE; mergeOpStore := FALSE
+forceRegStore := FALSE; mergeOpStore := FALSE; astrobe := FALSE
 END ORG.
 (* vim:set ts=2 sw=2 et: *)

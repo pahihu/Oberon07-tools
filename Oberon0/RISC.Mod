@@ -245,7 +245,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
          END ;
          R[a] := A; N := A < 0; Z := A = 0
       ELSIF ~ODD(q) THEN (*p & ~q: memory instruction*)
-        badr := R[b] + IR MOD 100000H; adr := badr DIV 4;
+        tmp := IR MOD 100000H;
+        IF tmp >= 80000H THEN tmp := tmp - 100000H END ;
+        badr := R[b] + tmp; adr := badr DIV 4;
         IF adr >= MemCtrl.MaxMem THEN
           RISCEmu.verbose := TRUE;
           RISCEmu.Status(W, PC - 1, IR, R, H, Flags(), IntFlags());

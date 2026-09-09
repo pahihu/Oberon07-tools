@@ -27,7 +27,6 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     pbsList: PtrBase;   (*list of names of pointer base types*)
     dummy: ORB.Object;
     W: Texts.Writer;
-    astrobe: BOOLEAN;   (*Astrobe Oberon-07*)
     leaf: BOOLEAN;	(*leaf procedure*)
     inASSERT: BOOLEAN;  (*parsing ASSERT*)
 
@@ -464,7 +463,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       drop: BOOLEAN;
   BEGIN Check(ORS.lparen, "no ("); ORG.BeginSection; drop := FALSE;
     npar := pno MOD 10; pno := pno DIV 10;
-    inASSERT := astrobe & (pno = 4);
+    inASSERT := ORG.astrobe & (pno = 4);
     expression(x); nap := 1;
     IF sym = ORS.comma THEN
       ORS.Get(sym); expression(y); nap := 2; z.type := ORB.noType;
@@ -472,7 +471,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     ELSE y.type := ORB.noType
     END ;
     Check(ORS.rparen, "no )");
-    assert12 := astrobe & (pno = 4) & (nap IN {1,2}); (*ASSERT(cond,code)*)
+    assert12 := ORG.astrobe & (pno = 4) & (nap IN {1,2}); (*ASSERT(cond,code)*)
     inASSERT := FALSE;
     IF (npar = nap) OR (pno IN {0, 1}) OR assert12 THEN
       IF pno IN {0, 1} THEN (*INC, DEC*)
@@ -563,7 +562,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     PROCEDURE NumericCasePart(VAR x: ORG.Item);
       VAR L0, L1, L2: LONGINT; n, labelform: INTEGER;
         tab: ARRAY NofCases OF ORG.LabelRange;  (*ordered table of label ranges*)
-    BEGIN IF leaf THEN ORS.Mark("leaf procedure") END ;
+    BEGIN IF leaf & ~ORG.astrobe THEN ORS.Mark("leaf procedure") END ;
       Check(ORS.of, "OF expected"); ORG.CaseHead(x, L0); n := 0; L2 := 0; labelform := x.type.form;
       WHILE (sym < ORS.end) OR (sym = ORS.bar) DO
         IF sym = ORS.bar THEN ORS.Get(sym) ELSE NumericCase(labelform, n, tab); ORG.FJump(L2) END
@@ -972,7 +971,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       stkblksize: LONGINT;
   BEGIN (* ProcedureDecl *) leaf := FALSE; int := FALSE; ORS.Get(sym);
     IF sym = ORS.times THEN ORS.Get(sym);
-      leaf := astrobe; int := ~astrobe
+      leaf := ORG.astrobe; int := ~ORG.astrobe
     END ;
     IF sym = ORS.ident THEN
       ORS.CopyId(procid); ORS.Get(sym);
@@ -986,7 +985,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       CheckExport(proc.expo);
       IF proc.expo THEN proc.exno := SHORT(exno); INC(exno) END ;
       ORB.OpenScope; INC(level); type.base := ORB.noType;
-      IF astrobe THEN
+      IF ORG.astrobe THEN
         CheckIntHandler(int);
         IF ~int THEN ProcedureType(type, parblksize) END ; (*formal parameter list*)
       ELSE ProcedureType(type, parblksize);  (*formal parameter list*)
@@ -1092,13 +1091,13 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
 
   PROCEDURE Option(VAR S: Texts.Scanner);
     VAR i: INTEGER;   
-  BEGIN newSF := FALSE; astrobe := FALSE;
+  BEGIN newSF := FALSE; ORG.astrobe := FALSE;
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
       IF S.class = Texts.Name THEN
         FOR i := 0 TO S.len DO 
              IF S.s[i] = "s" THEN newSF := TRUE
-          ELSIF S.s[i] = "a" THEN astrobe := TRUE
+          ELSIF S.s[i] = "a" THEN ORG.astrobe := TRUE
           ELSIF S.s[i] = "w" THEN ORS.warning := TRUE
           ELSIF S.s[i] = "g" THEN ORS.warning := TRUE; ORS.debug := TRUE
           END
