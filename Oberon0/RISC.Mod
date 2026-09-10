@@ -27,6 +27,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     absTime: BOOLEAN;
     delayTxCounter: INTEGER;
     DelayTX: INTEGER;
+    stackOrg, stackMin: LONGINT;
 
   (*text output utilities*)
 
@@ -192,7 +193,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       done: BOOLEAN;
       hitRate: LONGREAL;
   BEGIN
-    PC := entry.ToWords() (*0*); R[13] := pc.ToBytes();
+    PC := entry.ToWords() (*0*); R[13] := pc.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
@@ -352,7 +353,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       done := (IR = -18000001H); (*HALT B -1*)
       IF RISCEmu.verbose THEN
         done := done OR (MemCtrl.cntFetch > 10000);
-      END
+      END ;
+      IF R[SP] < stackMin THEN stackMin := R[SP] END
     UNTIL done;
     MemCtrl.Flush; INC(clk, MemCtrl.elapsedClks);
 
@@ -360,6 +362,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     ShowInt(W, "  #instr=", MemCtrl.cntFetch);
     ShowInt(W, "  #memrd=", MemCtrl.cntMemRd);
     ShowInt(W, "  #memwr=", MemCtrl.cntMemWr);
+    ShowInt(W, "  #stack=", stackOrg - stackMin);
     IF MemCtrl.enabled THEN
       ShowInt(W, "  #hit=", MemCtrl.cntHit);
       ShowInt(W, "  #miss=", MemCtrl.cntMiss);
