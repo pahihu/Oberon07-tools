@@ -71,6 +71,14 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     INC(errcnt); errpos := p + 4
   END Mark;
 
+  PROCEDURE Warn*(msg: ARRAY OF CHAR);
+    VAR p: LONGINT;
+  BEGIN p := Pos();
+    Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1); Texts.WriteString(W, " warning: ");
+    Texts.WriteString(W, msg);
+    Texts.Append(Oberon.Log, W.buf)
+  END Warn;
+
   PROCEDURE Twain*(msg: ARRAY OF CHAR; arg: LONGINT);
     VAR p: LONGINT;
   BEGIN IF ~warning THEN Mark(msg); RETURN END ;

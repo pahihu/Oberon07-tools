@@ -115,10 +115,14 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
   END IsExtension;
 
   (* expressions *)
+  PROCEDURE OpaquePtr(T: ORB.Type): BOOLEAN;
+  BEGIN RETURN (T.base.len = 0) & (T.mno # 0)
+  END OpaquePtr;
 
   PROCEDURE TypeTest(VAR x: ORG.Item; T: ORB.Type; guard: BOOLEAN);
     VAR xt: ORB.Type;
   BEGIN xt := x.type;
+    IF OpaquePtr(xt) THEN ORS.Mark("opaque pointer") END ;
     IF (T.form = xt.form ) & ((T.form = ORB.Pointer) OR (T.form = ORB.Record) & (x.mode = ORB.Par)) THEN
       WHILE (xt # T) & (xt # NIL) DO xt := xt.base END ;
       IF xt # T THEN xt := x.type;
@@ -472,7 +476,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
         CheckSet(x); CheckReadOnly(x); CheckInt(y); ORG.Include(pno-2, x, y)
       ELSIF pno = 4 THEN CheckBool(x); ORG.Assert(x); drop := leaf;
       ELSIF pno = 5 THEN(*NEW*) CheckReadOnly(x);
-         IF (x.type.form = ORB.Pointer) & (x.type.base.form = ORB.Record) THEN ORG.New(x)
+         IF (x.type.form = ORB.Pointer) & (x.type.base.form = ORB.Record) THEN
+          IF OpaquePtr(x.type) THEN ORS.Mark("opaque pointer") ELSE ORG.New(x) END
          ELSE ORS.Mark("not a pointer to record")
          END
       ELSIF pno = 6 THEN CheckReal(x); CheckInt(y); CheckReadOnly(x); ORG.Pack(x, y)
@@ -845,7 +850,10 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
         IF tp.form = ORB.Record THEN
           ptbase := pbsList;  (*check whether this is base of a pointer type; search and fixup*)
           WHILE ptbase # NIL DO
-            IF obj.name = ptbase.name THEN ptbase.type.base := obj.type END ;
+            IF obj.name = ptbase.name THEN
+              IF ptbase.type.typobj.expo & ~obj.expo THEN ORS.Warn("opaque pointer") END ;
+              ptbase.type.base := obj.type
+            END ;
             ptbase := ptbase.next
           END ;
           IF level = 0 THEN ORG.BuildTD(tp, dc) END    (*type descriptor; len used as its address*)
