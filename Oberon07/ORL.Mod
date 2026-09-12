@@ -7,7 +7,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
     C18 = 40000H; C20 = 100000H; C22 = 400000H; C24 = 1000000H; BCT = 0E7000000H; BLT = 0F7000000H;
     
     MemSize = 20000H; (*128K area for linking*)
-    MaxModules = 55;
+    MaxModules = 55; MaxImports = 16;
 
   TYPE  (*copied from Modules for use as cross linker/loader*)
     PtrOffset* = Sys.Integer;
@@ -142,7 +142,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
       disp, adr, inst, pno, vno, dest, offset: Sys.Integer;
       name1, impname: ModuleName;
       F: Files.File; R: Files.Rider;
-      import: ARRAY 16 OF Module;
+      import: ARRAY MaxImports + 1 OF Module; (*1-MaxImports*)
       ptr: Sys.Integer;
   BEGIN mod := root; error(noerr, name); nofimps := 0;
     WHILE (mod # NIL) & (name # mod.name) DO mod := AbsPtr(mod.next) END ;
@@ -188,7 +188,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
         Sys.ReadInt(R, n); DetailStats(" tdesc=", n);
         WHILE n > 0 DO Sys.ReadInt(R, w); Put4(p, w); INC(p, 4); DEC(n, 4) END ;  (*type descriptors*)
         Sys.ReadInt(R, n); Stats(" data=", n); dataSize := dataSize + n;
-        WHILE n > 0 DO Put4(p, 0); INC(p, 4); DEC(n, 4) END ;  (*variable space*)
+        WHILE n > 0 DO Put4(p, 0DEADC0DEH); INC(p, 4); DEC(n, 4) END ;  (*variable space*)
         Sys.ReadInt(R, n); DetailStats(" strings=", n);
         WHILE n > 0 DO Files.Read(R, ch); Put1(p, ch); INC(p); DEC(n) END ;   (*strings*)
         mod.code := p;  (*program*)
