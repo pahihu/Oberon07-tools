@@ -455,6 +455,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   BEGIN
     IF ORS.debug THEN ORS.Twain("DeRef=",pc) END ;
     IF x.mode = ORB.Var THEN
+      IF ORS.debug THEN ORS.Twain("DeRef/Var",pc) END ;
       IF x.r > 0 THEN (*local*)
         IF isRegVar(x) THEN
           Put2(Mov, RH, 0, regVar(x));
@@ -466,16 +467,17 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       END ;
       NilCheck; x.r := RH; incR
     ELSIF x.mode = ORB.Par THEN
+      IF ORS.debug THEN ORS.Twain("DeRef/Par",pc) END ;
       IF isRegVar(x) THEN
-        IF isRegVar(x) THEN
-          Put2(Mov, RH, 0, regVar(x));
-        ELSE
-          Put2(Ldr, RH, SP, x.a + frame);
-        END ;
-        Put2(Ldr, RH, RH, x.b);
+        Put2(Mov, RH, 0, regVar(x));
+      ELSE
+        Put2(Ldr, RH, SP, x.a + frame);
       END ;
+      Put2(Ldr, RH, RH, x.b);
       NilCheck; x.r := RH; incR
-    ELSIF x.mode = RegI THEN Put2(Ldr, x.r, x.r, x.a); NilCheck
+    ELSIF x.mode = RegI THEN
+      IF ORS.debug THEN ORS.Twain("DeRef/RegI",pc) END ;
+      Put2(Ldr, x.r, x.r, x.a); NilCheck
     ELSIF x.mode # Reg THEN ORS.Mark("bad mode in DeRef")
     END ;
     x.mode := RegI; x.a := 0; x.b := 0
