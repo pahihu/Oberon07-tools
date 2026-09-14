@@ -188,7 +188,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
         Sys.ReadInt(R, n); DetailStats(" tdesc=", n);
         WHILE n > 0 DO Sys.ReadInt(R, w); Put4(p, w); INC(p, 4); DEC(n, 4) END ;  (*type descriptors*)
         Sys.ReadInt(R, n); Stats(" data=", n); dataSize := dataSize + n;
-        WHILE n > 0 DO Put4(p, 0DEADC0DEH); INC(p, 4); DEC(n, 4) END ;  (*variable space*)
+        WHILE n > 0 DO Put4(p, Sys.Short(0DEADC0DEH)); INC(p, 4); DEC(n, 4) END ;  (*variable space*)
         Sys.ReadInt(R, n); DetailStats(" strings=", n);
         WHILE n > 0 DO Files.Read(R, ch); Put1(p, ch); INC(p); DEC(n) END ;   (*strings*)
         mod.code := p;  (*program*)
