@@ -573,7 +573,12 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       WHILE (sym < ORS.end) OR (sym = ORS.bar) DO
         IF sym = ORS.bar THEN ORS.Get(sym) ELSE NumericCase(labelform, n, tab); ORG.FJump(L2) END
       END ;
-      IF sym = ORS.else THEN ORS.Get(sym); L1 := ORG.Here(); StatSequence; ORG.FJump(L2) ELSE L1 := 0 END ;
+      IF sym = ORS.else THEN
+        IF leaf THEN ORS.Mark("leaf procedure") END ;
+        ORS.Get(sym); L1 := ORG.Here(); StatSequence; ORG.FJump(L2)
+      ELSE
+        L1 := 0
+      END ;
       ORG.CaseTail(L0, L1, n, tab); ORG.FixLink(L2)
     END NumericCasePart;
 

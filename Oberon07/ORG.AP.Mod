@@ -19,6 +19,11 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     MI = 0; PL = 8; EQ = 1; NE = 9; CS = 2; CC = 10; LT = 5; GE = 13; LE = 6; GT = 14;
     NoSection = -1;
 
+    (*CaseHiVal = 0; CaseJmpOverHi = 1; CaseTblDisp = 2;*)
+    CaseHiVal = 2; CaseJmpOverHi = 3; CaseTblDisp = 4;
+    CaseLoVal = 0; CaseJmpBelowLo = 1;
+    CaseLoTest = 2;
+
   TYPE
     LONGINT = Sys.INT32;
     INTEGER = Sys.INT32;
@@ -1066,9 +1071,16 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE CaseHead*(VAR x: Item; VAR L0: LONGINT);
     VAR xr: LONGINT;
   BEGIN xr := loadXR(x);  (*value of case expression*)
-    L0 := pc; Put1(Cmp, RH, x.r, 0);  (*higher bound, fixed up in CaseTail*)
-    Put3(BC, CC, 0);  (*branch to else, fixed up in CaseTail*)
-    Put1(Add, xr, x.r, 0); (*nof words between BL instruction at L0+4 and jump table, fixed up in CaseTail*)
+    L0 := pc;
+    IF genLeaf THEN
+      Put1(Add, xr, x.r, 0); (*nof words between BL instruction at L0+4 and jump table, fixed up in CaseTail*)
+    ELSE
+      Put1(Sub, xr, x.r, 0);  (*lower bound, fixed up in CaseTail*)
+      Put3(BC, MI, 0);  (*branch to else, fixed up in CaseTail*)
+      Put1(Cmp, RH, xr, 0);  (*higher bound, fixed up in CaseTail*)
+      Put3(BC, CC, 0);  (*branch to else, fixed up in CaseTail*)
+      Put1(Add, xr, xr, 0); (*nof words between BL instruction at L0+4 and jump table, fixed up in CaseTail*)
+    END ;
     IF astrobe THEN
       Put3(BR, 7, 80H + xr);
     ELSE
@@ -1081,19 +1093,43 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE CaseTail*(L0, L1: LONGINT; n: INTEGER; VAR tab: ARRAY OF LabelRange);  (*L1 = label for else*)
     VAR i, j: INTEGER;
+        disp: LONGINT;
   BEGIN
-    IF n > 0 THEN fix1(L0, tab[n-1].high + 1) (*higher bound*) ELSIF L1 = 0 THEN ORS.Mark("empty case") END ;
-    IF L1 = 0 THEN L1 := pc; Trap(7, 1) END ;  (*create else*)
-    fix(L0+1, L1-L0-2);  (*branch to else*)
-    IF astrobe THEN
-      fix1(L0+2, pc-L0-4);  (*nof words between BL instruction at L0+4 and jump table*)
+    IF genLeaf THEN
+      IF n > 0 THEN
+        (*nof words between BL/B PC instruction at L0 and jump table
+          corrected by MinCase*)
+        disp := pc-L0-3-tab[0].low;
+        IF astrobe THEN INC(disp) END ;
+        fix1(L0, disp)
+      ELSE
+        ORS.Mark("empty case")
+      END
     ELSE
-      fix1(L0+2, pc-L0-5);  (*nof words between BL instruction at L0+4 and jump table*)
+      IF n > 0 THEN
+        fix1(L0+CaseHiVal, tab[n-1].high + 1 - tab[0].low); (*higher bound*)
+        fix1(L0+CaseLoVal, tab[0].low) (*lower bound*)
+      ELSIF L1 = 0 THEN
+        ORS.Mark("empty case")
+      END ;
+      IF L1 = 0 THEN L1 := pc; Trap(7, 1) END ;  (*create else*)
+      fix(L0+CaseJmpOverHi, L1-L0-(2+CaseLoTest));  (*branch to else*)
+      fix(L0+CaseJmpBelowLo, L1-L0-2);  (*branch to else*)
+
+      (*nof words between BL instruction at L0+5-6 and jump table*)
+      disp := pc-L0-(5+CaseLoTest);
+      IF astrobe THEN INC(disp) END ;
+      fix1(L0+CaseTblDisp, disp)
     END ;
-    j := 0;
+    j := tab[0].low;
     FOR i := 0 TO n-1 DO  (*construct jump table*)
       WHILE j < tab[i].low DO BJump(L1); INC(j) END ;  (*else*)
-      WHILE j <= tab[i].high DO BJump(tab[i].label); INC(j) END
+      WHILE j <= tab[i].high DO BJump(tab[i].label); INC(j) END ;
+      IF genLeaf & (i > 0) THEN
+        IF tab[i-1].high + 1 # tab[i].low THEN
+          ORS.Mark("non-sequential labels")
+        END
+      END
     END
   END CaseTail;
 
