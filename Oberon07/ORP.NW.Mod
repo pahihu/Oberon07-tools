@@ -457,7 +457,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       drop: BOOLEAN;
   BEGIN Check(ORS.lparen, "no ("); ORG.BeginSection; drop := FALSE;
     npar := pno MOD 10; pno := pno DIV 10;
-    inASSERT := astrobe & (pno = 4);
+    inASSERT := pno = 4;
     expression(x); nap := 1;
     IF sym = ORS.comma THEN
       ORS.Get(sym); expression(y); nap := 2; z.type := ORB.noType;
@@ -474,7 +474,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
         ORG.Increment(pno, x, y)
       ELSIF pno IN {2, 3} THEN (*INCL, EXCL*)
         CheckSet(x); CheckReadOnly(x); CheckInt(y); ORG.Include(pno-2, x, y)
-      ELSIF pno = 4 THEN CheckBool(x); ORG.Assert(x); drop := leaf;
+      ELSIF pno = 4 THEN CheckBool(x); ORG.Assert(x); drop := leaf OR ~ORS.GetOption("A");
       ELSIF pno = 5 THEN(*NEW*) CheckReadOnly(x);
          IF (x.type.form = ORB.Pointer) & (x.type.base.form = ORB.Record) THEN
           IF OpaquePtr(x.type) THEN ORS.Mark("opaque pointer") ELSE ORG.New(x) END
@@ -893,9 +893,11 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       x: ORG.Item;
       locblksize, parblksize, L: LONGINT;
       int: BOOLEAN;
-  BEGIN (* ProcedureDecl *) leaf := FALSE; int := FALSE; ORS.Get(sym); 
+  BEGIN (* ProcedureDecl *) int := FALSE; ORS.Get(sym); 
     IF sym = ORS.times THEN ORS.Get(sym);
       leaf := astrobe; int := ~astrobe
+    ELSE
+      leaf := ORS.GetOption("L")
     END ;
     IF sym = ORS.ident THEN
       ORS.CopyId(procid); ORS.Get(sym);

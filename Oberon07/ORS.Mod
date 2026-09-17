@@ -52,6 +52,9 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     keyTab: ARRAY NKW OF
         RECORD sym: INTEGER; id: ARRAY 12 OF CHAR END;
     debug*, warning*: BOOLEAN;
+    options*: ARRAY 26 OF BOOLEAN; (*$X compiler options*)
+    comm: ARRAY 4 OF CHAR; (*last comment prefix*)
+    commLen: INTEGER; (*last comment length*)
   
   PROCEDURE CopyId*(VAR ident: Ident);
   BEGIN ident := id
@@ -218,17 +221,68 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     END
   END Number;
 
-  PROCEDURE comment;
-  BEGIN Texts.Read(R, ch);
+  PROCEDURE GetOption*(ch: CHAR): BOOLEAN;
+    VAR ret: BOOLEAN;
+  BEGIN
+    ASSERT(("A" <= ch) & (ch <= "Z"));
+    RETURN options[ORD(ch) - ORD("A")]
+  END GetOption;
+
+  PROCEDURE SetOption*(ch: CHAR; flag: BOOLEAN);
+  BEGIN
+    ASSERT(("A" <= ch) & (ch <= "Z"));
+    options[ORD(ch) - ORD("A")] := flag
+  END SetOption;
+
+  (*compiler options: $<opt>+ $<opt>-*)
+  PROCEDURE InitOptions;
+    VAR i: INTEGER;
+  BEGIN
+    FOR i := 0 TO LEN(options) - 1 DO options[i] := FALSE END ;
+    SetOption("A", TRUE); (*ASSERTs*)
+    SetOption("C", TRUE)  (*run-time checks*)
+  END InitOptions;
+
+  PROCEDURE SetDollarOption;
+    VAR opt: CHAR;
+  BEGIN
+    IF (commLen = 3) & (comm[0] = "$") THEN
+      opt := comm[1];
+      IF ("A" <= opt) & (opt <= "Z") THEN
+        SetOption(opt, comm[2] = "+");
+      END
+    END
+  END SetDollarOption;
+
+  PROCEDURE StartComment(lvl: INTEGER);
+  BEGIN
+    IF lvl = 0 THEN
+      comm[0] := 0X; commLen := 0
+    END
+  END StartComment;
+
+  PROCEDURE SaveComment(lvl: INTEGER; ch: CHAR);
+  BEGIN
+    IF lvl = 0 THEN
+      IF commLen < LEN(comm) - 1 THEN
+        comm[commLen] := ch; comm[commLen + 1] := 0X;
+      END ;
+      INC(commLen)
+    END
+  END SaveComment;
+
+  PROCEDURE comment(lvl: INTEGER);
+  BEGIN StartComment(lvl); Texts.Read(R, ch);
     REPEAT
       WHILE ~R.eot & (ch # "*") DO
         IF ch = "(" THEN Texts.Read(R, ch);
-          IF ch = "*" THEN comment END
-        ELSE Texts.Read(R, ch)
+          IF ch = "*" THEN comment(lvl + 1) END
+        ELSE SaveComment(lvl, ch); Texts.Read(R, ch)
         END
       END ;
       WHILE ch = "*" DO Texts.Read(R, ch) END
     UNTIL (ch = ")") OR R.eot;
+    SetDollarOption;
     IF ~R.eot THEN Texts.Read(R, ch) ELSE Mark("unterminated comment") END
   END comment;
 
@@ -244,7 +298,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
           ELSIF ch = "$" THEN HexString; sym := string
           ELSIF ch = "&" THEN Texts.Read(R, ch); sym := and
           ELSIF ch = "(" THEN Texts.Read(R, ch); 
-            IF ch = "*" THEN sym := null; comment ELSE sym := lparen END
+            IF ch = "*" THEN sym := null; comment(0) ELSE sym := lparen END
           ELSIF ch = ")" THEN Texts.Read(R, ch); sym := rparen
           ELSIF ch = "*" THEN Texts.Read(R, ch); sym := times
           ELSIF ch = "+" THEN Texts.Read(R, ch); sym := plus
@@ -351,6 +405,7 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   KWX[9] := k;
   warning := FALSE; debug := FALSE;
 
+  InitOptions;
   RedirFiles.InitFromEnv("ORPRED", "~/.orp.red")
 END ORS.
 (* vim:set ts=2 sw=2 et: *)
