@@ -18,6 +18,7 @@ Changes:
 Astrobe compatibility (/a option):
 * The leaf procedure and interrupt handler syntax is supported.
 * Parse ASSERT(cond, code) but ignores the code.
+* The ELSE label is not supported in the CASE statement.
 * CASE label selection generates the Bcc PC,Rn instruction.
 * The CASE statement is supported in leaf procedures, but the CASE labels should be sequential.
 
