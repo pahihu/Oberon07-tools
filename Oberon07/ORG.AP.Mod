@@ -1018,7 +1018,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Enter*(parblksize, locblksize: LONGINT; int, leaf: BOOLEAN);
     VAR a, r: LONGINT;
   BEGIN frame := 0;
-    IF int OR leaf THEN oldcheck := check; check := FALSE END ;
+    IF int OR leaf THEN oldcheck := check; check := FALSE ELSE check := ORS.GetOption("C") END ;
     IF ~int THEN (*procedure prolog*)
       IF locblksize >= 10000H THEN ORS.Mark("too many locals") END ;
       IF locblksize # 0 THEN Put1(Sub, SP, SP, locblksize) END ;
@@ -1062,7 +1062,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
       Put3(BR, 7, 10H) (*RTI*)
     END ;
-    IF int OR leaf THEN check := oldcheck END ; genLeaf := FALSE; baseRH := 0;
+    IF int OR leaf THEN check := oldcheck ELSE check := ORS.GetOption("C") END ; genLeaf := FALSE; baseRH := 0;
     RH := 0;
   END Return;
 
@@ -1343,6 +1343,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Open*(v: INTEGER);
   BEGIN pc := 0; tdx := 0; strx := 0; RH := 0; fixorgP := 0; fixorgD := 0; fixorgT := 0; check := v # 0; version := v;
+    ORS.SetOption("C", check);
     IF v = 0 THEN pc := 1;
       REPEAT code[pc] := 0; INC(pc) UNTIL pc = 8
     END
