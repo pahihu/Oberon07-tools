@@ -271,7 +271,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSIF adr =  -2 THEN (* eot *) IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
             ELSIF adr = -16 THEN (* msec counter *)
                 IF absTime THEN R[a] := SHORT(Timer.Elapsed(TIM0))
-                ELSE R[a] := MemCtrl.cntFetch DIV 12000 (*12MHz clock*)
+                ELSE R[a] := clk DIV 12000 (*12MHz clock*)
                 END
             ELSIF adr = -15 THEN (* switch *) R[a] := SW
             ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
