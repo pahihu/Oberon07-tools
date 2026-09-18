@@ -1115,8 +1115,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         FOR i := 0 TO S.len DO 
              IF S.s[i] = "s" THEN newSF := TRUE
           ELSIF S.s[i] = "a" THEN ORG.astrobe := TRUE
-          ELSIF S.s[i] = "w" THEN ORS.warning := TRUE
           ELSIF S.s[i] = "g" THEN ORS.warning := TRUE; ORS.debug := TRUE
+          ELSIF S.s[i] = "l" THEN ORS.reportLine := TRUE
+          ELSIF S.s[i] = "w" THEN ORS.warning := TRUE
           END
         END
       END
@@ -1141,7 +1142,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
   END Compile;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/as]...");
+  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/als]...");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
 

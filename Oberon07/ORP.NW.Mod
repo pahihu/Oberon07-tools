@@ -1014,8 +1014,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       Texts.Scan(S); Texts.Scan(S); 
       IF S.class = Texts.Name THEN
         FOR i := 0 TO S.len DO
-             IF S.s[0] = "s" THEN   newSF := TRUE
-          ELSIF S.s[0] = "a" THEN astrobe := TRUE
+             IF S.s[i] = "s" THEN   newSF := TRUE
+          ELSIF S.s[i] = "a" THEN astrobe := TRUE
+          ELSIF S.s[i] = "l" THEN ORS.reportLine := TRUE
           END
         END
       END
@@ -1039,7 +1040,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
   END Compile;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/as]...");
+  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/als]...");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
 

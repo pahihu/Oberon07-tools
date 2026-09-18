@@ -31,7 +31,8 @@ MODULE Texts;
 
     Reader* = RECORD
       eot*: BOOLEAN;
-      rider: Files.Rider
+      rider: Files.Rider;
+      lineNo*, charNo*: LONGINT;
     END;
 
     Scanner* = RECORD (Reader)
@@ -90,7 +91,7 @@ MODULE Texts;
   (*------------------------------------------------------------------*)
 
   PROCEDURE OpenReader* (VAR R: Reader; T: Text; pos: LONGINT);
-  BEGIN Files.Set (R.rider, T.base, pos); R.eot := FALSE
+  BEGIN Files.Set (R.rider, T.base, pos); R.eot := FALSE; R.lineNo := 1; R.charNo := 1
   END OpenReader;
 
   PROCEDURE IsLineEnd(ch: CHAR): BOOLEAN;
@@ -100,8 +101,9 @@ MODULE Texts;
   PROCEDURE Read* (VAR R: Reader; VAR ch: CHAR);
   BEGIN
     IF R.eot THEN ch := 0FFX
-    ELSE Files.Read (R.rider, ch);
+    ELSE Files.Read (R.rider, ch); INC(R.charNo);
       WHILE ~R.rider.eof & IsLineEnd(ch) & (ch # EOL) DO Files.Read (R.rider, ch) END;
+      IF ch = EOL THEN INC(R.lineNo); R.charNo := 1 END;
       R.eot := R.rider.eof
     END
   END Read;

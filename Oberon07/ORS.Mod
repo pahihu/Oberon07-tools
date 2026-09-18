@@ -55,6 +55,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     options*: ARRAY 26 OF BOOLEAN; (*$X compiler options*)
     comm: ARRAY 4 OF CHAR; (*last comment prefix*)
     commLen: INTEGER; (*last comment length*)
+    reportLine*: BOOLEAN;
   
   PROCEDURE CopyId*(VAR ident: Ident);
   BEGIN ident := id
@@ -64,22 +65,28 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   BEGIN RETURN Texts.Pos(R) - 1
   END Pos;
 
+  PROCEDURE WritePos(msg, typ: ARRAY OF CHAR; p: LONGINT);
+  BEGIN
+      Texts.WriteLn(W);
+      IF reportLine THEN
+        Texts.WriteString(W, "  line "); Texts.WriteInt(W, R.lineNo, 1); Texts.Write(W, ":"); Texts.WriteInt(W, R.charNo, 0)
+      ELSE
+        Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1)
+      END;
+      Texts.Write(W, " "); Texts.WriteString(W, typ);
+      Texts.WriteString(W, msg); Texts.Append(Oberon.Log, W.buf)
+  END WritePos;
+
   PROCEDURE Mark*(msg: ARRAY OF CHAR);
     VAR p: LONGINT;
   BEGIN p := Pos();
-    IF (p > errpos) & (errcnt < 25) THEN
-      Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1); Texts.Write(W, " ");
-      Texts.WriteString(W, msg); Texts.Append(Oberon.Log, W.buf)
-    END ;
+    IF (p > errpos) & (errcnt < 25) THEN WritePos(msg, "", p) END ;
     INC(errcnt); errpos := p + 4
   END Mark;
 
   PROCEDURE Warn*(msg: ARRAY OF CHAR);
     VAR p: LONGINT;
-  BEGIN p := Pos();
-    Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1); Texts.WriteString(W, " warning: ");
-    Texts.WriteString(W, msg);
-    Texts.Append(Oberon.Log, W.buf)
+  BEGIN p := Pos(); WritePos(msg, "warning: ", p);
   END Warn;
 
   PROCEDURE Twain*(msg: ARRAY OF CHAR; arg: LONGINT);
@@ -87,8 +94,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   BEGIN IF ~warning THEN Mark(msg); RETURN END ;
     p := Pos();
     IF (p > errpos) & (errcnt < 25) THEN
-      Texts.WriteLn(W); Texts.WriteString(W, "  pos "); Texts.WriteInt(W, p, 1); Texts.WriteString(W, " ");
-      Texts.WriteString(W, msg);
+      WritePos(msg, "", p);
       Texts.WriteInt(W, arg, 2);
       Texts.Append(Oberon.Log, W.buf)
     END ;
@@ -403,7 +409,7 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   KWX[7] := k; KWX[8] := k;
   EnterKW(procedure, "PROCEDURE");
   KWX[9] := k;
-  warning := FALSE; debug := FALSE;
+  warning := FALSE; debug := FALSE; reportLine := FALSE;
 
   InitOptions;
   RedirFiles.InitFromEnv("ORPRED", "~/.orp.red")
