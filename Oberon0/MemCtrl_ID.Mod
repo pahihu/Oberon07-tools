@@ -1,4 +1,4 @@
-MODULE MemCtrl; (*Phu 18.9.26*)
+MODULE MemCtrl;
   IMPORT Sys := System, Texts, Oberon;
 
   (*
@@ -42,8 +42,8 @@ MODULE MemCtrl; (*Phu 18.9.26*)
         8KS24    79K
         8KS36    73K
     *)
-    Lines = 512; (* 9bit *) Tags = 16; (* 4bit *)
-    (* 4K Lines = 256; Tags = 32; *)
+    (* 8K Lines = 512; (* 9bit *) Tags = 16; (* 4bit *) *)
+    Lines = 256; Tags = 32;
     (* 2K Lines = 128; Tags = 64; *)
     (* 1K Lines =  64; Tags = 128; *)
     (* 512B Lines = 32; Tags = 256; *)
@@ -52,7 +52,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     (* 24MHz WriteBackClks = 21; FillClks = 23; *)
     (* 36MHz WriteBackClks = 14; FillClks = 16; *)
     Debug = FALSE;
-    Valid = 0; Dirty = 1;
+    Valid = 0; Dirty = 1; Code = 2;
 
   TYPE
     INTEGER = Sys.INT32;
@@ -67,8 +67,8 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     END ;
     TagMem = ARRAY Lines OF TagDesc;
 
-  VAR cache: CacheMem;
-      tags: TagMem;
+  VAR instrCache, dataCache: CacheMem;
+      instrTags, dataTags: TagMem;
       M*: ARRAY MaxMem OF LONGINT;
       cntMiss-, cntHit-: LONGINT; (*number of cache miss/hit count*)
       cntFetch-, cntMemRd-, cntMemWr-: LONGINT; (*number of memory fetch/read/write*)
@@ -93,7 +93,10 @@ MODULE MemCtrl; (*Phu 18.9.26*)
   BEGIN
     enabled := FALSE;
     FOR i := 0 TO LEN(TagMem) - 1 DO
-      tags[i].flags := {}
+      instrTags[i].flags := {}
+    END ;
+    FOR i := 0 TO LEN(TagMem) - 1 DO
+      dataTags[i].flags := {}
     END ;
   END Init;
 
@@ -138,32 +141,34 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     DebugInt(FALSE, "wsel", wsel);
   END SplitAdr;
 
-  PROCEDURE ReadInt(msg: ARRAY OF CHAR; adr: Address): Word;
-    VAR ret: Word;
-        tag, idx, wsel: INTEGER;
+  PROCEDURE InvalidateInstr(tag, idx: INTEGER);
   BEGIN
-    DebugInt(TRUE, msg, adr);
-    elapsedClks := 0;
-    IF enabled THEN
-      SplitAdr(adr, tag, idx, wsel);
-      IF ~(Valid IN tags[idx].flags) OR (tags[idx].tag # tag) THEN
-        INC(cntMiss);
-        IF Dirty IN tags[idx].flags THEN WriteBackLine(tags, cache, idx) END ;
-        FillLine(tags, cache, tag, idx, adr);
-      ELSE INC(cntHit)
-      END ;
-      ret := cache[idx][wsel];
-    ELSE
-      ret := M[adr]
-    END ;
-    RETURN ret
-  END ReadInt;
+    IF (Valid IN instrTags[idx].flags) & (instrTags[idx].tag = tag) THEN
+      EXCL(instrTags[idx].flags, Valid);
+      DebugInt(TRUE," INVALIDATE",1);
+    END
+  END InvalidateInstr;
 
   PROCEDURE Read*(adr: Address): Word;
     VAR ret: Word;
+        tag, idx, wsel: INTEGER;
   BEGIN
     ASSERT((0 <= adr) & (adr < MaxMem), 10);
-    ret := ReadInt("READ", adr); INC(cntMemRd);
+    DebugInt(TRUE, "READ", adr);
+    elapsedClks := 0;
+    IF enabled THEN
+      SplitAdr(adr, tag, idx, wsel);
+      IF ~(Valid IN dataTags[idx].flags) OR (dataTags[idx].tag # tag) THEN
+        INC(cntMiss);
+        IF Dirty IN dataTags[idx].flags THEN WriteBackLine(dataTags, dataCache, idx) END ;
+        FillLine(dataTags, dataCache, tag, idx, adr);
+      ELSE INC(cntHit)
+      END ;
+      ret := dataCache[idx][wsel];
+    ELSE
+      ret := M[adr]
+    END ;
+    INC(cntMemRd);
     RETURN ret
   END Read;
 
@@ -175,14 +180,15 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     elapsedClks := 0;
     IF enabled THEN
       SplitAdr(adr, tag, idx, wsel);
-      IF ~(Valid IN tags[idx].flags) OR (tags[idx].tag # tag) THEN
+      IF ~(Valid IN dataTags[idx].flags) OR (dataTags[idx].tag # tag) THEN
         INC(cntMiss);
-        IF Dirty IN tags[idx].flags THEN WriteBackLine(tags, cache, idx) END ;
-        FillLine(tags, cache, tag, idx, adr);
+        IF Dirty IN dataTags[idx].flags THEN WriteBackLine(dataTags, dataCache, idx) END ;
+        FillLine(dataTags, dataCache, tag, idx, adr);
       ELSE INC(cntHit)
       END ;
-      cache[idx][wsel] := data;
-      INCL(tags[idx].flags, Dirty)
+      dataCache[idx][wsel] := data;
+      INCL(dataTags[idx].flags, Dirty);
+      InvalidateInstr(tag, idx);
     ELSE
       M[adr] := data
     END ;
@@ -194,18 +200,32 @@ MODULE MemCtrl; (*Phu 18.9.26*)
   BEGIN
     DebugInt(TRUE,"FLUSH",0);
     elapsedClks := 0;
-    FOR i := 0 TO LEN(tags) - 1 DO
-      IF {Valid, Dirty} = tags[i].flags THEN
-        WriteBackLine(tags, cache, i)
+    FOR i := 0 TO LEN(dataTags) - 1 DO
+      IF {Valid, Dirty} = dataTags[i].flags THEN
+        WriteBackLine(dataTags, dataCache, i)
       END
     END
   END Flush;
 
   PROCEDURE Fetch*(adr: Address): Word;
     VAR ret: Word;
+        tag, idx, wsel: INTEGER;
   BEGIN
     ASSERT((0 <= adr) & (adr < MaxMem), 10);
-    ret := ReadInt("FETCH", adr); INC(cntFetch);
+    DebugInt(TRUE, "FETCH", adr);
+    elapsedClks := 0;
+    IF enabled THEN
+      SplitAdr(adr, tag, idx, wsel);
+      IF ~(Valid IN instrTags[idx].flags) OR (instrTags[idx].tag # tag) THEN
+        INC(cntMiss);
+        FillLine(instrTags, instrCache, tag, idx, adr);
+      ELSE INC(cntHit)
+      END ;
+      ret := instrCache[idx][wsel]
+    ELSE
+      ret := M[adr]
+    END ;
+    INC(cntFetch);
     RETURN ret
   END Fetch;
 
