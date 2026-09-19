@@ -32,7 +32,8 @@ MODULE Texts;
     Reader* = RECORD
       eot*: BOOLEAN;
       rider: Files.Rider;
-      lineNo*, charNo*: LONGINT;
+      lineNo*, charNo*: LONGINT; (*line number and char pos*)
+      prevCh: CHAR; (*EOL detection for error repor*)
     END;
 
     Scanner* = RECORD (Reader)
@@ -91,7 +92,7 @@ MODULE Texts;
   (*------------------------------------------------------------------*)
 
   PROCEDURE OpenReader* (VAR R: Reader; T: Text; pos: LONGINT);
-  BEGIN Files.Set (R.rider, T.base, pos); R.eot := FALSE; R.lineNo := 1; R.charNo := 1
+  BEGIN Files.Set (R.rider, T.base, pos); R.eot := FALSE; R.lineNo := 1; R.charNo := 1; R.prevCh := 0X
   END OpenReader;
 
   PROCEDURE IsLineEnd(ch: CHAR): BOOLEAN;
@@ -101,9 +102,12 @@ MODULE Texts;
   PROCEDURE Read* (VAR R: Reader; VAR ch: CHAR);
   BEGIN
     IF R.eot THEN ch := 0FFX
-    ELSE Files.Read (R.rider, ch); INC(R.charNo);
+    ELSE
+      IF R.prevCh = EOL THEN INC(R.lineNo); R.charNo := 1 END ;
+      Files.Read (R.rider, ch); INC(R.charNo);
       WHILE ~R.rider.eof & IsLineEnd(ch) & (ch # EOL) DO Files.Read (R.rider, ch) END;
-      IF ch = EOL THEN INC(R.lineNo); R.charNo := 1 END;
+      (*IF ch = EOL THEN INC(R.lineNo); R.charNo := 1 END;*)
+      R.prevCh := ch;
       R.eot := R.rider.eof
     END
   END Read;
