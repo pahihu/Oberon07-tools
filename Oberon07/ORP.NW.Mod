@@ -239,7 +239,13 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
         ORG.StrToChar(x); ORG.ValueParam(x)
       ELSIF (par.type.form = ORB.Array) & (par.type.base = ORB.byteType) & 
           (par.type.len >= 0) & (par.type.size = x.type.size) THEN
-        ORG.VarParam(x, par.type)
+        ORG.VarParam(x, par.type);
+        IF x.type.base # ORB.byteType THEN ORS.Warn("formal parameter is BYTE array") END ;
+      ELSIF astrobe & (par.type.form = ORB.Array) &
+          (par.type.base # ORB.byteType) & (x.type.base = ORB.byteType) &
+          (par.type.len >= 0) & (par.type.size = x.type.size) THEN
+        ORG.VarParam(x, par.type);
+        ORS.Warn("actual parameter is BYTE array") ;
       ELSE ORS.Mark("incompatible parameters")
       END
     END
@@ -291,10 +297,14 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       ELSIF fct = 14 THEN (*BIT*) CheckInt(x); CheckInt(y); ORG.Bit(x, y)
       ELSIF fct = 15 THEN (*REG*) CheckConst(x); CheckInt(x); ORG.Register(x)
       ELSIF fct = 16 THEN (*VAL*)
-        IF (x.mode= ORB.Typ) & (x.type.size <= y.type.size) THEN restyp := x.type; x := y
+        IF (x.mode = ORB.Typ) & (x.type.size <= y.type.size) THEN
+          restyp := x.type; x := y;
+          IF ~(y.mode IN {ORB.Par, ORB.Var}) THEN ORS.Warn("not a variable") END ;
         ELSE ORS.Mark("casting not allowed")
         END
-      ELSIF fct = 17 THEN (*ADR*) ORG.Adr(x)
+      ELSIF fct = 17 THEN (*ADR*)
+        ORG.Adr(x);
+        IF ~(x.type.form IN {ORB.Bool, ORB.Int, ORB.Real, ORB.Set}) THEN ORS.Warn("not a scalar") END ;
       ELSIF fct = 18 THEN (*SIZE*)
         IF x.mode = ORB.Typ THEN ORG.MakeConstItem(x, ORB.intType, x.type.size)
         ELSE ORS.Mark("must be a type")
