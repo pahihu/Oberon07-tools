@@ -297,16 +297,15 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       ELSIF fct = 14 THEN (*BIT*) CheckInt(x); CheckInt(y); ORG.Bit(x, y)
       ELSIF fct = 15 THEN (*REG*) CheckConst(x); CheckInt(x); ORG.Register(x)
       ELSIF fct = 16 THEN (*VAL*)
-        IF (x.mode = ORB.Typ) & (x.type.size <= y.type.size) THEN
+        IF (x.mode= ORB.Typ) & (x.type.size <= y.type.size) THEN
           restyp := x.type; x := y;
-          IF ~(y.mode IN {ORB.Par, ORB.Var}) THEN ORS.Warn("not a variable") END ;
+          IF y.type.form IN {ORB.String, ORB.Array, ORB.Record} THEN ORS.Warn("not a scalar") END ;
+          IF (y.mode = ORB.Const) & (y.type.form = ORB.Proc) THEN ORS.Warn("not a variable") END ;
         ELSE ORS.Mark("casting not allowed")
         END
       ELSIF fct = 17 THEN (*ADR*)
+        IF ~(x.mode IN {ORB.Par, ORB.Var}) THEN ORS.Warn("not writable") END ;
         ORG.Adr(x);
-        IF (x.type.form > ORB.Pointer) & (x.type.form # ORB.Proc) THEN ORS.Warn("not a scalar") END ;
-        (*OBNC disallows procedure types*)
-        IF (x.type.form = ORB.Proc) THEN ORS.Warn("procedure variable") END ;
       ELSIF fct = 18 THEN (*SIZE*)
         IF x.mode = ORB.Typ THEN ORG.MakeConstItem(x, ORB.intType, x.type.size)
         ELSE ORS.Mark("must be a type")
