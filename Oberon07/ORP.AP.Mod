@@ -314,7 +314,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         END
       ELSIF fct = 17 THEN (*ADR*)
         ORG.Adr(x);
-        IF ~(x.type.form IN {ORB.Bool, ORB.Int, ORB.Real, ORB.Set}) THEN ORS.Warn("not a scalar") END ;
+        IF (x.type.form > ORB.Pointer) & (x.type.form # ORB.Proc) THEN ORS.Warn("not a scalar") END ;
+        (*OBNC disallows procedure types*)
+        IF (x.type.form = ORB.Proc) THEN ORS.Warn("procedure variable") END ;
       ELSIF fct = 18 THEN (*SIZE*)
         IF x.mode = ORB.Typ THEN ORG.MakeConstItem(x, ORB.intType, x.type.size)
         ELSE ORS.Mark("must be a type")
@@ -1102,7 +1104,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       IF sym # ORS.period THEN ORS.Mark("period missing") END ;
       IF (ORS.errcnt = 0) & (version # 0) THEN
         ORB.Export(modid, newSF, key);
-        IF newSF THEN Texts.WriteString(W, " new symbol file") END
+        IF newSF THEN Texts.WriteLn(W); Texts.WriteString(W, "  new symbol file") END
       END ;
       IF ORS.errcnt = 0 THEN
         ORG.Close(modid, key, exno);
