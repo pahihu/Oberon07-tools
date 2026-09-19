@@ -121,8 +121,16 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF RH < MT-1 THEN INC(RH) ELSE ORS.Mark("register stack overflow") END
   END incR;
 
+  PROCEDURE CheckRegStack(n: INTEGER);
+  BEGIN (*some code uses RH+1 or RH+2*)
+    IF RH = MT-1 THEN
+      IF n > MT-1 THEN ORS.Mark("register stack overflow") END
+    END
+  END CheckRegStack;
+
   PROCEDURE Put0(op, a, b, c: LONGINT);
   BEGIN (*emit format-0 instruction*)
+    CheckRegStack(a);
     IF ORS.debug THEN
       ORS.Twain("Put0=", pc);
       ORS.Twain("   a=", a);
@@ -138,6 +146,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Put1(op, a, b, im: LONGINT);
   BEGIN (*emit format-1 instruction,  -10000H <= im < 10000H*)
+    CheckRegStack(a);
     IF im < 0 THEN INC(op, V) END ;
     code[pc] := (((a+40H) * 10H + b) * 10H + op) * 10000H + (im MOD 10000H); INC(pc)
   END Put1;
@@ -159,6 +168,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE Put2(op, a, b, off: LONGINT);
   BEGIN (*emit load/store instruction*)
+    CheckRegStack(a);
     code[pc] := ((op * 10H + a) * 10H + b) * 100000H + (off MOD 100000H); INC(pc)
   END Put2;
 
