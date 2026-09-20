@@ -121,11 +121,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF RH < MT-1 THEN INC(RH) ELSE ORS.Mark("register stack overflow") END
   END incR;
 
-  PROCEDURE CheckRegStack(n: INTEGER);
+  PROCEDURE CheckRegStack(r: INTEGER);
   BEGIN (*some code uses RH+1 or RH+2*)
-    IF RH = MT-1 THEN
-      IF n > MT-1 THEN ORS.Mark("register stack overflow") END
-    END
+    IF (RH = MT-1) & (r > RH) THEN ORS.Mark("register stack overflow") END
   END CheckRegStack;
 
   PROCEDURE Put0(op, a, b, c: LONGINT);
