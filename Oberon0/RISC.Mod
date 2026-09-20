@@ -1,6 +1,6 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
-    RISCEmu, WA := WAddress, Timer, MemCtrl, SPICtrl, Kernel;
+    RISCEmu, WA := WAddress, Timer, MemCtrl, SPICtrl, Kernel, Files;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -12,6 +12,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     FDV = 15;
     MT = 12; SP = 14; LNK = 15;
     Debug = FALSE;
+    SDImage = "risk.img";
 
   VAR IR: LONGINT;   (*instruction register*)
     PC: LONGINT;   (*program counter*)
@@ -199,6 +200,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       IR := MemCtrl.Fetch(PC); INC(clk, MemCtrl.elapsedClks);
+      SPICtrl.Cycle;
       RISCEmu.Status(W, PC, IR, R, H, Flags(), IntFlags()); INC(PC);
       a := IR DIV 1000000H MOD 10H;
       b := IR DIV 100000H MOD 10H;
@@ -267,17 +269,19 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             END;
             R[a] := A; N := A < 0; Z := A = 0
           ELSE (*input*)
-               IF adr =  -1 THEN (* ReadInt *) Sys.InInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
+            IF adr =  -1 THEN (* ReadInt *) Sys.InInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
             ELSIF adr =  -2 THEN (* eot *) IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
+            ELSIF adr = -11 THEN (* SPI status *) R[a] := SYSTEM.VAL(LONGINT, SPICtrl.status)
+            ELSIF adr = -12 THEN (* SPI data *) R[a] := SPICtrl.ReadData()
+            ELSIF adr = -13 THEN (* RS-232 status, always rdyRx *)
+              IF delayTxCounter = 0 THEN R[a] := 3 ELSE R[a] := 1 END
+            ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
+            ELSIF adr = -15 THEN (* switch *) R[a] := SW
             ELSIF adr = -16 THEN (* msec counter *)
                 IF absTime THEN R[a] := SHORT(Timer.Elapsed(TIM0))
                 ELSE R[a] := clk DIV 12000 (*12MHz clock*)
                 END
-            ELSIF adr = -15 THEN (* switch *) R[a] := SW
-            ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
-            ELSIF adr = -13 THEN (* RS-232 status, always rdyRx *)
-              IF delayTxCounter = 0 THEN R[a] := 3 ELSE R[a] := 1 END
-            END 
+            END
           END
         ELSE
           IF adr >= 0 THEN (*store*)
@@ -296,7 +300,10 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                IF adr =  -1 THEN (* WriteInt *) Texts.WriteInt(W, R[a], 4)
             ELSIF adr =  -2 THEN (* WriteChar *) Texts.Write(W, CHR(R[a] MOD 80H))
             ELSIF adr =  -3 THEN (* WriteLn *) Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
-            ELSIF adr = -15 THEN (* LEDs*) ShowLEDs(W, R[a] MOD 100H)
+            ELSIF adr = -11 THEN (* SPI ctrl *) SPICtrl.WriteControl(SYSTEM.VAL(SET, R[a]))
+            ELSIF adr = -12 THEN (* SPI start *) SPICtrl.WriteData(R[a])
+            ELSIF adr = -13 THEN (* RS-232 ctrl *)
+              IF ~ODD(R[a] DIV 2) THEN delayTxCounter := 0 END
             ELSIF adr = -14 THEN (* RS-232 TX *)
               IF delayTxCounter = 0 THEN
                 delayTxCounter := DelayTX;
@@ -306,8 +313,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                 Texts.WriteString(W, "RS-232 TX busy");
                 Texts.Append(Oberon.Log, W.buf)
               END
-            ELSIF adr = -13 THEN (* RS-232 ctrl *)
-              IF ~ODD(R[a] DIV 2) THEN delayTxCounter := 0 END
+            ELSIF adr = -15 THEN (* LEDs*) ShowLEDs(W, R[a] MOD 100H)
             END
           END
         END
@@ -383,10 +389,33 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   BEGIN absTime := TRUE; DelayTX := 0
   END UseAbsTime;
 
+  PROCEDURE InitSPI;
+    VAR F: Files.File;
+        R: Files.Rider;
+        sector: ARRAY 1024 OF CHAR;
+        i, j: INTEGER;
+  BEGIN F := Files.Old(SDImage);
+    IF F = NIL THEN
+      F := Files.New(SDImage);
+      Files.Set(R, F, 0);
+      FOR i := 0 TO LEN(sector) - 1 DO sector[i] := 0X END ; (*zeros*)
+      FOR i := 0 TO 256 + 64 - 1 DO (*256+64MB*)
+        FOR j := 0 TO 1023 DO
+          Files.WriteBytes(R, sector, 1024)
+        END
+      END ;
+      Files.Register(F)
+    ELSE
+      Files.Close(F)
+    END ;
+    SPICtrl.Open(SDImage)
+  END InitSPI;
+
 BEGIN In.Open;
   absTime := FALSE;
   clk := 0;
-  delayTxCounter := 0; DelayTX := 1042
+  delayTxCounter := 0; DelayTX := 1042;
+  InitSPI
 END RISC.
 
 (* vim:set ts=2 sw=2 et: *)

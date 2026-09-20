@@ -10,7 +10,7 @@ MODULE SPICtrl;
         CMDWriteSingleBlock = 18X; CMDWriteStartData = 0FEX; CMDReadSingleBlock = 11X;
         NoError = 0X; InIdleState = 01X; Error = 80H; (*SPI response*)
         Undef = 0FFX;
-        Fast = 4; Word = 3; SPI1 = 1; SPI0 = 0; (*ctrl*)
+        Word = 4; Fast = 3; SPI1 = 1; SPI0 = 0; (*ctrl*)
         BitDelayFast = 3; BitDelaySlow = 29; (*TODO check*)
         Ready = 0; (*status*)
 
@@ -30,13 +30,14 @@ MODULE SPICtrl;
       bufLen: INTEGER;
       pos: INTEGER;
       response: BYTE;
+      hasResponse: BOOLEAN;
       ioHandle: Handler;
 
       status-: SET;
-      ctrl-: SET;
+      ctrl: SET;
       delayRx-: LONGINT;
       delayTx-: LONGINT;
-      dataRx-, dataTx-: LONGINT;
+      dataRx, dataTx: LONGINT;
 
       BlockNo: LONGINT;
 
@@ -46,7 +47,9 @@ MODULE SPICtrl;
     Texts.WriteLn(W);
     Texts.WriteString(W, "-W-SPI: ");
     Texts.WriteString(W, s);
-    Texts.WriteInt(W, x, 0)
+    Texts.Write(W, " ");
+    Texts.WriteInt(W, x, 0);
+    Texts.Append(Oberon.Log, W.buf)
   END Warning;
 
   PROCEDURE Log(s: ARRAY OF CHAR; x: LONGINT);
@@ -54,7 +57,9 @@ MODULE SPICtrl;
     Texts.WriteLn(W);
     Texts.WriteString(W, "-I-SPI: ");
     Texts.WriteString(W, s);
-    Texts.WriteInt(W, x, 0)
+    Texts.Write(W, " ");
+    Texts.WriteInt(W, x, 0);
+    Texts.Append(Oberon.Log, W.buf)
   END Log;
 
   (*raw block IO*)
@@ -90,10 +95,10 @@ MODULE SPICtrl;
   PROCEDURE ResetBuffer*;
   BEGIN
     pos := 0; bufLen := 0;
-    response := Undef;
+    response := Undef; hasResponse := FALSE;
     bufState := Idle;
-    delayRx := 0;
-    delayTx := 0
+    (*delayRx := 0;
+    delayTx := 0*)
   END ResetBuffer;
 
   PROCEDURE Recv(n: INTEGER; b: BYTE);
@@ -112,7 +117,7 @@ MODULE SPICtrl;
   END Send;
 
   PROCEDURE Respond(b: BYTE);
-  BEGIN response := b
+  BEGIN response := b; hasResponse := TRUE
   END Respond;
 
   PROCEDURE Get4(i: INTEGER): LONGINT;
@@ -122,6 +127,14 @@ MODULE SPICtrl;
     ret := (((ORD(buf[i+3]) * 100H) + ORD(buf[i+2])) * 100H + ORD(buf[i+1])) * 100H + ORD(buf[i]);
     RETURN ret
   END Get4;
+
+  PROCEDURE GetCommandArg(i: INTEGER): LONGINT;
+    VAR ret: LONGINT;
+  BEGIN
+    ASSERT((0 <= i) & (i + 4 <= bufLen), 10);
+    ret := (((ORD(buf[i]) * 100H) + ORD(buf[i+1])) * 100H + ORD(buf[i+2])) * 100H + ORD(buf[i+3]);
+    RETURN ret
+  END GetCommandArg;
 
   PROCEDURE CalcDelay(numBits: INTEGER): LONGINT;
     VAR ret: LONGINT;
@@ -145,40 +158,48 @@ MODULE SPICtrl;
         ret: BYTE;
         i: INTEGER;
   BEGIN
-    cmd := GetCommand(buf[0]); arg := Get4(1); crc := buf[5];
+    cmd := GetCommand(buf[0]); arg := GetCommandArg(1); crc := buf[5];
+    Log("cmd=",ORD(cmd)); Log("arg=",arg);
     ret := Undef;
     ResetBuffer;
     CASE cmd OF
       CMDGoIdleState:
+        Log("CMDGoIdleState", 0);
         bufState := Idle;
-        ret := InIdleState; delayTx := CalcDelay(8) |
+        Respond(InIdleState) |
       CMDSendIfCond:
         ASSERT(arg = 01AAH, 10);
+        Log("CMDSendIfCond", 0);
         Recv(3, Undef);
         Respond(NoError);
         ioHandle := DoNothing |
       CMDAppCmd:
         ASSERT(arg = 0, 10);
-        ret := NoError; delayTx := CalcDelay(8) |
+        Log("CMDAppCmd", 0);
+        Respond(NoError) |
       CMDSendOpCond:
         ASSERT(arg = 40000000H);
+        Log("CMDSendOpCond", 0);
         Recv(1000, Undef);
         Respond(NoError);
         ioHandle := DoNothing |
       CMDWriteSingleBlock:
+        Log("CMDWriteSingleBlock", arg);
         BlockNo := arg |
       CMDWriteStartData:
+        Log("CMDWriteStartData", 0);
         Recv(256, Undef); Recv(2, Undef);
         Respond(CHR(20H + 05H));
         ioHandle := DoWrite |
       CMDReadSingleBlock:
+        Log("CMDReadSingleBlock", arg);
         BlockNo := arg;
         ReadBlock(BlockNo, tmp);
         Send(CHR(0FEH));
         FOR i := 0 TO 255 DO Send(tmp[i]) END ;
         Send(CHR(098H)); Send(CHR(040H)); (*dummy 'CRC'*)
     END ;
-    dataTx := ORD(ret); delayTx := CalcDelay(8)
+    (*dataTx := ORD(ret); delayTx := CalcDelay(8)*)
   END DoCommand;
 
   PROCEDURE Cycle*;
@@ -186,10 +207,13 @@ MODULE SPICtrl;
         ret4: LONGINT;
         inp: BYTE;
         done: BOOLEAN;
-  BEGIN (*either send or recv*)
-    ASSERT((delayRx = 0) OR (delayTx = 0), 10);
+  BEGIN
+    (*ASSERT((delayRx = 0) OR (delayTx = 0), 10);*)
+    (*Log("Cycle", bufState);*)
     IF Ready IN status THEN
     ELSE
+      (*Log("delayRx", delayRx);
+      Log("delayTx", delayTx);*)
       IF delayRx # 0 THEN DEC(delayRx) END ;
       IF delayTx # 0 THEN DEC(delayTx) END ;
       inp := CHR(dataRx MOD 100H);
@@ -198,6 +222,8 @@ MODULE SPICtrl;
         Idle, Input:
           IF delayRx = 0 THEN
             INCL(status, Ready);
+            (*Log("Recv", ORD(inp));
+            Log("bufState", bufState);*)
             IF bufState = Idle THEN
               IF inp # Undef THEN (*lock CMD*)
                 Recv(6, Undef);
@@ -210,48 +236,66 @@ MODULE SPICtrl;
                 IF buf[pos] # inp THEN Warning("input mismatch ", pos) END
               END ;
               buf[pos] := inp; INC(pos)
-            ELSE
+            ELSIF bufLen # 0 THEN
               done := TRUE
             END
           END |
         Output:
           IF delayTx = 0 THEN
             INCL(status, Ready);
+            (*Log("bufState", bufState);*)
             IF pos < bufLen THEN
               IF Word IN ctrl THEN
                 ret4 := Get4(pos); INC(pos, 4); delayTx := CalcDelay(32)
               ELSE
                 ret := buf[pos]; INC(pos); delayTx := CalcDelay(8)
               END
-            ELSE
+            ELSIF bufLen # 0 THEN
               done := TRUE
             END
           END
       END ; (*CASE bufState*)
       IF done THEN
         ioHandle;
+        IF hasResponse THEN ret := response END ;
         ResetBuffer;
-        ret := response; delayTx := CalcDelay(8)
+        Log("IO done, response", ORD(ret))
       END ;
-      IF Word IN ctrl THEN dataTx := ret4 ELSE dataTx := ORD(ret) END
+      IF delayTx = 0 THEN
+        IF Word IN ctrl THEN
+          (*Log("DataTx32", ret4);*)
+          dataTx := ret4
+        ELSE
+          (*Log("DataTx8", ORD(ret));*)
+          dataTx := ORD(ret)
+        END
+      END
     END (*Ready*)
   END Cycle;
 
   PROCEDURE WriteControl*(s: SET);
-  BEGIN ctrl := s
+    VAR x: LONGINT;
+  BEGIN
+    x := SYSTEM.VAL(LONGINT, s);
+    (*Log("WriteControl", x);*)
+    ctrl := s
   END WriteControl;
 
-  PROCEDURE WriteData*(x: INTEGER);
+  PROCEDURE WriteData*(x: LONGINT);
   BEGIN
     ASSERT(Ready IN status);
+    (*Log("WriteData", x);*)
     dataRx := x;
     delayRx := CalcDelay(8);
+    (*Log("delayRx", delayRx);*)
     EXCL(status, Ready)
   END WriteData;
 
   PROCEDURE ReadData*(): LONGINT;
   BEGIN
     ASSERT(Ready IN status);
+    (*Log("ReadData", dataTx);
+    Log("delayTx", delayTx);*)
     RETURN dataTx
   END ReadData;
 
@@ -261,14 +305,16 @@ MODULE SPICtrl;
 
   PROCEDURE Open*(fname: ARRAY OF CHAR);
   BEGIN
-    F := Files.Old("risk.img");
+    Log("Open", 0);
+    F := Files.Old(fname);
     maxSize := Files.Length(F);
+    Log("maxSize", maxSize);
     ASSERT(maxSize MOD BlockSize = 0, 30);
     numBlocks := maxSize DIV BlockSize;
+    Log("numBlocks", numBlocks);
     Files.Set(R, F, 0)
   END Open;
 
 BEGIN Texts.OpenWriter(W); Reset
 END SPICtrl.
 (* vim:set ts=2 sw=2 et: *)
-
