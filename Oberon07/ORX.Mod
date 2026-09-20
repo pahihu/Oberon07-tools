@@ -1,6 +1,6 @@
 MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
   IMPORT Files := Files07, Texts, Oberon, Sys := System;
-  CONST CR = 0DX; noerr = 0; badfile = 4;  (*copied from Modules for use as cross development tool*)
+  CONST LF = 0AX; noerr = 0; badfile = 4;  (*copied from Modules for use as cross development tool*)
 
   TYPE
     LONGINT = Sys.INT32;
@@ -25,7 +25,7 @@ MODULE ORX;  (*Oberon boot converter for RISC / AP 1.3.24*)
       x := x DIV 10H; INC(i)
     UNTIL i = 8;
     REPEAT DEC(i); Files.Write(R, a[i]) UNTIL i = 0 ;
-    Files.Write(R, CR)
+    Files.Write(R, LF)
   END WriteHex;
 
   PROCEDURE ExtractCode(VAR R, R1: Files.Rider; write: Writer; VAR codelen, entry, res: INTEGER);
