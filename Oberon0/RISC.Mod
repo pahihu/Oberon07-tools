@@ -1,6 +1,6 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
-    RISCEmu, WA := WAddress, Timer, MemCtrl, Kernel;
+    RISCEmu, WA := WAddress, Timer, MemCtrl, SPICtrl, Kernel;
 
   TYPE
     LONGINT = Sys.INT32;
