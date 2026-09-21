@@ -362,7 +362,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       END ;
       IF R[SP] < stackMin THEN stackMin := R[SP] END
     UNTIL done;
-    MemCtrl.Flush; INC(clk, MemCtrl.elapsedClks);
+    MemCtrl.Flush; INC(clk, MemCtrl.elapsedClks); SPICtrl.Close;
 
     ShowInt(W, "#clks=", clk);
     ShowInt(W, "  #instr=", MemCtrl.cntFetch);
