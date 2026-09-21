@@ -449,6 +449,9 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
     VAR W: Texts.Writer;
   BEGIN Texts.OpenWriter(W);
     Texts.WriteString(W, "ORL Link [module ...] topmodule[/id] | Load M.bin SD.img");
+    Texts.WriteString(W, "options:");
+    Texts.WriteString(W, "  /i    - emit module initialization code");
+    Texts.WriteString(W, "  /d    - print detailed image statistics");
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
   END Help;
 

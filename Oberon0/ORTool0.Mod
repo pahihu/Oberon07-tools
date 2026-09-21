@@ -361,8 +361,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       IF S.class = Texts.Name THEN
         FOR i := 0 TO S.len DO
           ch := S.s[i];
-             IF ch = "t" THEN RISC.UseAbsTime
+             IF ch = "a" THEN RISC.UseAbsTime
           ELSIF ch = "c" THEN MemCtrl.Enable
+          ELSIF ch = "s" THEN RISC.InitSPI
           END
         END
       END
@@ -430,7 +431,12 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END Debug;
 
   PROCEDURE Help*;
-  BEGIN String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin[/ct]..."); Ln
+  BEGIN
+    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin[/acs]..."); Ln;
+    String("options:"); Ln;
+    String("  /a    - use absolute time"); Ln;
+    String("  /c    - enable cache in memory controller"); Ln;
+    String("  /s    - enable SPI controller, uses risk.img"); Ln;
   END Help;
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;

@@ -389,7 +389,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   BEGIN absTime := TRUE; DelayTX := 0
   END UseAbsTime;
 
-  PROCEDURE InitSPI;
+  PROCEDURE InitSPI*;
     VAR F: Files.File;
         R: Files.Rider;
         sector: ARRAY 1024 OF CHAR;
@@ -414,8 +414,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
 BEGIN In.Open;
   absTime := FALSE;
   clk := 0;
-  delayTxCounter := 0; DelayTX := 1042;
-  InitSPI
+  delayTxCounter := 0; DelayTX := 1042
 END RISC.
 
 (* vim:set ts=2 sw=2 et: *)

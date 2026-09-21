@@ -1051,9 +1051,26 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     Kernel.Exit(SHORT(ORS.errcnt))
   END Compile;
 
+  PROCEDURE Ln;
+  BEGIN Texts.WriteLn(W)
+  END Ln;
+
+  PROCEDURE String(s: ARRAY OF CHAR);
+  BEGIN Texts.WriteString(W, s)
+  END String;
+
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: ORP Compile name[/als]...");
-    Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+  BEGIN
+    Ln; String("usage: ORP Compile name[/als]...");
+    Ln; String("options:");
+    Ln; String("  /a    - enabled Astrobe-compatibility");
+    Ln; String("  /l    - report position as line:char");
+    Ln; String("  /s    - enable new symbol file");
+    Ln; String("comment embedded options: opt=+|-");
+    Ln; String("  $Aopt - enable/disable ASSERTs");
+    Ln; String("  $Copt - enable/disable run-time checks");
+    Ln; String("  $Lopt - leaf PROCEDURE (implies $A- $C- )");
+    Ln; Texts.Append(Oberon.Log, W.buf)
   END Help;
 
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "OR Compiler  8.3.2020");

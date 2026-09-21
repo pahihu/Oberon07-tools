@@ -1,6 +1,6 @@
 MODULE SPICtrl;
 
-  IMPORT Files, Texts, Oberon, SYSTEM;
+  IMPORT Files, Texts, Oberon, SYSTEM, Sys := System;
 
   CONST FSoffset = 10000000H; (*256MBytes*)
         BlockSize = 512;
@@ -15,8 +15,10 @@ MODULE SPICtrl;
         Ready = 0; (*status*)
 
   TYPE
-      Handler = PROCEDURE;
+      INTEGER = Sys.INT32;
+      LONGINT = Sys.INT32;
       BYTE = CHAR;
+      Handler = PROCEDURE;
       Block = ARRAY BlockSize OF BYTE;
 
   VAR R: Files.Rider;
@@ -307,7 +309,7 @@ MODULE SPICtrl;
   BEGIN
     Log("Open", 0);
     F := Files.Old(fname);
-    maxSize := Files.Length(F);
+    maxSize := Sys.Short(Files.Length(F));
     Log("maxSize", maxSize);
     ASSERT(maxSize MOD BlockSize = 0, 30);
     numBlocks := maxSize DIV BlockSize;
