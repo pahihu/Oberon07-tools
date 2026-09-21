@@ -399,7 +399,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       F := Files.New(SDImage);
       Files.Set(R, F, 0);
       FOR i := 0 TO LEN(sector) - 1 DO sector[i] := 0X END ; (*zeros*)
-      FOR i := 0 TO 256 + 64 - 1 DO (*256+64MB*)
+      FOR i := 0 TO 256 + 64 + 64 - 1 DO (*256+64MB+64MB*)
         FOR j := 0 TO 1023 DO
           Files.WriteBytes(R, sector, 1024)
         END
