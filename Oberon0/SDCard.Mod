@@ -1,4 +1,4 @@
-MODULE SPICtrl;
+MODULE SDCard;
 
   IMPORT Files, Texts, Oberon, SYSTEM, Sys := System, Kernel;
 
@@ -383,5 +383,5 @@ BEGIN Texts.OpenWriter(W);
   detectors[detCommand] := DetectCommand;
   detectors[detWriteStart] := DetectWriteStart;
   Reset
-END SPICtrl.
+END SDCard.
 (* vim:set ts=2 sw=2 et: *)
