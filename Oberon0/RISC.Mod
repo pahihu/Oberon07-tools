@@ -1,6 +1,6 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
-    RISCEmu, WA := WAddress, Timer, MemCtrl, SDCard, RTC, Kernel, Files;
+    RISCEmu, WA := WAddress, Timer, MemCtrl, SDCard, RTC, Kernel, Files, SDCardNew;
 
   TYPE
     LONGINT = Sys.INT32;

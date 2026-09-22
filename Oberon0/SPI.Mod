@@ -1,43 +1,43 @@
-MODULE SPI;
+MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
 
   IMPORT Texts, Oberon, SYSTEM, Sys := System, Kernel;
 
-  CONST BufLen = 1024;
-        Idle = 0; Input = 1; Output = 2; (*controller state*)
-        Undef = 0FFX;
-        Word = 4; Fast = 3; SPI1 = 1; SPI0 = 0; (*ctrl*)
-        BitDelayFast = 3; BitDelaySlow = 29;
-        Ready = 0; (*status*)
-        debug = FALSE;
+  CONST
+    Idle = 0; Input = 1; Output = 2; (*controller state*)
+    Undef* = 0FFX;
+    Word = 4; Fast = 3; DEV1* = 1; DEV0* = 0; (*ctrl*)
+    BitDelayFast = 3; BitDelaySlow = 29;
+    Ready = 0; (*status*)
+    debug = FALSE;
 
   TYPE
-      INTEGER = Sys.INT32;
-      LONGINT = Sys.INT32;
-      BYTE* = CHAR;
-      Slave* = POINTER TO SlaveDesc;
-      Handler* = PROCEDURE(slave: Slave);
-      Detector* = PROCEDURE (slave: Slave; b: BYTE);
-      SlaveDesc* = RECORD
-        buf: ARRAY BufLen OF BYTE;
-        pos, len: INTEGER;
-        state: INTEGER; (*controller state: Idle, Input, Output*)
+    INTEGER* = Sys.INT32;
+    LONGINT* = Sys.INT32;
+    BYTE* = CHAR;
 
-        response: BYTE;
-        ioHandle: Handler;
-        detector: Detector;
+    Slave* = POINTER TO SlaveDesc;
+    IOHandler* = PROCEDURE(slave: Slave; b: BYTE);
+    SlaveDesc* = RECORD
+      buf-: POINTER TO ARRAY OF BYTE;
+      pos, len-: INTEGER;
+      state: INTEGER; (*controller state: Idle, Input, Output*)
 
-        status-: SET;
-        ctrl: SET;
-        delayRx-: LONGINT;
-        delayTx-: LONGINT;
-        dataRx, dataTx: LONGINT;
-      END ;
+      response: BYTE;
+      CmdFinish*: IOHandler;
+      CmdStart*: IOHandler;
 
-  VAR W: Texts.Writer;
+      status-: SET;
+      ctrl-: SET;
+      delayRx-: LONGINT;
+      delayTx-: LONGINT;
+      dataRx, dataTx: LONGINT;
+    END ;
 
+  VAR
+    W: Texts.Writer;
 
   (*logging*)
-  PROCEDURE Warning(s: ARRAY OF CHAR; x: LONGINT);
+  PROCEDURE Warning*(s: ARRAY OF CHAR; x: LONGINT);
   BEGIN
     IF debug THEN
       Texts.WriteLn(W);
@@ -49,7 +49,7 @@ MODULE SPI;
     END
   END Warning;
 
-  PROCEDURE Log(s: ARRAY OF CHAR; x: LONGINT);
+  PROCEDURE Log*(s: ARRAY OF CHAR; x: LONGINT);
   BEGIN
     IF debug THEN
       Texts.WriteLn(W);
@@ -63,203 +63,254 @@ MODULE SPI;
     END
   END Log;
 
-  PROCEDURE ResetBuffer*(slave: Slave);
+  PROCEDURE (s: Slave) IsBufferEmpty*(): BOOLEAN;
+  BEGIN RETURN s.pos = s.len
+  END IsBufferEmpty;
+
+  PROCEDURE (s: Slave) ResetBuffer*;
   BEGIN
-    Log("ResetBuffer", slave.len);
-    ASSERT(slave.pos = slave.len, 10); (*empty*)
-    slave.pos := 0; slave.len := 0; slave.state := Idle
+    Log("ResetBuffer", s.len);
+    ASSERT(s.IsBufferEmpty(), 10);
+    s.pos := 0; s.len := 0; s.state := Idle
   END ResetBuffer;
 
   (*command handling*)
 
-  PROCEDURE SetDetector*(slave: Slave; det: Detector; arg: INTEGER);
+  PROCEDURE (s: Slave) SetCmdStart*(h: IOHandler; arg: INTEGER);
   BEGIN
-    ASSERT(det # NIL, 10);
+    ASSERT(h # NIL, 10);
     Log("SetDetector", arg);
-    slave.detector := det
-  END SetDetector;
+    s.CmdStart := h
+  END SetCmdStart;
 
-  PROCEDURE Recv*(slave: Slave; n: INTEGER; b: BYTE);
+  PROCEDURE (s: Slave) Recv*(n: INTEGER; b: BYTE);
     VAR i: INTEGER;
   BEGIN (*prepare buf for RX*)
-    ASSERT((slave.state = Idle) OR (slave.state = Input), 10);
-    slave.state := Input;
-    FOR i := 0 TO n - 1 DO slave.buf[slave.len] := b; INC(slave.len) END
+    ASSERT((s.state = Idle) OR (s.state = Input), 10);
+    s.state := Input;
+    FOR i := 0 TO n - 1 DO s.buf[s.len] := b; INC(s.len) END
   END Recv;
 
-  PROCEDURE Send*(slave: Slave; b: BYTE);
+  PROCEDURE (s: Slave) Send*(b: BYTE);
   BEGIN (*prepare buf for TX*)
-    ASSERT((slave.state = Idle) OR (slave.state = Output), 10);
-    slave.state := Output;
-    slave.buf[slave.len] := b; INC(slave.len);
+    ASSERT((s.state = Idle) OR (s.state = Output), 10);
+    s.state := Output;
+    s.buf[s.len] := b; INC(s.len)
   END Send;
 
-  PROCEDURE DoNothing*(slave: Slave);
+  PROCEDURE DoNothing*(s: Slave; b: BYTE);
   BEGIN Log("DoNothing", -1);
-    slave.state := Idle;
+    s.state := Idle;
   END DoNothing;
 
-  PROCEDURE DoRespond*(slave: Slave);
+  PROCEDURE DoRespond*(s: Slave; b: BYTE);
   BEGIN
-    Log("DoRespond", ORD(slave.response));
-    ResetBuffer(slave); slave.ioHandle := DoNothing;
-    Send(slave, slave.response)
+    Log("DoRespond", ORD(s.response));
+    s.ResetBuffer; s.CmdFinish := DoNothing;
+    s.Send(s.response)
   END DoRespond;
 
-  PROCEDURE Respond*(slave: Slave; b: BYTE);
+  PROCEDURE (s: Slave) RespondWith*(b: BYTE; h: IOHandler);
   BEGIN
-    slave.ioHandle := DoRespond;
-    slave.response := b
+    s.CmdFinish := h;
+    s.response := b
+  END RespondWith;
+
+  PROCEDURE (s: Slave) Respond*(b: BYTE);
+  BEGIN s.RespondWith(b, DoRespond)
   END Respond;
 
-  PROCEDURE Get4*(slave: Slave; i: INTEGER): LONGINT;
-    VAR ret: LONGINT;
+  PROCEDURE (s: Slave) Peek*(): BYTE;
   BEGIN
-    ASSERT((0 <= i) & (i + 4 <= slave.len), 10);
-    ret := ((ORD(slave.buf[i+3]) * 100H + ORD(slave.buf[i+2])) * 100H + ORD(slave.buf[i+1])) * 100H + ORD(slave.buf[i]);
+    ASSERT(s.pos < s.len, 10);
+    RETURN s.buf[s.pos]
+  END Peek;
+
+  PROCEDURE (s: Slave) Append*(b: BYTE);
+  BEGIN
+    ASSERT((0 <= s.pos) & (s.pos < s.len), 10);
+    s.buf[s.pos] := b; INC(s.pos)
+  END Append;
+
+  PROCEDURE (s: Slave) Get*(): BYTE;
+    VAR ret: BYTE;
+  BEGIN
+    ASSERT((0 <= s.pos) & (s.pos < s.len), 10);
+    ret := s.buf[s.pos]; INC(s.pos);
+    RETURN ret
+  END Get;
+
+  PROCEDURE (s: Slave) Get4*(): LONGINT;
+    VAR ret: LONGINT;
+        i: INTEGER;
+  BEGIN
+    ASSERT((0 <= s.pos) & (s.pos + 3 < s.len), 10);
+    i := s.pos;
+    ret := ORD(s.buf[i + 3]);
+    ret := ret * 100H + ORD(s.buf[i + 2]);
+    ret := ret * 100H + ORD(s.buf[i + 1]);
+    ret := ret * 100H + ORD(s.buf[i]);
+    INC(s.pos, 4);
     RETURN ret
   END Get4;
 
-  PROCEDURE GetCommandArg*(slave: Slave; i: INTEGER): LONGINT;
+  PROCEDURE (s: Slave) GetCommandArg*(i: INTEGER): LONGINT;
     VAR ret: LONGINT;
   BEGIN
-    ASSERT((0 <= i) & (i + 4 <= slave.len), 10);
-    ret := ((ORD(slave.buf[i]) * 100H + ORD(slave.buf[i+1])) * 100H + ORD(slave.buf[i+2])) * 100H + ORD(slave.buf[i+3]);
+    ASSERT((0 <= i) & (i + 3 < s.len), 10);
+    ret := ORD(s.buf[i]);
+    ret := ret * 100H + ORD(s.buf[i + 1]);
+    ret := ret * 100H + ORD(s.buf[i + 2]);
+    ret := ret * 100H + ORD(s.buf[i + 3]);
     RETURN ret
   END GetCommandArg;
 
-  PROCEDURE CalcDelay*(slave: Slave; numBits: INTEGER): LONGINT;
-    VAR ret: LONGINT;
+  PROCEDURE (s: Slave) CalcDelay*(numBits: INTEGER): LONGINT;
+    VAR scale: LONGINT;
   BEGIN
-    IF Fast IN slave.ctrl THEN
-      ret := numBits * BitDelayFast
+    IF Fast IN s.ctrl THEN
+      scale := BitDelayFast
     ELSE
-      ret := numBits * BitDelaySlow
+      scale := BitDelaySlow
     END ;
-    RETURN ret
+    RETURN numBits * scale
   END CalcDelay;
 
-  PROCEDURE DoCommand(slave: Slave);
+  (*examples*)
+  PROCEDURE HandleCommand(s: Slave; b: BYTE);
   BEGIN
-  END DoCommand;
+  END HandleCommand;
 
-  PROCEDURE DetectCommand(slave: Slave; b: BYTE);
+  PROCEDURE HandleStart(s: Slave; b: BYTE);
   BEGIN
     IF b # Undef THEN (*lock CMD*)
       Log("Lock CMD", ORD(b));
-      ResetBuffer(slave);
-      Recv(slave, 6, Undef);
-      slave.ioHandle := DoCommand
+      s.ResetBuffer;
+      s.Recv(6, Undef);
+      s.CmdFinish := HandleCommand
     END
-  END DetectCommand;
+  END HandleStart;
 
-  PROCEDURE Cycle*(slave: Slave);
+  PROCEDURE (s: Slave) Cycle*;
     VAR ret: BYTE;
         ret4: LONGINT;
-        inp: BYTE;
+        inp, b: BYTE;
         noBits: INTEGER;
   BEGIN
+    ASSERT(s.CmdStart # NIL, 10);
     (*ASSERT((delayRx = 0) OR (delayTx = 0), 10);*)
     (*Log("Cycle", bufState);*)
-    IF Ready IN slave.status THEN
+    IF Ready IN s.status THEN
     ELSE
       (*Log("delayRx", delayRx);
       Log("delayTx", delayTx);*)
-      IF slave.delayRx # 0 THEN DEC(slave.delayRx) END ;
-      IF slave.delayTx # 0 THEN DEC(slave.delayTx) END ;
-      inp := CHR(slave.dataRx MOD 100H);
+      IF s.delayRx # 0 THEN DEC(s.delayRx) END ;
+      IF s.delayTx # 0 THEN DEC(s.delayTx) END ;
       ret := Undef;
       noBits := 8;
-      CASE slave.state OF
+      CASE s.state OF
         Idle, Input:
-          IF (slave.state = Idle) & (slave.delayRx = 0) THEN
-            slave.detector(slave, inp)
-          END ;
-          IF slave.delayRx = 0 THEN
-            INCL(slave.status, Ready);
-            Log("Recv", ORD(inp));
-            Log("state", slave.state);
-            Log("RecvPos", slave.pos);
-            Log("RecvLen", slave.len);
-            IF slave.pos < slave.len THEN
-              IF slave.buf[slave.pos] # Undef THEN
-                IF slave.buf[slave.pos] # inp THEN Warning("input mismatch ", slave.pos); Kernel.Exit(1) END
-              END ;
-              slave.buf[slave.pos] := inp; INC(slave.pos)
+          IF s.delayRx = 0 THEN
+            INCL(s.status, Ready);
+            inp := CHR(s.dataRx MOD 100H);
+            IF s.state = Idle THEN
+              s.CmdStart(s, inp)
             END ;
-            IF slave.pos = slave.len THEN
+            Log("Recv", ORD(inp));
+            Log("state", s.state);
+            Log("RecvPos", s.pos);
+            Log("RecvLen", s.len);
+            IF s.pos < s.len THEN
+              b := s.Peek();
+              IF (b # Undef) & (b # inp) THEN
+                Warning("input mismatch ", s.pos);
+                Kernel.Exit(1)
+              END ;
+              s.Append(inp)
+            END ;
+            IF s.IsBufferEmpty() THEN
               Log("Input handle BEGIN", -1);
-              slave.ioHandle(slave);
+              s.CmdFinish(s, Undef);
               Log("Input handle END", -1);
             END
           END
         | Output:
-          IF slave.delayTx = 0 THEN
-            INCL(slave.status, Ready);
+          IF s.delayTx = 0 THEN
+            INCL(s.status, Ready);
             Log("Send", -1);
-            Log("state", slave.state);
-            IF slave.pos < slave.len THEN
-              Log("Send!", ORD(slave.buf[slave.pos]));
-              Log("SendPos", slave.pos);
-              Log("SendLen", slave.len);
-              IF Word IN slave.ctrl THEN
-                ret4 := Get4(slave, slave.pos); INC(slave.pos, 4); noBits := 32;
+            Log("state", s.state);
+            IF s.pos < s.len THEN
+              Log("Send!", ORD(s.Peek()));
+              Log("SendPos", s.pos);
+              Log("SendLen", s.len);
+              IF Word IN s.ctrl THEN
+                ret4 := s.Get4(); noBits := 32
               ELSE
-                ret := slave.buf[slave.pos]; INC(slave.pos)
+                ret := s.Get()
               END
             END ;
-            IF slave.pos = slave.len THEN
+            IF s.IsBufferEmpty() THEN
               Log("Output handle BEGIN", -1);
-              slave.ioHandle(slave);
-              Log("Output handle END", -1);
+              s.CmdFinish(s, Undef);
+              Log("Output handle END", -1)
             END
           END ;
       END ; (*CASE*)
-      IF slave.delayTx = 0 THEN
+      IF s.delayTx = 0 THEN
         IF noBits = 32 THEN
           Log("DataTx32", ret4);
-          slave.dataTx := ret4;
+          s.dataTx := ret4;
         ELSE
           Log("DataTx8", ORD(ret));
-          slave.dataTx := ORD(ret)
+          s.dataTx := ORD(ret)
         END ;
-        slave.delayTx := CalcDelay(slave, noBits);
+        s.delayTx := s.CalcDelay(noBits);
       END (*CASE*)
     END (*Ready*)
   END Cycle;
 
-  PROCEDURE WriteControl*(slave: Slave; s: SET);
-    VAR x: LONGINT;
+  PROCEDURE (s: Slave) AfterControlSet*;
   BEGIN
-    x := SYSTEM.VAL(LONGINT, s);
-    (*Log("WriteControl", x);*)
-    slave.ctrl := s
+  END AfterControlSet;
+
+  PROCEDURE (s: Slave) WriteControl*(x: SET);
+    VAR y: LONGINT;
+  BEGIN
+    y := SYSTEM.VAL(LONGINT, x);
+    (*Log("WriteControl", y);*)
+    s.ctrl := x;
+    s.AfterControlSet
   END WriteControl;
 
-  PROCEDURE WriteData*(slave: Slave; x: LONGINT);
+  PROCEDURE (s: Slave) WriteData*(x: LONGINT);
   BEGIN
-    ASSERT(Ready IN slave.status);
+    ASSERT(Ready IN s.status);
     Log("WriteData", x);
-    slave.dataRx := x;
-    slave.delayRx := CalcDelay(slave, 8);
+    s.dataRx := x;
+    s.delayRx := s.CalcDelay(8);
     (*Log("delayRx", delayRx);*)
-    EXCL(slave.status, Ready)
+    EXCL(s.status, Ready)
   END WriteData;
 
-  PROCEDURE ReadData*(slave: Slave): LONGINT;
+  PROCEDURE (s: Slave) ReadData*(): LONGINT;
   BEGIN
-    ASSERT(Ready IN slave.status);
+    ASSERT(Ready IN s.status);
     (*Log("ReadData", dataTx);
     Log("delayTx", delayTx);*)
-    RETURN slave.dataTx
+    RETURN s.dataTx
   END ReadData;
 
-  PROCEDURE Reset*(slave: Slave);
-  BEGIN slave.status := {Ready}; slave.ctrl := {};
-    ResetBuffer(slave);
-    slave.ioHandle := DoNothing; slave.state := Idle;
-    slave.detector := NIL
+  PROCEDURE (s: Slave) Reset*;
+  BEGIN s.status := {Ready}; s.ctrl := {};
+    s.pos := 0; s.len := 0;
+    s.ResetBuffer;
+    s.CmdFinish := DoNothing; s.state := Idle;
+    s.CmdStart := NIL
   END Reset;
+
+  PROCEDURE (s: Slave) InitBuffer*(n: INTEGER);
+  BEGIN NEW(s.buf, n)
+  END InitBuffer;
 
 BEGIN Texts.OpenWriter(W)
 END SPI.
