@@ -53,7 +53,7 @@ MODULE RTC; (*Phu 22.9.26 / DS3234*)
     r.SetCmdStart(HandleCmdStart, 0)
   END Reset;
 
-  PROCEDURE (r: RTC) AfterControlSet*;
+  PROCEDURE (r: RTC) AfterControlSet;
   BEGIN IF SPI.DEV1 IN r.ctrl THEN r.Reset END
   END AfterControlSet;
 

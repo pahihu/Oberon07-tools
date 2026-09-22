@@ -153,6 +153,10 @@ MODULE SDCardNew;
     s.SetDetector(detCommand)
   END Reset;
 
+  PROCEDURE (s: SDCard) AfterControlSet;
+  BEGIN IF SPI.DEV0 IN s.ctrl THEN s.Reset END
+  END AfterControlSet;
+
   PROCEDURE (s: SDCard) Open*(fname: ARRAY OF CHAR);
   BEGIN
     SPI.Log("Open", -1);

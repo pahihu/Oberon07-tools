@@ -269,7 +269,7 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
     END (*Ready*)
   END Cycle;
 
-  PROCEDURE (s: Slave) AfterControlSet*;
+  PROCEDURE (s: Slave) AfterControlSet;
   BEGIN
   END AfterControlSet;
 
