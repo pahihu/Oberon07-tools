@@ -204,6 +204,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
       prevClk := clk;
+      (*ShowInt(W, "PC=", PC);*)
       IR := MemCtrl.Fetch(PC); INC(clk, MemCtrl.elapsedClks);
       IF spiDeviceCS IN {1,2} THEN
         spiBus[spiDeviceCS].Cycle
@@ -349,7 +350,10 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                   OR (a = 7);
           IF (b < 8) & cond OR (b > 7) & ~cond THEN
             IF ODD(v) THEN R[LNK] := PC * 4 END ;
-            IF ODD(u) THEN PC := (PC + IR MOD 1000000H) MOD MemCtrl.MaxMem
+            IF ODD(u) THEN
+              tmp := IR MOD 1000000H;
+              IF tmp >= 800000H THEN tmp := tmp - 1000000H END ;
+              PC := (PC + tmp) MOD MemCtrl.MaxMem
             ELSIF d1 = 8 THEN PC := (PC + R[IR MOD 10H]) MOD MemCtrl.MaxMem (* Astrobe RISC5 Bcc PC,Rn *)
             ELSE PC := (R[IR MOD 10H] DIV 4) MOD MemCtrl.MaxMem
             END

@@ -5,7 +5,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     MaxModules = 8;
     MaxExports = 64;
     MaxImports = 16;
-    MaxHeap = 4096; (*words*)
+    MaxHeap = 16 * 1024 DIV 4; (*words*)
     MemAdr = 12; StackAdr = 24; MT = 12; SP = 14; LNK = 15;
 
   TYPE
