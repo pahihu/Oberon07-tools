@@ -166,7 +166,11 @@ MODULE SDCard;
   END Reset;
 
   PROCEDURE (s: SDCard) AfterControlSet;
-  BEGIN IF SPI.SPI0 IN s.ctrl THEN s.Reset END
+  BEGIN
+    (*EO boots with this commented out*)
+    (*IF SPI.SPI0 IN s.ctrl THEN
+      s.Reset
+    END*)
   END AfterControlSet;
 
   PROCEDURE (s: SDCard) Open*(fname: ARRAY OF CHAR);
@@ -187,7 +191,7 @@ MODULE SDCard;
 
   PROCEDURE New*(): SDCard;
     VAR s: SDCard;
-  BEGIN NEW(s); s.InitBuffer(SectorSize); s.F := NIL; RETURN s
+  BEGIN NEW(s); s.InitBuffer(SectorSize); s.F := NIL; (*s.Debug;*) RETURN s
   END New;
 
 BEGIN

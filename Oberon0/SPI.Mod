@@ -273,13 +273,17 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
   BEGIN
   END AfterControlSet;
 
-  PROCEDURE (s: Slave) WriteControl*(x: SET);
+  PROCEDURE (s: Slave) WriteControl*(c: SET);
     VAR y: LONGINT;
+        p: SET;
   BEGIN
-    y := SYSTEM.VAL(LONGINT, x);
-    (*s.Log("WriteControl", y);*)
-    s.ctrl := x;
-    s.AfterControlSet
+    (*y := SYSTEM.VAL(LONGINT, x);
+    s.Log("WriteControl", y);*)
+    p := s.ctrl;
+    s.ctrl := c;
+    IF (p * {SPI1, SPI0}) # (c * {SPI1, SPI0}) THEN
+      s.AfterControlSet
+    END
   END WriteControl;
 
   PROCEDURE (s: Slave) WriteData*(x: LONGINT);
@@ -318,7 +322,7 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
 
   PROCEDURE BusTerminator*(): Slave;
     VAR s: Slave;
-  BEGIN NEW(s); s.InitBuffer(0); RETURN s
+  BEGIN NEW(s); s.InitBuffer(1); RETURN s
   END BusTerminator;
 
 BEGIN Texts.OpenWriter(W)

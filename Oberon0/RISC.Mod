@@ -198,15 +198,17 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       prevClk: LONGINT;
       done: BOOLEAN;
       hitRate: LONGREAL;
+      rdOnlyCode: BOOLEAN;
   BEGIN
     PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
+    rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.MaxMem);
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
       IR := MemCtrl.Fetch(PC); INC(clk, MemCtrl.elapsedClks);
-      IF spiDeviceCS IN {1,2} THEN
+      IF spiDeviceCS # 3 THEN
         spiBus[spiDeviceCS].Cycle
       END ;
       RISCEmu.Status(W, PC, IR, R, H, Flags(), IntFlags()); INC(PC);
@@ -293,8 +295,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           END
         ELSE
           IF adr >= 0 THEN (*store*)
-            IF entry.ToWords() # 0 THEN
-              ASSERT(adr >= sb.ToWords(), 30); (*read-only code*)
+            IF rdOnlyCode THEN
+              ASSERT(adr >= sb.ToWords(), 30)
             END;
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
