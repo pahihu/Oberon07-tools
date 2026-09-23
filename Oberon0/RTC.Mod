@@ -22,12 +22,13 @@ MODULE RTC; (*Phu 22.9.26 / DS3234*)
   END RecvAndIncrement;
 
   PROCEDURE HandleCmdStart(r: SPI.Slave; b: BYTE);
-    VAR t, d: LONGINT;
+    VAR lt, ld: Sys.Address;
+        t, d: LONGINT;
         hh, mm, ss, dy, mo, yr: LONGINT;
   BEGIN
     WITH r: RTC DO
       IF (0X <= b) & (b <= ReadAdr) THEN
-        Kernel.GetClock(t, d);
+        Kernel.GetClock(lt, ld); t := Sys.Short(lt); d := Sys.Short(ld);
         hh := t DIV 4096; mm := t DIV 64 MOD 64; ss := t MOD 64;
         yr := (d DIV 512) MOD 100; mo := d DIV 32 MOD 16; dy := d MOD 32;
         r.ResetBuffer;
