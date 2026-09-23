@@ -1,5 +1,5 @@
 MODULE MemCtrl; (*Phu 18.9.26*)
-  IMPORT Sys := System, Texts, Oberon;
+  IMPORT Sys := System, Texts, Oberon, Files;
 
   (*
     Cache controller
@@ -54,6 +54,8 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     (* 36MHz WriteBackClks = 14; FillClks = 16; *)
     Debug = FALSE;
     Valid = 0; Dirty = 1;
+    PromSize = 512; PromStart* = 3FF800H; (*in words*)
+    LF = 0AX;
 
   TYPE
     INTEGER = Sys.INT32;
@@ -76,6 +78,12 @@ MODULE MemCtrl; (*Phu 18.9.26*)
       elapsedClks-: LONGINT; (*elapsed CLKs for the last operation*)
       enabled-: BOOLEAN;
       W: Texts.Writer;
+      PROM: ARRAY PromSize OF LONGINT;
+
+  PROCEDURE Where(s: ARRAY OF CHAR);
+  BEGIN Texts.WriteLn(W); Texts.WriteString(W, s);
+    Texts.Append(Oberon.Log, W.buf)
+  END Where;
 
   PROCEDURE DebugInt(nl: BOOLEAN; s: ARRAY OF CHAR; x: LONGINT);
   BEGIN
@@ -202,11 +210,28 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     END
   END Flush;
 
+  PROCEDURE IsRamAdr(adr: Address): BOOLEAN;
+  BEGIN RETURN (0 <= adr) & (adr < MaxMem)
+  END IsRamAdr;
+
+  PROCEDURE IsPromAdr(adr: Address): BOOLEAN;
+  BEGIN RETURN (PromStart <= adr) & (adr < PromStart + PromSize)
+  END IsPromAdr;
+
   PROCEDURE Fetch*(adr: Address): Word;
     VAR ret: Word;
   BEGIN
-    ASSERT((0 <= adr) & (adr < MaxMem), 10);
-    ret := ReadInt("FETCH", adr); INC(cntFetch);
+    IF IsRamAdr(adr) THEN
+      ret := ReadInt("FETCH", adr)
+    ELSIF IsPromAdr(adr) THEN
+      ret := PROM[adr - PromStart]
+    ELSE
+      Texts.WriteLn(W);
+      Texts.WriteString(W, "Fetch: invalid address ");
+      Texts.WriteHex(W, adr * 4);
+      HALT(1)
+    END ;
+    INC(cntFetch);
     RETURN ret
   END Fetch;
 
@@ -237,6 +262,64 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     END ;
     RETURN x;
   END Efficiency;
+
+  (*PROM reader*)
+  PROCEDURE HexToInt(s: ARRAY OF CHAR): LONGINT;
+    VAR i, digit: INTEGER;
+        ret: LONGINT;
+        ch: CHAR;
+  BEGIN ret := 0; i := 0;
+    ch := s[i];
+    WHILE ch # 0X DO
+      IF ch > "9" THEN
+        digit := ORD(ch) - ORD("A") + 10
+      ELSE
+        digit := ORD(ch) - ORD("0")
+      END ;
+      ret := ret * 16 + digit;
+      INC(i); ch := s[i]
+    END ;
+    RETURN ret
+  END HexToInt;
+
+  PROCEDURE ReadLine(VAR R: Files.Rider; VAR s: ARRAY OF CHAR);
+    VAR i: INTEGER;
+        ch: CHAR;
+  BEGIN i := 0;
+    Files.Read(R, ch);
+    WHILE ~R.eof & (ch # LF) & (i < LEN(s) - 1) DO
+      s[i] := ch; INC(i);
+      Files.Read(R, ch)
+    END ;
+    s[i] := 0X;
+    (*Where(s)*)
+  END ReadLine;
+
+  PROCEDURE ReadProm*(fname: ARRAY OF CHAR);
+    VAR F: Files.File;
+        R: Files.Rider;
+        s: ARRAY 16 OF CHAR;
+        i: INTEGER;
+  BEGIN
+    F := Files.Old(fname);
+    IF F # NIL THEN
+      Files.Set(R, F, 0);
+      i := 0;
+      WHILE ~R.eof & (i < PromSize) DO
+        ReadLine(R, s);
+        IF s[0] # 0X THEN
+          PROM[i] := HexToInt(s); INC(i)
+        END
+      END ;
+      Files.Close(F);
+    ELSE
+      Texts.WriteLn(W);
+      Texts.WriteString(W, "PROM file not found");
+      Texts.Append(Oberon.Log, W.buf);
+      HALT(1)
+    END ;
+    Texts.Append(Oberon.Log, W.buf);
+  END ReadProm;
 
 BEGIN Init; Texts.OpenWriter(W);
 END MemCtrl.

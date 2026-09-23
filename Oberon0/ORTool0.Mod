@@ -7,6 +7,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     MaxImports = 16;
     MaxHeap = 16 * 1024 DIV 4; (*words*)
     MemAdr = 12; StackAdr = 24; MT = 12; SP = 14; LNK = 15;
+    PromMem = "prom.mem";
 
   TYPE
     LONGINT = Sys.INT32;
@@ -39,6 +40,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     printOut: BOOLEAN;
     errno: INTEGER;
     useSD: BOOLEAN;
+    StartAdr: LONGINT;
 
   PROCEDURE Read(VAR R: Files.Rider; VAR n: INTEGER);
     VAR b: Sys.Byte;
@@ -364,6 +366,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
           ch := S.s[i];
              IF ch = "a" THEN RISC.UseAbsTime
           ELSIF ch = "c" THEN MemCtrl.Enable
+          ELSIF ch = "p" THEN
+            MemCtrl.ReadProm(PromMem);
+            StartAdr := MemCtrl.PromStart
           ELSIF ch = "s" THEN useSD := TRUE
           END
         END
@@ -401,7 +406,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       Ln; Texts.Scan(S)
     END;
     IF bin THEN
-      wentry.FromWords(0); (* wcode points to the end of the loaded binary *)
+      wentry.FromWords(StartAdr); (*wcode points to the end of the loaded binary*)
       RISC.SetReg(MT, 20H);
       RISC.SetReg(SP, 4 * (MemCtrl.MaxMem - MaxHeap));
       RISC.SetReg(LNK, 0)
@@ -438,7 +443,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;
-    String("  /s    - enable SD/MMC card, uses risk.img"); Ln;
+    String("  /p    - load prom.mem"); Ln;
+    String("  /s    - enable SD/MMC card (risk.img)"); Ln;
   END Help;
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
@@ -447,7 +453,8 @@ BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
   GF.FromWords(2048);
   wcode.FromWords(0); wdata.FromWords(0);
 
-  printOut := TRUE; useSD := FALSE; Oberon.Run
+  printOut := TRUE; useSD := FALSE; StartAdr := 0;
+  Oberon.Run
 END ORTool0.
 
 (* vim:set ts=2 sw=2 et: *)

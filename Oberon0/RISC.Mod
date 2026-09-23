@@ -10,7 +10,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     MOV = 0; LSL = 1; ASR = 2; ROR = 3; AND = 4; ANN = 5; IOR = 6; XOR = 7;
     ADD = 8; SUB = 9;  MUL = 10; Div = 11; FAD = 12; FSB = 13; FML = 14;
     FDV = 15;
-    MT = 12; SP = 14; LNK = 15;
+    MT = 12; SB = 13; SP = 14; LNK = 15;
     Debug = FALSE;
     SDImage = "risk.img";
     NumSPISlaves = 4; (*SPI CS: bit0 - SPI0, bit1 - SPI1*)
@@ -186,7 +186,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   END ShowLEDs;
 
-  PROCEDURE Execute*(entry, pc: WA.ADDR; VAR S: Texts.Scanner; VAR W: Texts.Writer);
+  PROCEDURE Execute*(entry, sb: WA.ADDR; VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
       badr, adr, tmp, A, B, C: LONGINT;
       cond: BOOLEAN;
@@ -199,7 +199,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       done: BOOLEAN;
       hitRate: LONGREAL;
   BEGIN
-    PC := entry.ToWords() (*0*); R[13] := pc.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
+    PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     REPEAT (*interpretation cycle*)
@@ -294,7 +294,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         ELSE
           IF adr >= 0 THEN (*store*)
             IF entry.ToWords() # 0 THEN
-              ASSERT(adr >= pc.ToWords()); (*read-only code*)
+              ASSERT(adr >= sb.ToWords(), 30); (*read-only code*)
             END;
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
@@ -353,9 +353,10 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             IF ODD(u) THEN
               tmp := IR MOD 1000000H;
               IF tmp >= 800000H THEN tmp := tmp - 1000000H END ;
-              PC := (PC + tmp) MOD MemCtrl.MaxMem
-            ELSIF d1 = 8 THEN PC := (PC + R[IR MOD 10H]) MOD MemCtrl.MaxMem (* Astrobe RISC5 Bcc PC,Rn *)
-            ELSE PC := (R[IR MOD 10H] DIV 4) MOD MemCtrl.MaxMem
+              PC := (PC + tmp) (*MOD MemCtrl.MaxMem*)
+            ELSIF d1 = 8 THEN (* Astrobe RISC5 Bcc PC,Rn *)
+              PC := (PC + R[IR MOD 10H]) (*MOD MemCtrl.MaxMem*)
+            ELSE PC := (R[IR MOD 10H] DIV 4) (*MOD MemCtrl.MaxMem*)
             END
           END
         END
