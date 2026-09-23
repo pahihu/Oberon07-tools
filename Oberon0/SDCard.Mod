@@ -1,14 +1,14 @@
 MODULE SDCard;
 
-  IMPORT SPI, Files, Sys := System;
+  IMPORT SPI, Files, Sys := System, Kernel;
 
   CONST
-    FSoffset = 0 (*10000000H*); (*256MBytes*)
+    (*FSoffset = 10000000H; (*256MBytes*)*)
     BlockSize = 512; SectorSize = 1024;
     CMDoffset = 40H;
     CMDGoIdleState = 0X; CMDSendIfCond = 8X; CMDAppCmd = 37X; CMDSendOpCond = 29X; (*SPI commands*)
     CMDWriteSingleBlock = 18X; WriteStartData = 0FEX; CMDReadSingleBlock = 11X;
-    CMDSetBlockSize = 10X;
+    CMDSetBlockSize = 10X; CMDGetCardCapacity = 3AX;
     NoError = 0X; InIdleState = 01X; Error = 80H; (*SPI response*)
     detCommand = 0; detWriteStart = 1; (*detectors*)
 
@@ -35,7 +35,7 @@ MODULE SDCard;
   BEGIN
     s.Log("ReadBlock: blkNo=", s.blkNo);
     ASSERT((0 <= s.blkNo) & (s.blkNo < s.numBlocks), 10);
-    Files.Set(s.R, s.F, FSoffset + s.blkNo * BlockSize);
+    Files.Set(s.R, s.F, s.blkNo * BlockSize);
     Files.ReadBytes(s.R, buf, BlockSize)
   END ReadBlock;
 
@@ -44,7 +44,7 @@ MODULE SDCard;
     s.Log("WriteBlock: blkNo=", s.blkNo);
     (*Texts.WriteLn(W); Texts.WriteString(W, "WriteBlock@"); Texts.WriteInt(W, blkNo, 0); Texts.Append(Oberon.Log, W.buf);*)
     ASSERT((0 <= s.blkNo) & (s.blkNo < s.numBlocks), 10);
-    Files.Set(s.R, s.F, FSoffset + s.blkNo * BlockSize);
+    Files.Set(s.R, s.F, s.blkNo * BlockSize);
     Files.WriteBytes(s.R, buf, BlockSize)
   END WriteBlock;
 
@@ -126,6 +126,13 @@ MODULE SDCard;
             s.Log("CMDSetBlockSize", arg);
             ASSERT(arg = BlockSize, 30);
             s.Respond(NoError)
+        | CMDGetCardCapacity:
+            s.Log("CMDGetCardCapacity", arg);
+            s.Respond(NoError) (*SDHC card: blkNo is not byte offset*)
+      ELSE
+            s.Log("Unknown CMD", ORD(cmd));
+            s.Log("arg", arg);
+            Kernel.Exit(1)
       END
     END
   END DoCommand;
