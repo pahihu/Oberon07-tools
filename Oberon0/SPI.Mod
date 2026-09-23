@@ -201,8 +201,7 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
     ASSERT(s.CmdStart # NIL, 10);
     (*ASSERT((delayRx = 0) OR (delayTx = 0), 10);*)
     (*s.Log("Cycle", bufState);*)
-    IF Ready IN s.status THEN
-    ELSE
+    IF ~(Ready IN s.status) THEN
       (*s.Log("delayRx", delayRx);
       s.Log("delayTx", delayTx);*)
       IF s.delayRx # 0 THEN DEC(s.delayRx) END ;
