@@ -8,6 +8,7 @@ MODULE SDCard;
     CMDoffset = 40H;
     CMDGoIdleState = 0X; CMDSendIfCond = 8X; CMDAppCmd = 37X; CMDSendOpCond = 29X; (*SPI commands*)
     CMDWriteSingleBlock = 18X; WriteStartData = 0FEX; CMDReadSingleBlock = 11X;
+    CMDSetBlockSize = 10X;
     NoError = 0X; InIdleState = 01X; Error = 80H; (*SPI response*)
     detCommand = 0; detWriteStart = 1; (*detectors*)
 
@@ -103,7 +104,7 @@ MODULE SDCard;
             s.Log("CMDAppCmd", -1);
             s.Respond(NoError)
         | CMDSendOpCond:
-            ASSERT(arg = 40000000H);
+            ASSERT(arg = 40000000H, 30); (*HCS bit set*)
             s.Log("CMDSendOpCond", -1);
             (*Recv(1000, Undef);*)
             s.Respond(NoError)
@@ -121,6 +122,10 @@ MODULE SDCard;
             FOR i := 0 TO BlockSize - 1 DO s.Send(tmp[i]) END ;
             s.Send(CHR(098H)); (*dummy 'CRC'*)
             s.Respond(040X)
+        | CMDSetBlockSize:
+            s.Log("CMDSetBlockSize", arg);
+            ASSERT(arg = BlockSize, 30);
+            s.Respond(NoError)
       END
     END
   END DoCommand;
