@@ -2,7 +2,7 @@ MODULE RTC; (*Phu 22.9.26 / DS3234*)
   IMPORT SPI, Kernel, Sys := System;
 
   CONST
-    BufLen = 7; ReadAdr = 13X; WriteAdrStart = 80X; WriteAdrEnd = 93X;
+    BufLen = 14H; ReadAdrEnd = 13X; WriteAdrStart = 80X; WriteAdrEnd = 93X;
 
 
   TYPE
@@ -27,7 +27,7 @@ MODULE RTC; (*Phu 22.9.26 / DS3234*)
         hh, mm, ss, dy, mo, yr: LONGINT;
   BEGIN
     WITH r: RTC DO
-      IF (0X <= b) & (b <= ReadAdr) THEN
+      IF (0X <= b) & (b <= ReadAdrEnd) THEN
         Kernel.GetClock(lt, ld); t := Sys.Short(lt); d := Sys.Short(ld);
         hh := t DIV 4096; mm := t DIV 64 MOD 64; ss := t MOD 64;
         yr := (d DIV 512) MOD 100; mo := d DIV 32 MOD 16; dy := d MOD 32;

@@ -305,12 +305,17 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
     s.pos := 0; s.len := 0;
     s.ResetBuffer;
     s.CmdFinish := DoNothing; s.state := Idle;
-    s.CmdStart := NIL
+    s.CmdStart := DoNothing
   END Reset;
 
   PROCEDURE (s: Slave) InitBuffer*(n: INTEGER);
   BEGIN NEW(s.buf, n)
   END InitBuffer;
+
+  PROCEDURE BusTerminator*(): Slave;
+    VAR s: Slave;
+  BEGIN NEW(s); s.InitBuffer(0); RETURN s
+  END BusTerminator;
 
 BEGIN Texts.OpenWriter(W)
 END SPI.
