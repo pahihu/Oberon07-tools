@@ -38,6 +38,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     nexports: LONGINT;
     printOut: BOOLEAN;
     errno: INTEGER;
+    useSD: BOOLEAN;
 
   PROCEDURE Read(VAR R: Files.Rider; VAR n: INTEGER);
     VAR b: Sys.Byte;
@@ -363,7 +364,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
           ch := S.s[i];
              IF ch = "a" THEN RISC.UseAbsTime
           ELSIF ch = "c" THEN MemCtrl.Enable
-          ELSIF ch = "s" THEN RISC.InitSPI
+          ELSIF ch = "s" THEN useSD := TRUE
           END
         END
       END
@@ -418,6 +419,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     END;
     IF errno = 0 THEN
       RISCEmu.verbose := debug;
+      RISC.InitSPI(useSD);
       RISC.Execute(wentry, wcode, S, W)
     END
   END ExecObj;
@@ -436,7 +438,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;
-    String("  /s    - enable SPI controller, uses risk.img"); Ln;
+    String("  /s    - enable SD/MMC card, uses risk.img"); Ln;
   END Help;
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
@@ -445,7 +447,7 @@ BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
   GF.FromWords(2048);
   wcode.FromWords(0); wdata.FromWords(0);
 
-  printOut := TRUE; Oberon.Run
+  printOut := TRUE; useSD := FALSE; Oberon.Run
 END ORTool0.
 
 (* vim:set ts=2 sw=2 et: *)

@@ -5,10 +5,9 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
   CONST
     Idle = 0; Input = 1; Output = 2; (*controller state*)
     Undef* = 0FFX;
-    Word = 4; Fast = 3; DEV1* = 1; DEV0* = 0; (*ctrl*)
+    Word = 4; Fast = 3; SPI1* = 1; SPI0* = 0; (*ctrl*)
     BitDelayFast = 3; BitDelaySlow = 29;
     Ready = 0; (*status*)
-    debug = FALSE;
 
   TYPE
     INTEGER* = Sys.INT32;
@@ -31,30 +30,32 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
       delayRx-: LONGINT;
       delayTx-: LONGINT;
       dataRx, dataTx: LONGINT;
+
+      debug*: BOOLEAN;
     END ;
 
   VAR
     W: Texts.Writer;
 
   (*logging*)
-  PROCEDURE Warning*(s: ARRAY OF CHAR; x: LONGINT);
+  PROCEDURE (s: Slave) Warning*(msg: ARRAY OF CHAR; x: LONGINT);
   BEGIN
-    IF debug THEN
+    IF s.debug THEN
       Texts.WriteLn(W);
       Texts.WriteString(W, "-W-SPI: ");
-      Texts.WriteString(W, s);
+      Texts.WriteString(W, msg);
       Texts.Write(W, " ");
       Texts.WriteInt(W, x, 0);
       Texts.Append(Oberon.Log, W.buf)
     END
   END Warning;
 
-  PROCEDURE Log*(s: ARRAY OF CHAR; x: LONGINT);
+  PROCEDURE (s: Slave) Log*(msg: ARRAY OF CHAR; x: LONGINT);
   BEGIN
-    IF debug THEN
+    IF s.debug THEN
       Texts.WriteLn(W);
       Texts.WriteString(W, "-I-SPI: ");
-      Texts.WriteString(W, s);
+      Texts.WriteString(W, msg);
       IF 0 <= x THEN
         Texts.Write(W, " ");
         Texts.WriteInt(W, x, 0)
@@ -69,7 +70,7 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
 
   PROCEDURE (s: Slave) ResetBuffer*;
   BEGIN
-    Log("ResetBuffer", s.len);
+    s.Log("ResetBuffer", s.len);
     ASSERT(s.IsBufferEmpty(), 10);
     s.pos := 0; s.len := 0; s.state := Idle
   END ResetBuffer;
@@ -79,7 +80,7 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
   PROCEDURE (s: Slave) SetCmdStart*(h: IOHandler; arg: INTEGER);
   BEGIN
     ASSERT(h # NIL, 10);
-    Log("SetDetector", arg);
+    s.Log("SetDetector", arg);
     s.CmdStart := h
   END SetCmdStart;
 
@@ -99,13 +100,13 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
   END Send;
 
   PROCEDURE DoNothing*(s: Slave; b: BYTE);
-  BEGIN Log("DoNothing", -1);
+  BEGIN s.Log("DoNothing", -1);
     s.state := Idle;
   END DoNothing;
 
   PROCEDURE DoRespond*(s: Slave; b: BYTE);
   BEGIN
-    Log("DoRespond", ORD(s.response));
+    s.Log("DoRespond", ORD(s.response));
     s.ResetBuffer; s.CmdFinish := DoNothing;
     s.Send(s.response)
   END DoRespond;
@@ -184,7 +185,7 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
   PROCEDURE HandleStart(s: Slave; b: BYTE);
   BEGIN
     IF b # Undef THEN (*lock CMD*)
-      Log("Lock CMD", ORD(b));
+      s.Log("Lock CMD", ORD(b));
       s.ResetBuffer;
       s.Recv(6, Undef);
       s.CmdFinish := HandleCommand
@@ -199,11 +200,11 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
   BEGIN
     ASSERT(s.CmdStart # NIL, 10);
     (*ASSERT((delayRx = 0) OR (delayTx = 0), 10);*)
-    (*Log("Cycle", bufState);*)
+    (*s.Log("Cycle", bufState);*)
     IF Ready IN s.status THEN
     ELSE
-      (*Log("delayRx", delayRx);
-      Log("delayTx", delayTx);*)
+      (*s.Log("delayRx", delayRx);
+      s.Log("delayTx", delayTx);*)
       IF s.delayRx # 0 THEN DEC(s.delayRx) END ;
       IF s.delayTx # 0 THEN DEC(s.delayTx) END ;
       ret := Undef;
@@ -216,33 +217,33 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
             IF s.state = Idle THEN
               s.CmdStart(s, inp)
             END ;
-            Log("Recv", ORD(inp));
-            Log("state", s.state);
-            Log("RecvPos", s.pos);
-            Log("RecvLen", s.len);
+            s.Log("Recv", ORD(inp));
+            s.Log("state", s.state);
+            s.Log("RecvPos", s.pos);
+            s.Log("RecvLen", s.len);
             IF s.pos < s.len THEN
               b := s.Peek();
               IF (b # Undef) & (b # inp) THEN
-                Warning("input mismatch ", s.pos);
+                s.Warning("input mismatch ", s.pos);
                 Kernel.Exit(1)
               END ;
               s.Append(inp)
             END ;
             IF s.IsBufferEmpty() THEN
-              Log("Input handle BEGIN", -1);
+              s.Log("Input handle BEGIN", -1);
               s.CmdFinish(s, Undef);
-              Log("Input handle END", -1);
+              s.Log("Input handle END", -1);
             END
           END
         | Output:
           IF s.delayTx = 0 THEN
             INCL(s.status, Ready);
-            Log("Send", -1);
-            Log("state", s.state);
+            s.Log("Send", -1);
+            s.Log("state", s.state);
             IF s.pos < s.len THEN
-              Log("Send!", ORD(s.Peek()));
-              Log("SendPos", s.pos);
-              Log("SendLen", s.len);
+              s.Log("Send!", ORD(s.Peek()));
+              s.Log("SendPos", s.pos);
+              s.Log("SendLen", s.len);
               IF Word IN s.ctrl THEN
                 ret4 := s.Get4(); noBits := 32
               ELSE
@@ -250,18 +251,18 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
               END
             END ;
             IF s.IsBufferEmpty() THEN
-              Log("Output handle BEGIN", -1);
+              s.Log("Output handle BEGIN", -1);
               s.CmdFinish(s, Undef);
-              Log("Output handle END", -1)
+              s.Log("Output handle END", -1)
             END
           END ;
       END ; (*CASE*)
       IF s.delayTx = 0 THEN
         IF noBits = 32 THEN
-          Log("DataTx32", ret4);
+          s.Log("DataTx32", ret4);
           s.dataTx := ret4;
         ELSE
-          Log("DataTx8", ORD(ret));
+          s.Log("DataTx8", ORD(ret));
           s.dataTx := ORD(ret)
         END ;
         s.delayTx := s.CalcDelay(noBits);
@@ -277,7 +278,7 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
     VAR y: LONGINT;
   BEGIN
     y := SYSTEM.VAL(LONGINT, x);
-    (*Log("WriteControl", y);*)
+    (*s.Log("WriteControl", y);*)
     s.ctrl := x;
     s.AfterControlSet
   END WriteControl;
@@ -285,18 +286,18 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
   PROCEDURE (s: Slave) WriteData*(x: LONGINT);
   BEGIN
     ASSERT(Ready IN s.status);
-    Log("WriteData", x);
+    s.Log("WriteData", x);
     s.dataRx := x;
     s.delayRx := s.CalcDelay(8);
-    (*Log("delayRx", delayRx);*)
+    (*s.Log("delayRx", delayRx);*)
     EXCL(s.status, Ready)
   END WriteData;
 
   PROCEDURE (s: Slave) ReadData*(): LONGINT;
   BEGIN
     ASSERT(Ready IN s.status);
-    (*Log("ReadData", dataTx);
-    Log("delayTx", delayTx);*)
+    (*s.Log("ReadData", dataTx);
+    s.Log("delayTx", delayTx);*)
     RETURN s.dataTx
   END ReadData;
 
@@ -309,8 +310,12 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
   END Reset;
 
   PROCEDURE (s: Slave) InitBuffer*(n: INTEGER);
-  BEGIN NEW(s.buf, n)
+  BEGIN NEW(s.buf, n); s.debug := FALSE
   END InitBuffer;
+
+  PROCEDURE (s: Slave) Debug*;
+  BEGIN s.debug := TRUE
+  END Debug;
 
   PROCEDURE BusTerminator*(): Slave;
     VAR s: Slave;

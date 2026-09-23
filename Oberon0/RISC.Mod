@@ -1,7 +1,6 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
-    RISCEmu, WA := WAddress, Timer, MemCtrl, (*SDCard,*) Kernel, Files,
-        RTC, SDCard := SDCardNew, SPI;
+    RISCEmu, WA := WAddress, Timer, MemCtrl, (*SDCard,*) Kernel, Files, SPI, RTC, SDCard;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -400,7 +399,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   BEGIN absTime := TRUE; DelayTX := 0
   END UseAbsTime;
 
-  PROCEDURE InitSDCard*;
+  PROCEDURE InitSDImage*;
     VAR F: Files.File;
         R: Files.Rider;
         sector: ARRAY 1024 OF CHAR;
@@ -419,17 +418,24 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     ELSE
       Files.Close(F)
     END ;
-  END InitSDCard;
+  END InitSDImage;
 
-  PROCEDURE InitSPI*;
+  PROCEDURE InitSPI*(useSD: BOOLEAN);
     VAR s: SPI.Slave;
+        sdHolder: SPI.Slave;
   BEGIN
     s := SPI.BusTerminator(); s.Reset;
-    sdCard := SDCard.New(); sdCard.Open(SDImage); sdCard.Reset;
+    IF useSD THEN
+      InitSDImage;
+      sdCard := SDCard.New(); sdCard.Open(SDImage); sdCard.Reset;
+      sdHolder := sdCard
+    ELSE
+      sdHolder := s
+    END ;
     rtc := RTC.New(); rtc.Reset;
 
     spiBus[0] := s;
-    spiBus[1] := sdCard;
+    spiBus[1] := sdHolder;
     spiBus[2] := rtc;
     spiBus[3] := s;
   END InitSPI;
