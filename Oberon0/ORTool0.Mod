@@ -7,7 +7,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     MaxImports = 16;
     MaxHeap = 16 * 1024 DIV 4; (*words*)
     MemAdr = 12; StackAdr = 24; MT = 12; SP = 14; LNK = 15;
-    PromMem = "prom.mem";
+    LF = 0AX;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -194,6 +194,59 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     RETURN m
   END NewModule;
 
+  (*PROM loader*)
+  PROCEDURE HexToInt(s: ARRAY OF CHAR): LONGINT;
+    VAR i, digit: INTEGER;
+        ret: LONGINT;
+        ch: CHAR;
+  BEGIN ret := 0; i := 0;
+    ch := s[i];
+    WHILE ch # 0X DO
+      IF ch > "9" THEN
+        digit := ORD(ch) - ORD("A") + 10
+      ELSE
+        digit := ORD(ch) - ORD("0")
+      END ;
+      ret := ret * 16 + digit;
+      INC(i); ch := s[i]
+    END ;
+    RETURN ret
+  END HexToInt;
+
+  PROCEDURE ReadLine(VAR R: Files.Rider; VAR s: ARRAY OF CHAR);
+    VAR i: INTEGER;
+        ch: CHAR;
+  BEGIN i := 0;
+    Files.Read(R, ch);
+    WHILE ~R.eof & (ch # LF) & (i < LEN(s) - 1) DO
+      s[i] := ch; INC(i);
+      Files.Read(R, ch)
+    END ;
+    s[i] := 0X;
+    (*Where(s)*)
+  END ReadLine;
+
+  PROCEDURE LoadMem(F: Files.File; verbose: BOOLEAN);
+    VAR R: Files.Rider;
+        s: ARRAY 16 OF CHAR;
+        i: INTEGER;
+        val: LONGINT;
+  BEGIN
+    Files.Set(R, F, 0);
+    i := 0;
+    WHILE ~R.eof & (i < MemCtrl.PromSize) DO
+      ReadLine(R, s);
+      IF s[0] # 0X THEN
+        val := HexToInt(s);
+        IF verbose THEN
+          Ln; Hex(MemCtrl.PromStart + i); String(": "); Hex(val)
+        END ;
+        MemCtrl.PROM[i] := val; INC(i)
+      END
+    END
+  END LoadMem;
+
+
   PROCEDURE LoadBin(F: Files.File; verbose: BOOLEAN);
   VAR i, len: LONGINT;
       base: WA.ADDR;
@@ -355,7 +408,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     ext[j] := 0X;
   END GetFileExt;
 
-  PROCEDURE Option(VAR S: Texts.Scanner);
+  PROCEDURE Option(VAR S: Texts.Scanner; VAR verbose: BOOLEAN);
     VAR i: INTEGER;
         ch: CHAR;
   BEGIN
@@ -366,10 +419,8 @@ MODULE ORTool0;  (*NW 18.2.2013*)
           ch := S.s[i];
              IF ch = "a" THEN RISC.UseAbsTime
           ELSIF ch = "c" THEN MemCtrl.Enable
-          ELSIF ch = "p" THEN
-            MemCtrl.ReadProm(PromMem);
-            StartAdr := MemCtrl.PromStart
           ELSIF ch = "s" THEN useSD := TRUE
+          ELSIF ch = "v" THEN verbose := TRUE
           END
         END
       END
@@ -384,27 +435,33 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       prev: BOOLEAN;
       bin: BOOLEAN;
       ext: ARRAY 32 OF CHAR;
-  BEGIN bin := FALSE;
+      verbose: BOOLEAN;
+  BEGIN bin := FALSE; verbose := FALSE;
     Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     WHILE (S.class = Texts.Name) & ~bin DO
       String("load "); String(S.s); F := Files.Old(S.s);
       IF F # NIL THEN
         GetFileExt(S.s, ext);
-        Option(S);
+        Option(S, verbose);
         IF ext = "bin" THEN
-          LoadBin(F, FALSE);
+          LoadBin(F, verbose);
+          bin := TRUE
+        ELSIF ext = "mem" THEN
+          LoadMem(F, verbose);
+          StartAdr := MemCtrl.PromStart;
           bin := TRUE
         ELSE
-          m := LoadObj(F, FALSE);
+          m := LoadObj(F, verbose);
           IF m # NIL THEN
             w.Aligned(m.ndata); wdata.IncBy(w);
             m.next := modules; modules := m;
           END
-        END
+        END ;
+        Files.Close(F)
       ELSE Err(" not found")
       END ;
       Ln; Texts.Scan(S)
-    END;
+    END ;
     IF bin THEN
       wentry.FromWords(StartAdr); (*wcode points to the end of the loaded binary*)
       RISC.SetReg(MT, 20H);
@@ -439,12 +496,12 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   PROCEDURE Help*;
   BEGIN
-    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin[/acs]..."); Ln;
+    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acsv]..."); Ln;
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;
-    String("  /p    - load prom.mem"); Ln;
     String("  /s    - enable SD/MMC card (risk.img)"); Ln;
+    String("  /v    - be verbose"); Ln
   END Help;
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
