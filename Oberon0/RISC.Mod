@@ -210,12 +210,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       hitRate: LONGREAL;
       rdOnlyCode: BOOLEAN;
       msecCounter: LONGINT;
+      usecCounter: LONGINT;
   BEGIN
     PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
     rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.MaxMem);
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
-    msecCounter := 0;
+    msecCounter := 0; usecCounter := 0;
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
@@ -290,6 +291,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           ELSE (*input*)
             IF adr =  -1 THEN (* ReadInt *) Sys.InInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
             ELSIF adr =  -2 THEN (* eot *) IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
+            ELSIF adr =  -3 THEN (* usec counter *) R[a] := usecCounter
             ELSIF adr = -11 THEN (* SPI status *) R[a] := SYSTEM.VAL(LONGINT, spiBus[spiDeviceCS].status)
             ELSIF adr = -12 THEN (* SPI data *) R[a] := spiBus[spiDeviceCS].ReadData()
             ELSIF adr = -13 THEN (* RS-232 status, always rdyRx *)
@@ -386,6 +388,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       END;
       (*millisecond clock INT generation*)
       INC(clk);
+      usecCounter := clk DIV 12 MOD 1000000;
       tmp := msecCounter;
       msecCounter := clk DIV 12000; (*12MHz clock*)
       IF clockINT & (msecCounter # tmp) THEN intPnd := TRUE END ;
