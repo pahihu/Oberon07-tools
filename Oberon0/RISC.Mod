@@ -25,7 +25,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     intMd: BOOLEAN; (*INT mode*)
     intEnb: BOOLEAN; (*INT enabled*)
     clk: LONGINT; (*number of clks*)
-    SW: INTEGER;
+    SW: LONGINT;
     absTime: BOOLEAN;
     delayTxCounter: INTEGER;
     DelayTX: INTEGER;
@@ -398,7 +398,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   BEGIN R[i] := v;
   END SetReg;
 
-  PROCEDURE SetSW*(v: INTEGER);
+  PROCEDURE SetSW*(v: LONGINT);
   BEGIN SW := v
   END SetSW;
 
@@ -449,7 +449,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
 
 BEGIN In.Open;
   absTime := FALSE;
-  clk := 0;
+  clk := 0; SW := 0;
   delayTxCounter := 0; DelayTX := 1042;
   spiDeviceCS := 0; (*SPI bus*)
   sdCard := NIL; rtc := NIL

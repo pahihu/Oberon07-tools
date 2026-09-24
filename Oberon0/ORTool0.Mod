@@ -409,18 +409,25 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END GetFileExt;
 
   PROCEDURE Option(VAR S: Texts.Scanner; VAR verbose: BOOLEAN);
-    VAR i: INTEGER;
+    VAR i, n: INTEGER;
         ch: CHAR;
+        s: ARRAY 32 OF CHAR;
   BEGIN
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S);
       IF S.class = Texts.Name THEN
-        FOR i := 0 TO S.len DO
-          ch := S.s[i];
+        n := S.len; COPY(S.s, s);
+        FOR i := 0 TO n DO
+          ch := s[i];
              IF ch = "a" THEN RISC.UseAbsTime
           ELSIF ch = "c" THEN MemCtrl.Enable
           ELSIF ch = "s" THEN useSD := TRUE
           ELSIF ch = "v" THEN verbose := TRUE
+          ELSIF ch = "w" THEN
+            Texts.Scan(S);
+            IF S.class = Texts.Int THEN RISC.SetSW(Sys.Short(S.i))
+            ELSE Err(" integer expected")
+            END
           END
         END
       END
@@ -496,12 +503,13 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   PROCEDURE Help*;
   BEGIN
-    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acsv]..."); Ln;
+    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acsv][/w sw]..."); Ln;
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;
     String("  /s    - enable SD/MMC card (risk.img)"); Ln;
-    String("  /v    - be verbose"); Ln
+    String("  /v    - be verbose"); Ln;
+    String("  /w sw - set SWITCH"); Ln
   END Help;
 
 BEGIN Texts.OpenWriter(W); String("ORTool 18.2.2013"); Ln;
