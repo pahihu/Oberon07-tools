@@ -48,7 +48,8 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     (* 1K Lines =  64; Tags = 128; *)
     (* 512B Lines = 32; Tags = 256; *)
     (* 128KB MaxMem* = 32768; *)
-    MaxMem* = 112 * 1024 DIV 4;
+    MaxMem* = 112 * 1024 DIV 4; (*1C000H*)
+    MemMask* = 20000H; (*17 bit*)
     WriteBackClks = 2 + 6 +  WordsPerLine * 8 + 1; FillClks = WriteBackClks + 6;
     (* 24MHz WriteBackClks = 21; FillClks = 23; *)
     (* 36MHz WriteBackClks = 14; FillClks = 16; *)

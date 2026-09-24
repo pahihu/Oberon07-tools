@@ -188,6 +188,14 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   END ShowLEDs;
 
+  PROCEDURE Err(VAR W: Texts.Writer; msg: ARRAY OF CHAR; pc, adr: LONGINT);
+  BEGIN
+    RISCEmu.verbose := TRUE;
+    RISCEmu.Status(W, pc, IR, R, H, Flags(), IntFlags());
+    Ln(W); String(W, "Error: "); ShowHex(W, msg, adr); Ln(W);
+    Kernel.Exit(1);
+  END Err;
+
   PROCEDURE Execute*(entry, sb: WA.ADDR; VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
       badr, adr, tmp, A, B, C: LONGINT;
@@ -266,10 +274,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         IF tmp >= 80000H THEN tmp := tmp - 100000H END ;
         badr := R[b] + tmp; adr := badr DIV 4;
         IF adr >= MemCtrl.MaxMem THEN
-          RISCEmu.verbose := TRUE;
-          RISCEmu.Status(W, PC - 1, IR, R, H, Flags(), IntFlags());
-          Ln(W); ShowHex(W, "Error: address out of range", badr); Ln(W);
-          Kernel.Exit(1);
+          Err(W, "address out of range", PC - 1, badr)
         END ;
         IF Debug THEN ShowHex(W, "badr=", badr); ShowHex(W, " adr=", adr) END ;
         IF ~ODD(u) THEN
@@ -295,12 +300,18 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                 IF absTime THEN R[a] := SHORT(Timer.Elapsed(TIM0))
                 ELSE R[a] := msecCounter
                 END
+            ELSE (*memory address is unsigned*)
+              adr := adr MOD MemCtrl.MemMask;
+              IF adr >= MemCtrl.MaxMem THEN
+                Err(W, "address out of range", PC - 1, badr)
+              END ;
+              R[a] := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks)
             END
           END
         ELSE
           IF adr >= 0 THEN (*store*)
-            IF rdOnlyCode THEN
-              ASSERT(adr >= sb.ToWords(), 30)
+            IF rdOnlyCode & (adr >= sb.ToWords())  THEN
+              Err(W, "code is read-only", PC - 1, adr)
             END;
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
@@ -330,6 +341,12 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                 Texts.Append(Oberon.Log, W.buf)
               END
             ELSIF adr = -15 THEN (* LEDs*) ShowLEDs(W, R[a] MOD 100H)
+            ELSE
+              adr := adr MOD MemCtrl.MemMask;
+              IF adr >= MemCtrl.MaxMem THEN
+                Err(W, "address out of range", PC - 1, badr)
+              END ;
+              MemCtrl.Write(adr, R[a]); INC(clk, MemCtrl.elapsedClks)
             END
           END
         END
