@@ -14,6 +14,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     Debug = FALSE;
     SDImage = "risk.img";
     NumSPISlaves = 4; (*SPI CS: bit0 - SPI0, bit1 - SPI1*)
+    C22 = 400000H;
 
   VAR IR: LONGINT;   (*instruction register*)
     PC: LONGINT;   (*program counter*)
@@ -34,6 +35,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     rtc: RTC.RTC;
     spiBus: ARRAY NumSPISlaves OF SPI.Slave; (*SPI slaves*)
     spiDeviceCS: INTEGER; (*selected SPI device index*)
+    clockINT: BOOLEAN;
 
   (*text output utilities*)
 
@@ -199,11 +201,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       done: BOOLEAN;
       hitRate: LONGREAL;
       rdOnlyCode: BOOLEAN;
+      msecCounter: LONGINT;
   BEGIN
     PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
     rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.MaxMem);
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
+    msecCounter := 0;
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
@@ -289,7 +293,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSIF adr = -15 THEN (* switch *) R[a] := SW
             ELSIF adr = -16 THEN (* msec counter *)
                 IF absTime THEN R[a] := SHORT(Timer.Elapsed(TIM0))
-                ELSE R[a] := clk DIV 12000 (*12MHz clock*)
+                ELSE R[a] := msecCounter
                 END
             END
           END
@@ -333,7 +337,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         d1 := IR DIV 10H MOD 10H;
         IF ~ODD(u) & ~ODD(v) & ((d1 = 2) OR (d1 = 1)) THEN
           IF d1 = 1 THEN (*RTI*)
-            PC := SPC MOD 400000H; flags := SYSTEM.VAL(SET, SPC DIV 400000H);
+            PC := SPC MOD C22; flags := SYSTEM.VAL(SET, SPC DIV C22);
             N := RISCEmu.NN IN flags;
             Z := RISCEmu.ZZ IN flags;
             Y := RISCEmu.CC IN flags;
@@ -362,19 +366,24 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             END
           END
         END
-      END; INC(clk);
+      END;
+      (*millisecond clock INT generation*)
+      INC(clk);
+      tmp := msecCounter;
+      msecCounter := clk DIV 12000; (*12MHz clock*)
+      IF clockINT & (msecCounter # tmp) THEN intPnd := TRUE END ;
       IF delayTxCounter # 0 THEN
         DEC(delayTxCounter, clk - prevClk);
         IF delayTxCounter < 0 THEN delayTxCounter := 0 END ;
       END ;
       IF intPnd & intEnb & ~intMd THEN (*check INT*)
-        SPC := SYSTEM.VAL(LONGINT, Flags()) * 400000H + PC;
+        SPC := SYSTEM.VAL(LONGINT, Flags()) * C22 + PC;
         PC := 1;
-        intMd := TRUE
+        intMd := TRUE; intPnd := FALSE
       END ;
       done := (IR = -18000001H); (*HALT B -1*)
       IF RISCEmu.verbose THEN
-        done := done OR (MemCtrl.cntFetch > 10000);
+        done := done OR (MemCtrl.cntFetch > 20000);
       END ;
       IF R[SP] < stackMin THEN stackMin := R[SP] END
     UNTIL done;
@@ -405,6 +414,10 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   PROCEDURE UseAbsTime*;
   BEGIN absTime := TRUE; DelayTX := 0
   END UseAbsTime;
+
+  PROCEDURE ClockINT*(flag: BOOLEAN);
+  BEGIN clockINT := flag
+  END ClockINT;
 
   PROCEDURE InitSDImage*;
     VAR F: Files.File;
@@ -449,7 +462,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
 
 BEGIN In.Open;
   absTime := FALSE;
-  clk := 0; SW := 0;
+  clk := 0; SW := 0; clockINT := FALSE;
   delayTxCounter := 0; DelayTX := 1042;
   spiDeviceCS := 0; (*SPI bus*)
   sdCard := NIL; rtc := NIL

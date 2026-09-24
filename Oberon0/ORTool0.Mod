@@ -421,6 +421,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
           ch := s[i];
              IF ch = "a" THEN RISC.UseAbsTime
           ELSIF ch = "c" THEN MemCtrl.Enable
+          ELSIF ch = "i" THEN RISC.ClockINT(TRUE)
           ELSIF ch = "s" THEN useSD := TRUE
           ELSIF ch = "v" THEN verbose := TRUE
           ELSIF ch = "w" THEN
@@ -503,10 +504,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   PROCEDURE Help*;
   BEGIN
-    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acsv][/w sw]..."); Ln;
+    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acisv][/w sw]..."); Ln;
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;
+    String("  /i    - enable clock INT"); Ln;
     String("  /s    - enable SD/MMC card (risk.img)"); Ln;
     String("  /v    - be verbose"); Ln;
     String("  /w sw - set SWITCH"); Ln
