@@ -388,7 +388,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       END;
       (*millisecond clock INT generation*)
       INC(clk);
-      usecCounter := clk DIV 12 MOD 1000000;
+      usecCounter := clk DIV 1200;
       tmp := msecCounter;
       msecCounter := clk DIV 12000; (*12MHz clock*)
       IF clockINT & (msecCounter # tmp) THEN intPnd := TRUE END ;
