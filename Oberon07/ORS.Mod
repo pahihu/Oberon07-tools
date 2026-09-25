@@ -31,6 +31,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     var* = 65; procedure* = 66; begin* = 67; import* = 68; module* = 69; eot = 70;
 
     verbose* = FALSE;
+    CR = 0DX; LF = 0AX;
 
   TYPE Ident* = ARRAY IdLen OF CHAR;
        LONGINT = Sys.INT32;
@@ -56,6 +57,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     comm: ARRAY 4 OF CHAR; (*last comment prefix*)
     commLen: INTEGER; (*last comment length*)
     reportLine*: BOOLEAN;
+    lineNo*: INTEGER;
   
   PROCEDURE CopyId*(VAR ident: Ident);
   BEGIN ident := id
@@ -294,6 +296,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
 
   PROCEDURE Get*(VAR sym: INTEGER);
   BEGIN
+    IF lineNo # R.lineNo THEN lineNo := Sys.Short(R.lineNo) END ;
     REPEAT
       WHILE ~R.eot & (ch <= " ") DO Texts.Read(R, ch) END;
       IF R.eot THEN sym := eot
@@ -409,7 +412,7 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   KWX[7] := k; KWX[8] := k;
   EnterKW(procedure, "PROCEDURE");
   KWX[9] := k;
-  warning := FALSE; debug := FALSE; reportLine := FALSE;
+  warning := FALSE; debug := FALSE; reportLine := FALSE; lineNo := 1;
 
   InitOptions;
   RedirFiles.InitFromEnv("ORPRED", "~/.orp.red")

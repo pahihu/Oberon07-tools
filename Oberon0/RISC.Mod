@@ -209,9 +209,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     Files.Delete(ProfileName, res);
     F := Files.New(ProfileName); Files.Register(F); Files.Close(F);
 
-    Texts.Open(T, ProfileName); Texts.OpenFileWriter(W, T.base);
+    NEW(T); Texts.Open(T, ProfileName); Texts.OpenFileWriter(W, T.base);
     FOR i := 0 TO LEN(instrCounts) - 1 DO
-      IF instrCounts[i] > 99 THEN
+      IF instrCounts[i] # 0 THEN
         Texts.WriteLn(W); Texts.WriteInt(W, instrCounts[i], 10); Texts.WriteString(W, "  "); Texts.WriteHex(W, 4 * i);
         Texts.Append(T, W.buf)
       END

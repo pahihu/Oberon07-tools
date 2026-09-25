@@ -1,6 +1,6 @@
 .SUFFIXES:
 .SUFFIXES: .Mod .smb .a6m .a7m
-VPATH=$(O7DIR)/Micro/Files
+VPATH=$(O7VOC)/Micro/Files
 
 
 MOD=Mod
