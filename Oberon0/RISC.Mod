@@ -15,6 +15,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     SDImage = "risk.img";
     NumSPISlaves = 4; (*SPI CS: bit0 - SPI0, bit1 - SPI1*)
     C22 = 400000H;
+    ProfileName = "profile.out";
 
   VAR IR: LONGINT;   (*instruction register*)
     PC: LONGINT;   (*program counter*)
@@ -36,6 +37,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     spiBus: ARRAY NumSPISlaves OF SPI.Slave; (*SPI slaves*)
     spiDeviceCS: INTEGER; (*selected SPI device index*)
     clockINT: BOOLEAN;
+    profile: BOOLEAN;
+    instrCounts: ARRAY MemCtrl.MaxMem OF LONGINT;
 
   (*text output utilities*)
 
@@ -196,6 +199,26 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     Kernel.Exit(1);
   END Err;
 
+  PROCEDURE PrintProfile;
+    VAR i: LONGINT;
+        res: INTEGER;
+        T: Texts.Text;
+        W: Texts.Writer;
+        F: Files.File;
+  BEGIN
+    Files.Delete(ProfileName, res);
+    F := Files.New(ProfileName); Files.Register(F); Files.Close(F);
+
+    Texts.Open(T, ProfileName); Texts.OpenFileWriter(W, T.base);
+    FOR i := 0 TO LEN(instrCounts) - 1 DO
+      IF instrCounts[i] > 99 THEN
+        Texts.WriteLn(W); Texts.WriteInt(W, instrCounts[i], 10); Texts.WriteString(W, "  "); Texts.WriteHex(W, 4 * i);
+        Texts.Append(T, W.buf)
+      END
+    END ;
+    Texts.Close(T)
+  END PrintProfile;
+
   PROCEDURE Execute*(entry, sb: WA.ADDR; VAR S: Texts.Scanner; VAR W: Texts.Writer);
     VAR a, b, op, im: LONGINT;  (*instruction fields*)
       badr, adr, tmp, A, B, C: LONGINT;
@@ -220,6 +243,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
+      IF profile & (PC < MemCtrl.MaxMem) THEN INC(instrCounts[PC]) END ;
       IR := MemCtrl.Fetch(PC); INC(clk, MemCtrl.elapsedClks);
       IF spiDeviceCS # 3 THEN
         spiBus[spiDeviceCS].Cycle
@@ -420,6 +444,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       ShowInt(W, "  #miss=", MemCtrl.cntMiss);
       Ln(W); String(W, "  #efficiency="); Texts.WriteReal(W, MemCtrl.Efficiency(), 0)
     END ;
+    IF profile THEN PrintProfile END ;
     Texts.Append(Oberon.Log, W.buf)
   END Execute;
 
@@ -480,8 +505,15 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     spiBus[3] := s;
   END InitSPI;
 
+  PROCEDURE DoProfile*;
+    VAR i: LONGINT;
+  BEGIN
+    FOR i := 0 TO LEN(instrCounts) - 1 DO instrCounts[i] := 0 END ;
+    profile := TRUE
+  END DoProfile;
+
 BEGIN In.Open;
-  absTime := FALSE;
+  absTime := FALSE; profile := FALSE;
   clk := 0; SW := 0; clockINT := FALSE;
   delayTxCounter := 0; DelayTX := 1042;
   spiDeviceCS := 0; (*SPI bus*)

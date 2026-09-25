@@ -54,6 +54,7 @@ MODULE Texts;
       len*: LONGINT;
       cap: LONGINT;
       s: StringPtr;
+      emptyFile: BOOLEAN;
     END;
 
     Writer* = RECORD
@@ -187,8 +188,15 @@ MODULE Texts;
   
   PROCEDURE OpenWriter* (VAR W: Writer);
   BEGIN NEW(W.buf); W.buf.cap := 64; W.buf.len := 0; NEW(W.buf.s, W.buf.cap);
-    Files.Set(W.rider, Files.New(""), 0)
+    Files.Set(W.rider, Files.New(""), 0);
+    W.buf.emptyFile := TRUE
   END OpenWriter;
+
+  PROCEDURE OpenFileWriter* (VAR W: Writer; F: Files.File);
+  BEGIN NEW(W.buf); W.buf.cap := 64; W.buf.len := 0; NEW(W.buf.s, W.buf.cap);
+    Files.Set(W.rider, F, 0);
+    W.buf.emptyFile := FALSE
+  END OpenFileWriter;
 
   PROCEDURE ClearWriter* (VAR W: Writer);
   BEGIN W.buf.len := 0
@@ -278,8 +286,10 @@ MODULE Texts;
   BEGIN RealStr.GiveFloat(s, x, 7, 0, ConvTypes.right); WriteString(W, s)
   END WriteReal;
 
-  PROCEDURE OutChar (T: Text; ch: CHAR);
-  BEGIN Files.Write (T.rider, ch); Out.Char (ch)
+  PROCEDURE OutChar (T: Text; ch: CHAR; echo: BOOLEAN);
+  BEGIN
+    Files.Write (T.rider, ch);
+    IF echo THEN Out.Char (ch) END
   END OutChar;
 
   PROCEDURE Append* (T: Text; B: Buffer);
@@ -288,9 +298,9 @@ MODULE Texts;
   BEGIN
     FOR i := 0 TO B.len-1 DO
       ch := B.s[i];
-      OutChar (T, ch);
+      OutChar (T, ch, B.emptyFile);
       IF (ch = EOL) & dos THEN
-        OutChar (T, LF)
+        OutChar (T, LF, B.emptyFile)
       END;
     END;
     B.len := 0
