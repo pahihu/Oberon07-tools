@@ -1,6 +1,6 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
-    RISCEmu, WA := WAddress, Timer, MemCtrl, (*SDCard,*) Kernel, Files, SPI, RTC, SDCard;
+    RISCEmu, WA := WAddress, Timer, MemCtrl, Kernel, Files, SPI, RTC, SDCard;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -201,7 +201,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
 
   PROCEDURE PrintProfile;
     VAR i: LONGINT;
-        res: INTEGER;
+        res: Sys.Integer;
         T: Texts.Text;
         W: Texts.Writer;
         F: Files.File;

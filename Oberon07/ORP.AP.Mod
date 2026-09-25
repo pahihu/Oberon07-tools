@@ -1086,7 +1086,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       ORB.Init; ORB.OpenScope;
       IF sym = ORS.ident THEN
         ORS.CopyId(modid); ORS.Get(sym);
-        Texts.WriteString(W, modid); Texts.Append(Oberon.Log, W.buf); ORPos.Open(modid)
+        Texts.WriteString(W, modid); Texts.Append(Oberon.Log, W.buf);
+        ORPos.Open(modid)
       ELSE ORS.Mark("identifier expected")
       END ;
       Check(ORS.semicolon, "no ;"); level := 0; exno := 1; key := 0;

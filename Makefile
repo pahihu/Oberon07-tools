@@ -44,7 +44,7 @@ dot.env:
 	echo "export EXE=\"$(EXE)\"" >> .env
 	echo 'export O7DIR=$$DIR' >> .env
 	echo 'export O7VOC=$$DIR/voc-O7' >> .env
-	echo 'export PATH=$$DIR/Lola2:$$DIR/Oberon07:$$DIR/Oberon0::$$DIR/voc-O7:$$PATH' >> .env
+	echo 'export PATH=$$O7DIR/Lola2:$$O7DIR/Oberon07:$$O7DIR/Oberon0:$$O7VOC:$$PATH' >> .env
 
 force:
 	$(RM) -f .env

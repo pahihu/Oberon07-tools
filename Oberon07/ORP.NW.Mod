@@ -1,5 +1,5 @@
 MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*)
-  IMPORT Texts, Oberon, ORS, ORB, ORG, BIF07, Sys := System, Kernel;
+  IMPORT Texts, Oberon, ORS, ORB, ORG, BIF07, Sys := System, Kernel, ORPos;
   (*Author: Niklaus Wirth, 2014.
     Parser of Oberon-RISC compiler. Uses Scanner ORS to obtain symbols (tokens),
     ORB for definition of data structures and for handling import and export, and
@@ -537,6 +537,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
         ORS.Mark("statement expected");
         REPEAT ORS.Get(sym) UNTIL (sym >= ORS.ident)
       END ;
+      ORPos.EmitPosition;
       IF sym = ORS.ident THEN
         qualident(obj); ORG.MakeItem(x, obj, level);
         IF x.mode = ORB.SProc THEN StandProc(obj.val)
@@ -636,7 +637,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       ORG.CheckRegs;
       IF sym = ORS.semicolon THEN ORS.Get(sym)
       ELSIF sym < ORS.semicolon THEN ORS.Mark("missing semicolon?")
-      END
+      END ;
+      ORPos.EmitPosition
     UNTIL sym > ORS.semicolon
   END StatSequence;
 
@@ -906,6 +908,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       locblksize, parblksize, L: LONGINT;
       int: BOOLEAN;
   BEGIN (* ProcedureDecl *) int := FALSE; ORS.Get(sym); 
+    ORPos.EmitPosition;
     IF sym = ORS.times THEN ORS.Get(sym);
       leaf := astrobe; int := ~astrobe
     ELSE
@@ -953,7 +956,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
         IF ORS.id # procid THEN ORS.Mark("no match") END ;
         ORS.Get(sym)
       ELSE ORS.Mark("no proc id")
-      END
+      END ;
+      ORPos.EmitPosition
     ELSE ORS.Mark("proc id expected")
     END
   END ProcedureDecl;
@@ -984,7 +988,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       ORB.Init; ORB.OpenScope;
       IF sym = ORS.ident THEN
         ORS.CopyId(modid); ORS.Get(sym);
-        Texts.WriteString(W, modid); Texts.Append(Oberon.Log, W.buf)
+        Texts.WriteString(W, modid); Texts.Append(Oberon.Log, W.buf);
+        ORPos.Open(modid)
       ELSE ORS.Mark("identifier expected")
       END ;
       Check(ORS.semicolon, "no ;"); level := 0; exno := 1; key := 0;
@@ -1014,7 +1019,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       ELSE Texts.WriteLn(W); Texts.WriteString(W, "compilation FAILED")
       END ;
       Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
-      ORB.CloseScope; pbsList := NIL
+      ORB.CloseScope; pbsList := NIL;
+      ORPos.Close
     ELSE ORS.Mark("must start with MODULE")
     END
   END Module;

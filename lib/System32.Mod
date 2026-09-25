@@ -5,23 +5,24 @@ MODULE System;
     INT8* = SHORTINT;
     INT16* = INTEGER;
     INT32* = LONGINT;
-    Integer* = INT32;
+    Integer* = INTEGER; (*compiler natives*)
+    LongInt* = LONGINT;
     Address* = INT32;
     Byte* = INT16; (*[0,255]*)
 
-  PROCEDURE Ash*(x,y: LONGINT): Integer;
+  PROCEDURE Ash*(x,y: LONGINT): INT32;
   BEGIN RETURN ASH(x,y)
   END Ash;
 
-  PROCEDURE InInt*(VAR x: Integer);
+  PROCEDURE InInt*(VAR x: INT32);
   BEGIN In.LongInt(x)
   END InInt;
 
-  PROCEDURE AddrToInt*(x: Address): Integer;
+  PROCEDURE AddrToInt*(x: Address): INT32;
   BEGIN RETURN x
   END AddrToInt;
 
-  PROCEDURE Short*(x: LONGINT): Integer;
+  PROCEDURE Short*(x: LONGINT): INT32;
   BEGIN RETURN x;
   END Short;
 
@@ -37,20 +38,20 @@ MODULE System;
     ch := CHR(x); Files.Write(R, ch)
   END WriteByte;
     
-  PROCEDURE ReadInt*(VAR R: Files.Rider; VAR x: Integer);
+  PROCEDURE ReadInt*(VAR R: Files.Rider; VAR x: INT32);
   BEGIN Files.ReadLInt(R, x)
   END ReadInt;
 
-  PROCEDURE ReadNum*(VAR R: Files.Rider; VAR x: Integer);
+  PROCEDURE ReadNum*(VAR R: Files.Rider; VAR x: INT32);
     VAR y: LONGINT;
   BEGIN Files.ReadNum(R, y); x := Short(y)
   END ReadNum;
 
-  PROCEDURE WriteInt*(VAR R: Files.Rider; x: Integer);
+  PROCEDURE WriteInt*(VAR R: Files.Rider; x: INT32);
   BEGIN Files.WriteLInt(R, x)
   END WriteInt;
 
-  PROCEDURE BinOr*(x, y: LONGINT): Integer;
+  PROCEDURE BinOr*(x, y: LONGINT): INT32;
   BEGIN RETURN x + y
   END BinOr;
 

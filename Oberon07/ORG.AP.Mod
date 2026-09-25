@@ -229,7 +229,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END FixLinkWith;
 
   PROCEDURE FixLink*(L: LONGINT);
-  BEGIN FixLinkWith(L, pc)
+  BEGIN FixLinkWith(L, pc); lastBranchAdr := pc - 1
   END FixLink;
 
   PROCEDURE merged(L0, L1: LONGINT): LONGINT;

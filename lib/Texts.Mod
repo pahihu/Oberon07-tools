@@ -113,7 +113,7 @@ MODULE Texts;
     END
   END Read;
   
-  PROCEDURE Pos* (VAR R: Reader): Sys.Integer;
+  PROCEDURE Pos* (VAR R: Reader): Sys.INT32;
   BEGIN RETURN Sys.Short(Files.Pos (R.rider))
   END Pos;
   

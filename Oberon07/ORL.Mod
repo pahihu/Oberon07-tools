@@ -10,8 +10,8 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
     MaxModules = 55; MaxImports = 16;
 
   TYPE  (*copied from Modules for use as cross linker/loader*)
-    PtrOffset* = Sys.Integer;
-    Procedure* = Sys.Integer;
+    PtrOffset* = Sys.INT32;
+    Procedure* = Sys.INT32;
     Command* = Procedure;
     
     Module* = POINTER TO ModDesc;
@@ -19,12 +19,12 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
     ModDesc* = RECORD
       name*: ModuleName;
       next*: PtrOffset; (*memory offset*)
-      key*, num*, size*, refcnt*: Sys.Integer;
-      data*, code*, imp*, cmd*, ent*, ptr*, unused*: Sys.Integer  (*addresses*)
+      key*, num*, size*, refcnt*: Sys.INT32;
+      data*, code*, imp*, cmd*, ent*, ptr*, unused*: Sys.INT32  (*addresses*)
     END ;
 
   VAR root: Module;
-    MTOrg, AllocPtr, Start, limit, res*: Sys.Integer;
+    MTOrg, AllocPtr, Start, limit, res*: Sys.INT32;
     importing*, imported*: ModuleName;
     W: Texts.Writer;
 
@@ -59,12 +59,12 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   END AbsPtr;
 
   (** Get 4bytes at memory offset *)
-  PROCEDURE Get4*(a: PtrOffset; VAR v: Sys.Integer);
+  PROCEDURE Get4*(a: PtrOffset; VAR v: Sys.INT32);
   BEGIN ChkBase; SYSTEM.GET(a + MemBase, v)
   END Get4;
 
   (** Put 4bytes at memory offset *)
-  PROCEDURE Put4*(a: PtrOffset; x: Sys.Integer);
+  PROCEDURE Put4*(a: PtrOffset; x: Sys.INT32);
   BEGIN ChkBase; SYSTEM.PUT(a + MemBase, x)
   END Put4;
 
@@ -103,8 +103,8 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   BEGIN res := n; COPY(name, importing)
   END error;
 
-  PROCEDURE check(s: ARRAY OF CHAR; VAR slen: Sys.Integer);  (*slen includes trailing 0X*)
-    VAR i: Sys.Integer; ch: CHAR;
+  PROCEDURE check(s: ARRAY OF CHAR; VAR slen: Sys.INT32);  (*slen includes trailing 0X*)
+    VAR i: Sys.INT32; ch: CHAR;
   BEGIN ch := s[0]; res := 1; i := 0; slen := 0;
     IF (ch >= "A") & (ch <= "Z") OR (ch >= "a") & (ch <= "z") THEN
       REPEAT INC(i); ch := s[i]
@@ -129,21 +129,21 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
     WHILE n > 0 DO Texts.Write(W, " "); DEC(n) END ;
   END Field;
 
-  PROCEDURE Where(s: ARRAY OF CHAR; n: Sys.Integer);
+  PROCEDURE Where(s: ARRAY OF CHAR; n: Sys.INT32);
   BEGIN
     (*Texts.WriteString(W, s);*)
     Texts.WriteString(W, "  ");
     Texts.WriteHex(W, n)
   END Where;
 
-  PROCEDURE Stats(s: ARRAY OF CHAR; n: Sys.Integer);
+  PROCEDURE Stats(s: ARRAY OF CHAR; n: Sys.INT32);
   BEGIN
     (*IF n # 0 THEN*)
       (*Texts.WriteString(W, s);*) Texts.WriteInt(W, n, 8)
     (*END*)
   END Stats;
 
-  PROCEDURE DetailStats(s: ARRAY OF CHAR; n: Sys.Integer);
+  PROCEDURE DetailStats(s: ARRAY OF CHAR; n: Sys.INT32);
   BEGIN IF details THEN Stats(s, n) END
   END DetailStats;
 
@@ -156,16 +156,16 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
       res = badfile: corrupted file;
       res = nospace: insufficient space*)
     VAR mod, impmod: Module;
-      i, n, key, impkey, mno, nofimps, size: Sys.Integer;
-      p, u, v, w: Sys.Integer;  (*addresses*)
+      i, n, key, impkey, mno, nofimps, size: Sys.INT32;
+      p, u, v, w: Sys.INT32;  (*addresses*)
       ch: CHAR;
       body: Command;
-      fixorgP, fixorgD, fixorgT: Sys.Integer;
-      disp, adr, inst, pno, vno, dest, offset: Sys.Integer;
+      fixorgP, fixorgD, fixorgT: Sys.INT32;
+      disp, adr, inst, pno, vno, dest, offset: Sys.INT32;
       name1, impname: ModuleName;
       F: Files.File; R: Files.Rider;
       import: ARRAY MaxImports + 1 OF Module; (*1-MaxImports*)
-      ptr: Sys.Integer;
+      ptr: Sys.INT32;
   BEGIN mod := root; error(noerr, name); nofimps := 0;
     WHILE (mod # NIL) & (name # mod.name) DO mod := AbsPtr(mod.next) END ;
     IF mod = NIL THEN (*link*)
@@ -298,11 +298,11 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   PROCEDURE InitModules;
   CONST Debug = FALSE;
   VAR mod: Module;
-      calls: ARRAY MaxModules+1 OF Sys.Integer; 
-      nmods: Sys.Integer;
-      body, adr, offset: Sys.Integer;
-      instr: Sys.Integer;
-      i, p: Sys.Integer;
+      calls: ARRAY MaxModules+1 OF Sys.INT32;
+      nmods: Sys.INT32;
+      body, adr, offset: Sys.INT32;
+      instr: Sys.INT32;
+      i, p: Sys.INT32;
   BEGIN Texts.WriteLn(W); Texts.WriteString(W, "  initializing modules");
     nmods := 0; p := AllocPtr;
     mod := root; IF mod # NIL THEN nmods := mod.num END;
@@ -348,7 +348,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   END Option;
 
   PROCEDURE Link*;  (*link multiple object files together and create a single boot file M.bin from them*)
-    VAR i, x: Sys.Integer;
+    VAR i, x: Sys.INT32;
       F: Files.File; R: Files.Rider;
       S: Texts.Scanner;
       M, p: Module;
@@ -410,7 +410,7 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
   END Link;
 
   PROCEDURE Load*;  (*load prelinked boot file M.bin onto the boot area of the local disk*)      
-    VAR i, secno: Sys.Integer; b: CHAR (*SYSTEM.BYTE*);
+    VAR i, secno: Sys.INT32; b: CHAR (*SYSTEM.BYTE*);
       F: Files.File; R: Files.Rider;
       S: Texts.Scanner;
       buf: Kernel.Sector;
