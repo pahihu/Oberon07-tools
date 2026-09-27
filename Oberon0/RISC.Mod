@@ -301,6 +301,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         IF adr >= MemCtrl.MaxMem THEN
           Err(W, "address out of range", PC - 1, badr)
         END ;
+        INC(clk); (*stallL1*)
         IF Debug THEN ShowHex(W, "badr=", badr); ShowHex(W, " adr=", adr) END ;
         IF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
