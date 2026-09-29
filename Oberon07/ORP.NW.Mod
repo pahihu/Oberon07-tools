@@ -917,20 +917,17 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     IF sym = ORS.ident THEN
       ORS.CopyId(procid); ORS.Get(sym);
       ORB.NewObj(proc, ORS.id, ORB.Const);
-      IF int THEN parblksize := 12
-      ELSIF leaf THEN parblksize := 0
-      ELSE parblksize := 4
-      END ;
       NEW(type); type.form := ORB.Proc; type.size := ORG.WordSize;
       proc.type := type; proc.val := -1; proc.lev := level; 
       CheckExport(proc.expo);
       IF proc.expo THEN proc.exno := SHORT(exno); INC(exno) END ;
       ORB.OpenScope; INC(level); type.base := ORB.noType;
-      IF astrobe THEN
-        CheckIntHandler(int);
-        IF ~int THEN ProcedureType(type, parblksize) END (*formal parameter list*)
-      ELSE ProcedureType(type, parblksize);  (*formal parameter list*)
+      IF astrobe THEN CheckIntHandler(int) END ;
+      IF int THEN parblksize := 12
+      ELSIF leaf THEN parblksize := 0
+      ELSE parblksize := 4
       END ;
+      IF ~int THEN ProcedureType(type, parblksize) END ; (*formal parameter list*)
       Check(ORS.semicolon, "no ;"); locblksize := parblksize; 
       Declarations(locblksize);
       proc.val := ORG.Here() * 4; proc.type.dsc := ORB.topScope.next;
