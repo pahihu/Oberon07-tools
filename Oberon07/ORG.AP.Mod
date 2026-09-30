@@ -768,13 +768,19 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   END SetOp;
 
   (* Code generation for relations *)
+  PROCEDURE IsPrevF3(r: INTEGER): BOOLEAN;
+    VAR inst: INTEGER;
+  BEGIN IF pc = 0 THEN RETURN TRUE END ;
+    inst := code[pc-1];
+    RETURN (inst DIV 40000000H = -1) OR (inst DIV 1000000H MOD 16 # r)
+  END IsPrevF3;
 
   PROCEDURE IntRelation*(op: INTEGER; VAR x, y: Item);   (* x := x < y *)
     VAR xr: LONGINT;
   BEGIN
     IF (y.mode = ORB.Const) & (y.type.form # ORB.Proc) THEN
       xr := loadXR(x);
-      IF isRegVar(x) OR (y.a # 0) OR ~(op IN {ORS.eql, ORS.neq}) OR (code[pc-1] DIV 40000000H # -2) THEN Put1a(Cmp, xr, x.r, y.a); x.r := xr END ;
+      IF (y.a # 0) OR ~(op IN {ORS.eql, ORS.neq}) OR (isRegVar(x) & IsPrevF3(x.r)) OR (~isRegVar(x) & (code[pc-1] DIV 40000000H # -2)) THEN Put1a(Cmp, xr, x.r, y.a); x.r := xr END ;
       DEC(RH)
     ELSE
       IF (x.mode = Cond) OR (y.mode = Cond) THEN ORS.Mark("not implemented") END ;
