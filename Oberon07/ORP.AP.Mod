@@ -793,7 +793,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     IF leaf THEN
       IF ORS.debug THEN ORS.Twain("MarkReg=",obj.val) END ;
       IF obj.val > 14 * 4 THEN ORS.Mark("Reg overflow") END ;
-      INC(obj.val, 64); obj.val := -obj.val
+      INC(obj.val, 128); obj.val := -obj.val
     END ;
   END MarkReg;
 
