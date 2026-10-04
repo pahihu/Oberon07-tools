@@ -20,7 +20,7 @@ prom.mem: Counter1.rsc
 
 clean:
 	$(RM) $(VLOG)
-	$(RM) *.rsc *.smb *.dump prom.mem
+	$(RM) *.rsc *.smb *.dump *.pos prom.mem
 	$(RM) Oberon.Log
 
 # vim:set ts=4 sw=4 noet:

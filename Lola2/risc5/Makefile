@@ -22,3 +22,4 @@ RISC5Top.v: RISC5.v RS232R.v RS232T.v SPI.v VID.v MouseP.v PS2.v
 VID.v: DCMX3.v
 # RISC5.v: Registers.v
 RISC5.v: Multiplier.v Divider.v LeftShifter.v RightShifter.v FPAdder.v FPMultiplier.v FPDivider.v
+# vim:set ts=2 sw=2 noet:

@@ -6,7 +6,7 @@ MODULE SPI; (*Phu 22.9.26 / generic SPI slave*)
     Idle = 0; Input = 1; Output = 2; (*controller state*)
     Undef* = 0FFX;
     Word = 4; Fast = 3; SPI1* = 1; SPI0* = 0; (*ctrl*)
-    BitDelayFast = 3; BitDelaySlow = 29;
+    BitDelayFast = 3; BitDelaySlow = 30;
     Ready = 0; (*status*)
 
   TYPE

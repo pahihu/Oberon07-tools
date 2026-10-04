@@ -1,6 +1,7 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
-    RISCEmu, WA := WAddress, Timer, MemCtrl, Kernel, Files, SPI, RTC, SDCard;
+    RISCEmu, WA := WAddress, Timer, MemCtrl, Kernel, Files, SPI, RTC, SDCard,
+    RandomNumbers;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -232,14 +233,16 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       done: BOOLEAN;
       hitRate: LONGREAL;
       rdOnlyCode: BOOLEAN;
-      msecCounter: LONGINT;
-      usecCounter: LONGINT;
+      msecCounter, msecCounter0: LONGINT;
+      usecCounter, usecCounter0: LONGINT;
   BEGIN
     PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
     rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.MaxMem);
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
-    msecCounter := 0; usecCounter := 0;
+    msecCounter0 := RandomNumbers.RND(MAX(LONGINT));
+    usecCounter0 := RandomNumbers.RND(MAX(LONGINT));
+    (*msecCounter0 := 2147453647; usecCounter0 := 2147453647;*)
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
@@ -413,9 +416,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       END;
       (*millisecond clock INT generation*)
       INC(clk);
-      usecCounter := clk DIV 1200;
+      usecCounter := usecCounter0 + clk DIV 1200;
       tmp := msecCounter;
-      msecCounter := clk DIV 12000; (*12MHz clock*)
+      msecCounter := msecCounter0 + clk DIV 12000; (*12MHz clock*)
       IF clockINT & (msecCounter # tmp) THEN intPnd := TRUE END ;
       IF delayTxCounter # 0 THEN
         DEC(delayTxCounter, clk - prevClk);
@@ -513,7 +516,12 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     profile := TRUE
   END DoProfile;
 
-BEGIN In.Open;
+  PROCEDURE InitRNG;
+    VAR d, t: LONGINT;
+  BEGIN Kernel.GetClock(t, d); RandomNumbers.InitSeed(t)
+  END InitRNG;
+
+BEGIN In.Open; InitRNG;
   absTime := FALSE; profile := FALSE;
   clk := 0; SW := 0; clockINT := FALSE;
   delayTxCounter := 0; DelayTX := 1042;
