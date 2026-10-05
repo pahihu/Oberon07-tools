@@ -240,8 +240,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.MaxMem);
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
-    msecCounter0 := RandomNumbers.RND(MAX(LONGINT));
-    usecCounter0 := RandomNumbers.RND(MAX(LONGINT));
+    msecCounter0 := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
+    usecCounter0 := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
     (*msecCounter0 := 2147453647; usecCounter0 := 2147453647;*)
     REPEAT (*interpretation cycle*)
       prevClk := clk;
@@ -517,7 +517,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   END DoProfile;
 
   PROCEDURE InitRNG;
-    VAR d, t: LONGINT;
+    VAR d, t: Sys.LongInt;
   BEGIN Kernel.GetClock(t, d); RandomNumbers.InitSeed(t)
   END InitRNG;
 
