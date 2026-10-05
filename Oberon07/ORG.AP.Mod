@@ -942,7 +942,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE For0*(VAR x, y: Item);
     VAR yr: LONGINT;
   BEGIN yr := loadXR(y);
-    IF isRegVar(y) THEN Put0(Mov, yr, 0, regVar(y)); y.r := yr END
+    IF isRegVar(y) THEN Put0(Mov, yr, 0, regVar(y)); SetXR(y, yr) END
   END For0;
 
   PROCEDURE For1*(VAR x, y, z, w: Item; VAR L: LONGINT);
