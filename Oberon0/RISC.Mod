@@ -233,16 +233,17 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       done: BOOLEAN;
       hitRate: LONGREAL;
       rdOnlyCode: BOOLEAN;
-      msecCounter, msecCounter0: LONGINT;
-      usecCounter, usecCounter0: LONGINT;
+      msecCounter, usecCounter: LONGINT;
+      dclk, cnt0, cnt1: LONGINT;
   BEGIN
     PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
     rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.MaxMem);
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
-    msecCounter0 := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
-    usecCounter0 := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
-    (*msecCounter0 := 2147453647; usecCounter0 := 2147453647;*)
+    msecCounter := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
+    usecCounter := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
+    (*msecCounter := 2147453647; usecCounter := 2147453647;*)
+    cnt0 := 0; cnt1 := 0;
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
@@ -414,12 +415,15 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
           END
         END
       END;
-      (*millisecond clock INT generation*)
       INC(clk);
-      usecCounter := usecCounter0 + clk DIV 1200;
       tmp := msecCounter;
-      msecCounter := msecCounter0 + clk DIV 12000; (*12MHz clock*)
-      IF clockINT & (msecCounter # tmp) THEN intPnd := TRUE END ;
+      dclk := clk - prevClk; (*update counters*)
+      IF (clk < 0) & (prevClk > 0) THEN INC(dclk) END ;
+      INC(cnt0, dclk);
+      INC(cnt1, dclk);
+      IF cnt0 >=  1200 THEN DEC(cnt0,  1200); INC(usecCounter) END ;
+      IF cnt1 >= 12000 THEN DEC(cnt1, 12000); INC(msecCounter) END ;
+      IF clockINT & (msecCounter # tmp) THEN intPnd := TRUE END ; (*millisecond clock INT generation*)
       IF delayTxCounter # 0 THEN
         DEC(delayTxCounter, clk - prevClk);
         IF delayTxCounter < 0 THEN delayTxCounter := 0 END ;
