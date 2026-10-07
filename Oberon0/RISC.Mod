@@ -421,7 +421,10 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       IF (clk < 0) & (prevClk > 0) THEN INC(dclk) END ;
       INC(cnt0, dclk);
       INC(cnt1, dclk);
-      IF cnt0 >=  1200 THEN DEC(cnt0,  1200); INC(usecCounter) END ;
+      IF cnt0 >=    12 THEN
+        INC(usecCounter, cnt0 DIV 12);
+        cnt0 := cnt0 MOD 12
+      END ;
       IF cnt1 >= 12000 THEN DEC(cnt1, 12000); INC(msecCounter) END ;
       IF clockINT & (msecCounter # tmp) THEN intPnd := TRUE END ; (*millisecond clock INT generation*)
       IF delayTxCounter # 0 THEN
