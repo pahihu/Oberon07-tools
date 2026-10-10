@@ -21,7 +21,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   VAR IR: LONGINT;   (*instruction register*)
     PC: LONGINT;   (*program counter*)
     N, Z, Y, V: BOOLEAN;  (*condition flags*)
-    R: ARRAY 16 OF LONGINT;
+    R: RISCEmu.Registers;
     H: LONGINT;  (*aux register for division*)
     SPC: LONGINT; (*saved pc*)
     intPnd: BOOLEAN; (*INT pending*)
@@ -193,9 +193,16 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   END ShowLEDs;
 
   PROCEDURE Err(VAR W: Texts.Writer; msg: ARRAY OF CHAR; pc, adr: LONGINT);
+    VAR rs: RISCEmu.MachineState;
   BEGIN
     RISCEmu.verbose := TRUE;
-    RISCEmu.Status(W, pc, IR, R, H, Flags(), IntFlags());
+    rs.PC := pc;
+    rs.IR := IR;
+    rs.R  := R;
+    rs.H  := H;
+    rs.flags    := Flags();
+    rs.intFlags := IntFlags();
+    RISCEmu.Status(W, rs);
     Ln(W); String(W, "Error: "); ShowHex(W, msg, adr); Ln(W);
     Kernel.Exit(1);
   END Err;
@@ -235,6 +242,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       rdOnlyCode: BOOLEAN;
       msecCounter, usecCounter: LONGINT;
       dclk, cnt0, cnt1: LONGINT;
+      rs: RISCEmu.MachineState;
   BEGIN
     PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
     rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.MaxMem);
@@ -244,6 +252,14 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     usecCounter := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
     (*msecCounter := 2147453647; usecCounter := 2147453647;*)
     cnt0 := 0; cnt1 := 0;
+    (*init machine state*)
+    rs.step := -1;
+    rs.quit := FALSE;
+    IF RISCEmu.verbose THEN
+      rs.brkpt := PC
+    ELSE
+      rs.brkpt := -1
+    END ;
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
@@ -252,7 +268,19 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       IF spiDeviceCS # 3 THEN
         spiBus[spiDeviceCS].Cycle
       END ;
-      RISCEmu.Status(W, PC, IR, R, H, Flags(), IntFlags()); INC(PC);
+
+      IF RISCEmu.verbose & ((PC = rs.brkpt) OR (rs.step = 0)) THEN
+        rs.PC := PC;
+        rs.IR := IR;
+        rs.R  := R;
+        rs.H  := H;
+        rs.flags    := Flags();
+        rs.intFlags := IntFlags();
+        RISCEmu.Status(W, rs);
+        (*brkpt, PC, step, quit could change*)
+        IF PC # rs.PC THEN END ;
+      END ;
+      INC(PC);
       a := IR DIV 1000000H MOD 10H;
       b := IR DIV 100000H MOD 10H;
       op := IR DIV 10000H MOD 10H;
@@ -438,7 +466,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       END ;
       done := (IR = -18000001H); (*HALT B -1*)
       IF RISCEmu.verbose THEN
-        done := done OR (MemCtrl.cntFetch > 20000);
+        done := done OR rs.quit;
+        IF rs.step > 0 THEN DEC(rs.step) END
       END ;
       IF R[SP] < stackMin THEN stackMin := R[SP] END
     UNTIL done;
