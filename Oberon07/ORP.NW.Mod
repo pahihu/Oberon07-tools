@@ -117,7 +117,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
 
   (* expressions *)
   PROCEDURE OpaquePtr(T: ORB.Type): BOOLEAN;
-  BEGIN RETURN (T.base.len = 0) & (T.mno # 0)
+  BEGIN RETURN (T.base # NIL) & (T.base.len = 0) & (T.mno # 0)
   END OpaquePtr;
 
   PROCEDURE TypeTest(VAR x: ORG.Item; T: ORB.Type; guard: BOOLEAN);

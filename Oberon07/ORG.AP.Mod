@@ -526,9 +526,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE BuildTD*(T: ORB.Type; VAR dc: LONGINT);
     VAR dcw, k, s: LONGINT;  (*dcw = word address*)
-  BEGIN dcw := dc DIV 4; s := T.size; (*convert size for heap allocation*)
-    IF s <= 24 THEN s := 32 ELSIF s <= 56 THEN s := 64 ELSIF s <= 120 THEN s := 128
-    ELSE s := (s+263) DIV 256 * 256
+  BEGIN dcw := dc DIV 4; s := T.size;
+    IF ORS.GetOption("H") THEN (*convert size for heap allocation*)
+      IF s <= 24 THEN s := 32 ELSIF s <= 56 THEN s := 64 ELSIF s <= 120 THEN s := 128
+      ELSE s := (s+263) DIV 256 * 256
+      END
+    ELSE INC(s, 8)
     END ;
     T.len := dc; data[dcw] := s; INC(dcw);  (*len used as address*)
     k := T.nofpar;   (*extension level!*)

@@ -118,7 +118,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
   (* expressions *)
 
   PROCEDURE OpaquePtr(T: ORB.Type): BOOLEAN;
-  BEGIN RETURN (T.base.len = 0) & (T.mno # 0)
+  BEGIN RETURN (T.base # NIL) & (T.base.len = 0) & (T.mno # 0)
   END OpaquePtr;
 
   PROCEDURE TypeTest(VAR x: ORG.Item; T: ORB.Type; guard: BOOLEAN);
@@ -1130,6 +1130,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
              IF S.s[i] = "s" THEN newSF := TRUE
           ELSIF S.s[i] = "a" THEN ORG.astrobe := TRUE
           ELSIF S.s[i] = "g" THEN ORS.warning := TRUE; ORS.debug := TRUE
+          ELSIF S.s[i] = "h" THEN ORS.SetOption("H", FALSE)
           ELSIF S.s[i] = "l" THEN ORS.reportLine := TRUE
           ELSIF S.s[i] = "w" THEN ORS.warning := TRUE
           END
@@ -1143,7 +1144,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       T: Texts.Text;
       S: Texts.Scanner;
       path: ORS.Path;
-  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+  BEGIN ORS.SetOption("H", TRUE);
+    Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     WHILE S.class = Texts.Name DO
       NEW(T); COPY(S.s, path); ORS.ResolvePath(path); Texts.Open(T, path);
       IF T.len > 0 THEN Option(S); ORS.Init(T, 0); Module
@@ -1167,7 +1169,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
   BEGIN
     Ln; String("usage: ORP Compile name[/als]...");
     Ln; String("options:");
-    Ln; String("  /a    - enabled Astrobe-compatibility");
+    Ln; String("  /a    - enable Astrobe-compatibility");
+    Ln; String("  /h    - don't convert type descriptor size for heap allocation");
     Ln; String("  /l    - report position as line:char");
     Ln; String("  /s    - enable new symbol file");
     Ln; String("comment embedded options: opt=+|-");
