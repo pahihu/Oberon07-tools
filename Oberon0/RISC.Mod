@@ -17,6 +17,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     NumSPISlaves = 4; (*SPI CS: bit0 - SPI0, bit1 - SPI1*)
     C22 = 400000H;
     ProfileName = "profile.out";
+    Undef = 0DEADC0DEH;
 
   VAR IR: LONGINT;   (*instruction register*)
     PC: LONGINT;   (*program counter*)
@@ -192,8 +193,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
   END ShowLEDs;
 
-  PROCEDURE Err(VAR W: Texts.Writer; msg: ARRAY OF CHAR; pc, adr: LONGINT);
-    VAR rs: RISCEmu.MachineState;
+  PROCEDURE Err(VAR W: Texts.Writer; msg: ARRAY OF CHAR; VAR rs: RISCEmu.MachineState; pc, adr: LONGINT);
   BEGIN
     RISCEmu.verbose := TRUE;
     rs.PC := pc;
@@ -202,9 +202,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     rs.H  := H;
     rs.flags    := Flags();
     rs.intFlags := IntFlags();
-    RISCEmu.Status(W, rs);
     Ln(W); String(W, "Error: "); ShowHex(W, msg, adr); Ln(W);
-    Kernel.Exit(1);
+    RISCEmu.Status(W, rs)
   END Err;
 
   PROCEDURE PrintProfile;
@@ -269,17 +268,19 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         spiBus[spiDeviceCS].Cycle
       END ;
 
-      IF RISCEmu.verbose & ((PC = rs.brkpt) OR (rs.step = 0)) THEN
-        rs.PC := PC;
-        rs.IR := IR;
-        rs.R  := R;
-        rs.H  := H;
-        rs.flags    := Flags();
-        rs.intFlags := IntFlags();
-        RISCEmu.Status(W, rs);
-        (*brkpt, PC, step, quit could change*)
-        IF PC # rs.PC THEN END ;
+      IF RISCEmu.verbose THEN
+        RISCEmu.Trace(PC, IR);
+        IF ((PC = rs.brkpt) OR (rs.step = 0)) THEN
+          rs.PC := PC;
+          rs.IR := IR;
+          rs.R  := R;
+          rs.H  := H;
+          rs.flags    := Flags();
+          rs.intFlags := IntFlags();
+          RISCEmu.Status(W, rs)
+        END
       END ;
+      IF IR = Undef THEN Err(W, "fetch undefined", rs, PC, PC * 4) END ;
       INC(PC);
       a := IR DIV 1000000H MOD 10H;
       b := IR DIV 100000H MOD 10H;
@@ -331,13 +332,14 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         IF tmp >= 80000H THEN tmp := tmp - 100000H END ;
         badr := R[b] + tmp; adr := badr DIV 4;
         IF adr >= MemCtrl.MaxMem THEN
-          Err(W, "address out of range", PC - 1, badr)
+          Err(W, "address out of range", rs, PC - 1, badr)
         END ;
         INC(clk); (*stallL1*)
         IF Debug THEN ShowHex(W, "badr=", badr); ShowHex(W, " adr=", adr) END ;
         IF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
             A := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks);
+            IF A = Undef THEN Err(W, "read undefined", rs, PC - 1, badr) END ;
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
                 Ln(W); Hex(W, A); String(W, " @"); Hex(W, badr); Ln(W);
@@ -362,7 +364,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSE (*memory address is unsigned*)
               adr := adr MOD MemCtrl.MemMask;
               IF adr >= MemCtrl.MaxMem THEN
-                Err(W, "address out of range", PC - 1, badr)
+                Err(W, "address out of range", rs, PC - 1, badr)
               END ;
               R[a] := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks)
             END
@@ -370,7 +372,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         ELSE
           IF adr >= 0 THEN (*store*)
             IF rdOnlyCode & (adr >= sb.ToWords())  THEN
-              Err(W, "code is read-only", PC - 1, adr)
+              Err(W, "code is read-only", rs, PC - 1, adr)
             END;
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
@@ -403,7 +405,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSE
               adr := adr MOD MemCtrl.MemMask;
               IF adr >= MemCtrl.MaxMem THEN
-                Err(W, "address out of range", PC - 1, badr)
+                Err(W, "address out of range", rs, PC - 1, badr)
               END ;
               MemCtrl.Write(adr, R[a]); INC(clk, MemCtrl.elapsedClks)
             END

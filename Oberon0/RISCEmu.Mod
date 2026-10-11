@@ -6,7 +6,9 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     TAB = 09X;
     NN* = 8; ZZ* = 4; CC* = 2; VV* = 1;
     INTE* = 8; INTP* = 4; INTM* = 1;
-    NumCmds = 8; CR = 0DX; LF = 0AX;
+    NumCmds = 10; LF = 0AX;
+    TraceLen = 32;
+
   TYPE
     LONGINT = Sys.INT32;
     INTEGER = Sys.INT32;
@@ -22,6 +24,9 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     END ;
     String16 = ARRAY 16 OF CHAR;
     CmdProc = PROCEDURE(nofArgs: INTEGER; VAR args: ARRAY OF LONGINT);
+    TraceDesc = RECORD
+      pc, ir: LONGINT
+    END ;
 
   VAR
     verbose*: BOOLEAN;
@@ -36,6 +41,8 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     cmdIdx: INTEGER;
     cmdEndLoop: BOOLEAN;
     cmdPrev: String16;
+    traceBuf: ARRAY TraceLen OF TraceDesc;
+    traceBufLen: LONGINT;
 
 
   PROCEDURE Flush(VAR W: Texts.Writer);
@@ -84,6 +91,13 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
   BEGIN IF x THEN Texts.Write(W, ch) ELSE Texts.Write(W, "-") END
   END OutFlag;
 
+  PROCEDURE OutAsm(VAR W: Texts.Writer; pc, ir: LONGINT);
+  BEGIN
+    WriteHex(W, pc * 4, 5); Write(W, TAB); WriteHex(W, ir, 8); Write(W, TAB);
+    Disasm.Opcode(W, ir); Ln(W)
+  END OutAsm;
+
+
   PROCEDURE CmdBreak(nofArgs: INTEGER; VAR args: ARRAY OF LONGINT);
     VAR adr: LONGINT;
   BEGIN
@@ -92,7 +106,7 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     ELSE
       adr := args[0] DIV 4;
       IF rs.brkpt = adr THEN
-        rs.brkpt := -1 
+        rs.brkpt := -1
       ELSE
         rs.brkpt := adr
       END
@@ -110,10 +124,7 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     END ;
     IF args[1] = -1 THEN args[1] := 16 END ;
     FOR i := 1 TO args[1] DO
-      m := MemCtrl.M[args[0]];
-      WriteHex(W, args[0] * 4, 5); Write(W, TAB); WriteHex(W, m, 8); Write(W, TAB);
-      Disasm.Opcode(W, m); Ln(W);
-      INC(args[0])
+      OutAsm(W, args[0], MemCtrl.M[args[0]]); INC(args[0])
     END ;
   END CmdDisasm;
 
@@ -147,6 +158,7 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     Ln(W); String(W, "disasm [from] [len]    - disassemble (from=PC,len=24)");
     Ln(W); String(W, "dump [from] [len]      - dump (from=PC,len=24)");
     Ln(W); String(W, "help                   - print help");
+    Ln(W); String(W, "history                - show instruction history");
     Ln(W); String(W, "quit                   - quit");
     Ln(W); String(W, "regs                   - show regs");
     Ln(W); String(W, "step [n]               - step instructions (n=1)")
@@ -242,7 +254,7 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
       Ln(W); String(W, "> "); Flush(W);
       nofWords := 0;
       REPEAT
-        eol := ReadString(s); 
+        eol := ReadString(s);
         IF s[0] # 0X THEN
           (*Out.Ln; Out.String("["); Out.String(s); Out.String("]");*)
           IF nofWords < LEN(words) THEN
@@ -307,9 +319,30 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
       IF i MOD 4 = 0 THEN Ln(W) END;
       OutReg(W, i, rs.R[i])
     END; Ln(W); Ln(W);
-    WriteHex(W, rs.PC * 4, 5); Texts.Write(W, TAB); Texts.WriteHex(W, rs.IR); Texts.Write(W, TAB);
-    Disasm.Opcode(W, rs.IR); Ln(W); Ln(W); Ln(W)
+    OutAsm(W, rs.PC, rs.IR); Ln(W); Ln(W)
   END CmdRegs;
+
+  PROCEDURE CmdHistory(nofArgs: INTEGER; VAR args: ARRAY OF LONGINT);
+    VAR i, from, len: LONGINT;
+  BEGIN
+    IF traceBufLen < TraceLen THEN
+      from := 0; len := traceBufLen
+    ELSE
+      from := traceBufLen MOD TraceLen; len := TraceLen
+    END ;
+    FOR i := 1 TO len DO
+      OutAsm(W, traceBuf[from].pc, traceBuf[from].ir);
+      from := (from + 1) MOD TraceLen
+    END ;
+  END CmdHistory;
+
+  PROCEDURE Trace*(pc, ir: LONGINT);
+    VAR pos: LONGINT;
+  BEGIN pos := traceBufLen MOD TraceLen;
+    traceBuf[pos].pc := pc;
+    traceBuf[pos].ir := ir;
+    INC(traceBufLen)
+  END Trace;
 
   PROCEDURE Status*(VAR XW: Texts.Writer; VAR s: MachineState);
     VAR dummy: ARRAY 1 OF INTEGER;
@@ -320,18 +353,21 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
       CmdLoop; s := rs
     END
   END Status;
-    
+
 BEGIN verbose := TRUE; hexDigits := "0123456789ABCDEF";
   In.Open;
   cmdIdx := 0; cmdPrev := "";
+  AddCmd("?",      0, CmdHelp);
   AddCmd("break",  1, CmdBreak);
-  AddCmd("cont", 0, CmdContinue);
+  AddCmd("cont",   0, CmdContinue);
   AddCmd("disasm", 2, CmdDisasm);
   AddCmd("dump",   2, CmdDump);
   AddCmd("help", 0, CmdHelp);
+  AddCmd("history", 0, CmdHistory);
   AddCmd("quit", 0, CmdQuit);
   AddCmd("regs", 0, CmdRegs);
-  AddCmd("step", 1, CmdStep)
+  AddCmd("step", 1, CmdStep);
+  traceBufLen := 0
 END RISCEmu.
 
 (* vim:set ts=2 sw=2 et: *)
