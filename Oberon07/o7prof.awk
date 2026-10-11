@@ -5,6 +5,16 @@ BEGIN \
     # mod[name] = beg;
 }
 
+func hex2int(s ,i,ret)
+{
+    ret = 0;
+    s = toupper(s);
+    for (i = 1; i <= length(s); i++) {
+        ret = 16 * ret + index("0123456789ABCDEF", substr(s,i,1)) - 1;
+    }
+    return ret;
+}
+
 /###/ \
 {
     readmap = 0;
@@ -20,11 +30,11 @@ BEGIN \
         } else if (index(",initializing,total", "," $1)) {
             doread = 0;
         } else {
-            mods[$1] = 0 + ("0x" $4);
+            mods[$1] = 0 + hex2int($4);
         }
         next;
     }
-    cnt = $1; where = $2; pos = 0 + ("0x" $2);
+    cnt = $1; where = $2; pos = 0 + hex2int($2);
     # printf "processing %s\n", $0;
     base = 0;
     for (nm in mods) {

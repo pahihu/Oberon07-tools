@@ -7,6 +7,7 @@ fi
 MOD=$1
 
 omake $MOD.lst
+c0de=$(grep $MOD *.map | awk '{print $4;}')
 
 ### DecObj file
 cat $MOD.lst >match.inp
@@ -36,7 +37,7 @@ awk -f $O7DIR/Oberon07/lineno.awk $MODNAME >$MOD.lno
 cat $MOD.lno >>match.inp
 
 ### process
-awk -f $O7DIR/Oberon07/o7disasm.awk -v MOD=$MOD match.inp
+awk -f $O7DIR/Oberon07/o7disasm.awk -v MOD=$MOD -v C0DE=$c0de match.inp
 
 rm -f match.inp
 rm -f $MOD.lno

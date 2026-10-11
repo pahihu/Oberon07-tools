@@ -1,6 +1,8 @@
 BEGIN \
 {
     # MOD is the module name
+    # C0DE is the beginning of the module code in hex
+    C0DE = hex2int(C0DE);
 
     # parser states
     PARSECODE = 1;  # search for "code"
@@ -25,10 +27,20 @@ BEGIN \
     adjust["FDV"] = 26;
 }
 
+func hex2int(s ,i,ret)
+{
+    ret = 0;
+    s = toupper(s);
+    for (i = 1; i <= length(s); i++) {
+        ret = 16 * ret + index("0123456789ABCDEF", substr(s,i,1)) - 1;
+    }
+    return ret;
+}
+
 func printasm(pc ,i,asmline,cnt,instr,pre)
 {
     for (i = last; i < pc; i++) {
-        asmline = lst[i]
+        asmline = lst[i];
         if (i in prof) {
             cnt = prof[i];
             for (instr in adjust) {
@@ -39,7 +51,7 @@ func printasm(pc ,i,asmline,cnt,instr,pre)
         } else {
             pre = "          ";
         }
-        printf "%s  %s\n", pre, asmline;
+        printf "%s  %05X   %s\n", pre, C0DE + i * 4, asmline;
     }
     last = pc;
 }
@@ -97,10 +109,11 @@ func printasm(pc ,i,asmline,cnt,instr,pre)
         }
         # lno line
         lno = $1;
-        line = substr($0, index($0, " "));
+        line = substr($0, index($0, lno) + length(lno));
+        sub("[\t ]*","",line);
         lst[lno] = line;
 	    # 261011AP track last pc
-        if (lst[0] < lno) lst[0] = lno;
+        if (lastAdr < lno) lastAdr = lno;
         if (debug) printf "# EMIT %d %s\n", lno, line;
         next;
     }
@@ -108,6 +121,6 @@ func printasm(pc ,i,asmline,cnt,instr,pre)
 
 END \
 {
-    printasm(lst[0] + 1);
+    printasm(lastAdr + 1);
 }
 # vim:set ts=4 sw=4 et:
