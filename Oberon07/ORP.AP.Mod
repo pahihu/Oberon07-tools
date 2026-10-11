@@ -911,11 +911,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       ELSE Type(type.base, baseExpo);
         IF type.base.form # ORB.Record THEN
           ORS.Mark("must point to record")
-        ELSE
-          IF type.base.typobj = NIL THEN (*anonymous record*)
-            type.base.typobj := NewAnonRec(type.base, baseExpo, level);
-            IF level = 0 THEN ORG.BuildTD(type.base, dc) END    (*type descriptor; len used as its address*)
-          END
+        ELSIF type.base.typobj = NIL THEN (*anonymous record*)
+          type.base.typobj := NewAnonRec(type.base, baseExpo, level);
+          IF level = 0 THEN ORG.BuildTD(type.base, dc) END    (*type descriptor; len used as its address*)
         END ;
         CheckRecLevel(level)
       END
