@@ -25,6 +25,25 @@ BEGIN \
     adjust["FDV"] = 26;
 }
 
+func printasm(pc ,i,asmline,cnt,instr,pre)
+{
+    for (i = last; i < pc; i++) {
+        asmline = lst[i]
+        if (i in prof) {
+            cnt = prof[i];
+            for (instr in adjust) {
+                if (index(asmline, instr))
+                    cnt = cnt * adjust[instr];
+            }
+            pre = sprintf("%10d", cnt);
+        } else {
+            pre = "          ";
+        }
+        printf "%s  %s\n", pre, asmline;
+    }
+    last = pc;
+}
+
 /###/ \
 {
     state++;
@@ -48,21 +67,7 @@ BEGIN \
         print;
         if (lno in lno2pc) {
             pc = lno2pc[lno];
-            for (i = last; i < pc; i++) {
-                asmline = lst[i]
-                if (i in prof) {
-                    cnt = prof[i];
-                    for (instr in adjust) {
-                        if (index(asmline, instr))
-                            cnt = cnt * adjust[instr];
-                    }
-                    pre = sprintf("%10d", cnt);
-                } else {
-                    pre = "          ";
-                }
-                printf "%s  %s\n", pre, asmline;
-            }
-            last = pc;
+            printasm(pc);
         }
         next;
     }
@@ -94,7 +99,15 @@ BEGIN \
         lno = $1;
         line = substr($0, index($0, " "));
         lst[lno] = line;
+	    # 261011AP track last pc
+        if (lst[0] < lno) lst[0] = lno;
         if (debug) printf "# EMIT %d %s\n", lno, line;
         next;
     }
 }
+
+END \
+{
+    printasm(lst[0] + 1);
+}
+# vim:set ts=4 sw=4 et:

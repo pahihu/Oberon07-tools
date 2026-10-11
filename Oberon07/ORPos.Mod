@@ -24,7 +24,7 @@ MODULE ORPos;
   PROCEDURE Close*;
   BEGIN
     IF isOpen THEN
-      Texts.Append(T, W.buf); Texts.Close(T)
+      Texts.WriteLn(W); Texts.Append(T, W.buf); Texts.Close(T)
     END
   END Close;
 
