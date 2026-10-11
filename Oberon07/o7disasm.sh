@@ -7,7 +7,7 @@ fi
 MOD=$1
 
 omake $MOD.lst
-c0de=$(grep $MOD *.map | awk '{print $4;}')
+c0de=$(grep $MOD *.map | head -1 | awk '{print $4;}')
 
 ### DecObj file
 cat $MOD.lst >match.inp
