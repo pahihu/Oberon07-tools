@@ -24,5 +24,5 @@ BEGIN worldSize := 4;
   IF Args.argc > 0 THEN worldSize := Args.GetInt(1) END;
   Out.String("World size="); Out.Int(worldSize, 0); Out.Ln;
   Timer.Start(T); Init(worldSize); elapsed := Timer.Elapsed(T);
-  Out.String("Elapsed time "); Out.Int(elapsed, 0); Out.Ln
+  Out.String("Elapsed time "); Out.Int(elapsed, 0); Out.String("ms"); Out.Ln
 END RayTest.
