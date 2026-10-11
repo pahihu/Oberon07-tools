@@ -897,6 +897,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   BEGIN loadAdr(x); loadTypTagAdr(x.type.base); Trap(7, 0); RH := 0
   END New;
 
+  PROCEDURE Dispose*(VAR x: Item);
+  BEGIN loadAdr(x); loadTypTagAdr(x.type.base); Trap(7, 15); RH := 0
+  END Dispose;
+
   PROCEDURE Pack*(VAR x, y: Item);
     VAR z: Item;
   BEGIN z := x; load(x); load(y);
