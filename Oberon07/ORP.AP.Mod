@@ -29,6 +29,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     W: Texts.Writer;
     leaf: BOOLEAN;	(*leaf procedure*)
     inASSERT: BOOLEAN;  (*parsing ASSERT*)
+    arc: INTEGER; (*anonymous record counter*)
 
   PROCEDURE Check(s: INTEGER; msg: ARRAY OF CHAR);
   BEGIN
@@ -754,6 +755,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         qualident(base);
         IF base.class = ORB.Typ THEN
           IF base.type.form = ORB.Record THEN typ.base := base.type
+          ELSIF (base.type.form = ORB.Pointer) & (base.type.base.form = ORB.Record) THEN typ.base := base.type.base;
           ELSE typ.base := ORB.intType; ORS.Mark("invalid extension")
           END ;
           typ.nofpar := typ.base.nofpar + 1; (*"nofpar" here abused for extension level*)
@@ -866,8 +868,18 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     IF lev # 0 THEN ORS.Mark("ptr base must be global") END
   END CheckRecLevel;
 
+  PROCEDURE NewAnonRec(base: ORB.Type; expo: BOOLEAN; lev: INTEGER): ORB.Object;
+    VAR obj: ORB.Object;
+        id: ORS.Ident;
+  BEGIN id[0] := CHR(arc MOD 254 + 1); id[1] := CHR(arc DIV 254 + 1); id[2] := 0X;
+    INC(arc);
+    ORB.NewObj(obj, id, ORB.Typ); obj.type := base; obj.expo := expo; obj.lev := lev;
+    IF expo THEN obj.exno := SHORT(exno); INC(exno) ELSE obj.exno := 0 END ;
+    RETURN obj
+  END NewAnonRec;
+
   PROCEDURE Type0(VAR type: ORB.Type; baseExpo: BOOLEAN);
-    VAR dmy: LONGINT; obj: ORB.Object; ptbase: PtrBase;
+    VAR dmy: LONGINT; recobj, obj: ORB.Object; ptbase: PtrBase;
   BEGIN type := ORB.intType; (*sync*)
     IF (sym # ORS.ident) & (sym < ORS.array) THEN ORS.Mark("not a type");
       REPEAT ORS.Get(sym) UNTIL (sym = ORS.ident) OR (sym >= ORS.array)
@@ -897,7 +909,14 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         END ;
         ORS.Get(sym)
       ELSE Type(type.base, baseExpo);
-        IF (type.base.form # ORB.Record) OR (type.base.typobj = NIL) THEN ORS.Mark("must point to named record") END ;
+        IF type.base.form # ORB.Record THEN
+          ORS.Mark("must point to record")
+        ELSE
+          IF type.base.typobj = NIL THEN (*anonymous record*)
+            type.base.typobj := NewAnonRec(type.base, baseExpo, level);
+            IF level = 0 THEN ORG.BuildTD(type.base, dc) END    (*type descriptor; len used as its address*)
+          END
+        END ;
         CheckRecLevel(level)
       END
     ELSIF sym = ORS.procedure THEN
@@ -1080,6 +1099,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     IF sym = ORS.module THEN
       ORS.Get(sym);
       IF sym = ORS.times THEN version := 0; dc := 8; Texts.Write(W, "*"); ORS.Get(sym) ELSE dc := 0; version := 1 END ;
+      arc := 0;
       ORB.Init; ORB.OpenScope;
       IF sym = ORS.ident THEN
         ORS.CopyId(modid); ORS.Get(sym);
