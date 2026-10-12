@@ -296,9 +296,9 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     UNTIL cmdEndLoop
   END CmdLoop;
 
-  PROCEDURE AddCmd(name: String16; nofArgs: INTEGER; P: CmdProc);
+  PROCEDURE AddCmd(name: ARRAY OF CHAR; nofArgs: INTEGER; P: CmdProc);
   BEGIN
-    cmds[cmdIdx].name := name;
+    COPY(name, cmds[cmdIdx].name);
     cmds[cmdIdx].nofArgs := nofArgs;
     cmds[cmdIdx].do := P;
     INC(cmdIdx)
