@@ -5,6 +5,18 @@ MODULE O7Depends;
   BEGIN Depends.Scan
   END Scan;
 
+  PROCEDURE Build*;
+  BEGIN Depends.Build
+  END Build;
+
+  PROCEDURE Rebuild*;
+  BEGIN Depends.Rebuild
+  END Rebuild;
+
+  PROCEDURE Clean*;
+  BEGIN Depends.Clean
+  END Clean;
+
   PROCEDURE Help*;
   BEGIN Depends.Help
   END Help;
