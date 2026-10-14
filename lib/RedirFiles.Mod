@@ -50,17 +50,21 @@ MODULE RedirFiles;
     dst[i] := 0X
   END StrCopy;
 
-  PROCEDURE InitFromEnv*(var: ARRAY OF CHAR; default: ARRAY OF CHAR);
+  PROCEDURE GetEnv*(var: ARRAY OF CHAR; VAR value: ARRAY OF CHAR);
     VAR tmp: ARRAY 256 OF CHAR;
         adr: C.address;
   BEGIN
     adr := Kernal.getenv(var);
     IF adr # 0 THEN
-        StrCopy(tmp, SYSTEM.VAL(C.charPtr1d, adr));
-        Init(tmp)
-    ELSE
-        Init(default)
+        StrCopy(value, SYSTEM.VAL(C.charPtr1d, adr));
     END
+  END GetEnv;
+
+  PROCEDURE InitFromEnv*(var: ARRAY OF CHAR; default: ARRAY OF CHAR);
+    VAR value: ARRAY 256 OF CHAR;
+        adr: C.address;
+  BEGIN COPY(default, value); GetEnv(var, value);
+    Init(value)
   END InitFromEnv;
   
 BEGIN pat := NIL; debug := FALSE;

@@ -175,19 +175,19 @@ MODULE Depends; (* Phu 28.2.2026 *)
     RETURN ret
   END Older;
 
-  PROCEDURE FindOld(path: Path): BOOLEAN;
-    VAR F: Files.File;
-        ret: BOOLEAN;
-  BEGIN F := Files.Old(path);
-    IF F # NIL THEN ret := TRUE; Files.Close(F) ELSE ret := FALSE END ;
-    RETURN ret
-  END FindOld;
+  PROCEDURE RunCommand(cmd: ARRAY OF CHAR): BOOLEAN;
+    VAR ret: LONGINT;
+  BEGIN
+    Texts.WriteLn(W); Texts.WriteString(W, cmd); Texts.Append(Oberon.Log, W.buf);
+    ret := Unix.system(cmd);
+    RETURN ret # 0
+  END RunCommand;
 
   PROCEDURE Link(path: ARRAY OF CHAR);
     VAR cmd: ARRAY CmdLen OF CHAR;
         mod, bin: Path;
         ext: ARRAY 8 OF CHAR;
-        ret: LONGINT;
+        failed: BOOLEAN;
   BEGIN COPY(path, mod); GetFileExt(mod, ext);
     cmd := "ORL Link ";
     StrCat(cmd, mod);
@@ -195,31 +195,42 @@ MODULE Depends; (* Phu 28.2.2026 *)
       StrCat(cmd, "/"); StrCat(cmd, lflags);
     END ;
     Texts.WriteLn(W); Texts.WriteString(W, cmd); Texts.Append(Oberon.Log, W.buf);
-    IF nocmd THEN ret := 0 ELSE ret := Unix.system(cmd) END ;
-    error := error OR (ret # 0)
+    IF nocmd THEN failed := FALSE ELSE failed := RunCommand(cmd) END ;
+    error := error OR failed
   END Link;
 
-  PROCEDURE Compile(where: ARRAY OF CHAR);
+  PROCEDURE Compile(where: ARRAY OF CHAR; nimports: INTEGER; imports: ARRAY OF Ident);
     VAR cmd: ARRAY CmdLen OF CHAR;
         mod, modbase, smb, rsc: Path;
         ext: ARRAY 8 OF CHAR;
-        ret: LONGINT;
-        smbfound, rscfound: BOOLEAN;
+        failed: BOOLEAN;
+        compileIt, smbfound, rscfound: BOOLEAN;
+        i: INTEGER;
   BEGIN COPY(where, modbase); COPY(where, mod);
     GetFileExt(modbase, ext);
     MakeFilename(smb, modbase, ".smb");
-    smbfound := FindOld(smb);
+    smbfound := RedirFiles.FindOld(smb);
     MakeFilename(rsc, modbase, ".rsc");
-    rscfound := FindOld(rsc);
-    IF ~force & smbfound & rscfound & Older(mod, smb) & Older(mod, rsc) THEN
-    ELSE
-      cmd := "ORP.exe Compile "; StrCat(cmd, mod);
-      IF pflags[0] # 0X THEN
-        StrCat(cmd, "/"); StrCat(cmd, pflags)
+    rscfound := RedirFiles.FindOld(rsc);
+    compileIt := FALSE;
+    (*compile if in force mode or .smb/.rsc not found or mod is newer then either .smb/.rsc*)
+    compileIt :=  force OR~smbfound OR ~rscfound OR ~Older(mod, smb) OR ~Older(mod, rsc);
+    i := 0;
+    WHILE (i < nimports) & ~compileIt DO
+      (*check all imports: if any imported .smb is newer than .mod/.rsc then compile*)
+      MakeFilename(smb, imports[i], ".smb");
+      smbfound := RedirFiles.FindOld(smb);
+      compileIt := compileIt OR ~smbfound OR Older(mod, smb);
+      INC(i)
+    END ;
+    IF compileIt THEN
+      cmd := "ORP Compile "; StrCat(cmd, mod);
+      IF force OR (pflags[0] # 0X) THEN
+        StrCat(cmd, "/"); StrCat(cmd, pflags);
+        IF force THEN StrCat(cmd, "s") END
       END ;
-      Texts.WriteLn(W); Texts.WriteString(W, cmd); Texts.Append(Oberon.Log, W.buf);
-      IF nocmd THEN ret := 0 ELSE ret := Unix.system(cmd) END ;
-      error := error OR (ret # 0)
+      IF nocmd THEN failed := FALSE ELSE failed := RunCommand(cmd) END ;
+      error := error OR failed
     END
   END Compile;
 
@@ -244,7 +255,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
             MakeFilename(fnamei, imports[i], ".Mod"); ScanOne(fnamei)
           END
         END ;
-        IF build & ~error THEN Compile(path) END
+        IF build & ~error THEN Compile(path, nimports, imports) END
       END
     ELSE Texts.WriteString(W, " cannot open"); EndLine
     END
@@ -310,12 +321,23 @@ MODULE Depends; (* Phu 28.2.2026 *)
 
   PROCEDURE Help*;
   BEGIN Texts.WriteString(W, "usage: Depends Scan module[/rv] ... | Build|Rebuild module[/nv] | Clean");
+    EndLine; String("notes: Rebuild enables ORP Compile /s flag");
     EndLine; String("options:");
-    EndLine; String("  /n    - dry run build");
-    EndLine; String("  /r    - scan IMPORTs recursively");
-    EndLine; String("  /v    - verbose");
+    EndLine; String("  /n         - dry run build");
+    EndLine; String("  /r         - scan IMPORTs recursively");
+    EndLine; String("  /v         - verbose");
+    EndLine; String("environment variables:");
+    EndLine; String("  O7PFLAGS   - ORP flags, default=ahl");
+    EndLine; String("  O7LFLAGS   - ORL flags, default=i");
     EndLine
   END Help;
+
+  PROCEDURE InitBuild*;
+  BEGIN
+    error := FALSE; build := FALSE; nocmd := FALSE; force := FALSE;
+    pflags := "ahl"; RedirFiles.GetEnv("O7PFLAGS", pflags);
+    lflags := "i"; RedirFiles.GetEnv("O7LFLAGS", lflags)
+  END InitBuild;
 
 BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Depends Phu 4.2.26"); EndLine;
   cls[Texts.Inval] := "Inval";
@@ -324,8 +346,7 @@ BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Depends Phu 4.2.26"); EndLine;
   cls[Texts.Real] := "Real";
   cls[5] := "LReal";
   cls[Texts.Char] := "Char";
-  error := FALSE; build := FALSE; nocmd := FALSE; force := FALSE;
-  pflags := "ahl"; lflags := "i"
+  InitBuild
 END Depends.
 
 (* History
