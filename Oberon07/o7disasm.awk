@@ -25,6 +25,10 @@ BEGIN \
     adjust["FSB"] = 3;
     adjust["FML"] = 25;
     adjust["FDV"] = 26;
+    adjust["LDR"] = 2;
+    adjust["STR"] = 2;
+    adjust["LDB"] = 2;
+    adjust["STB"] = 2;
 }
 
 func hex2int(s ,i,ret)
@@ -39,20 +43,21 @@ func hex2int(s ,i,ret)
 
 func printasm(pc ,i,asmline,cnt,instr,pre)
 {
+    sum = 0;
     for (i = last; i < pc; i++) {
         asmline = lst[i];
-        if (i in prof) {
+        cnt = 1;
+        if (i in prof)
             cnt = prof[i];
-            for (instr in adjust) {
-                if (index(asmline, instr))
-                    cnt = cnt * adjust[instr];
-            }
-            pre = sprintf("%10d", cnt);
-        } else {
-            pre = "          ";
+        for (instr in adjust) {
+            if (index(asmline, instr))
+                cnt = cnt * adjust[instr];
         }
+        sum += cnt;
+        pre = sprintf("%10d", cnt);
         printf "%s  %05X   %s\n", pre, C0DE + i * 4, asmline;
     }
+    printf "%9s;  %d clk\n", "", sum;
     last = pc;
 }
 

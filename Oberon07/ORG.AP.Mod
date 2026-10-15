@@ -1343,7 +1343,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     VAR xr, yr: LONGINT;
   BEGIN
     xr := loadXR(x); Put2(Ldr, xr, x.r, 0); SetXR(x, xr);
-    IF y.mode = ORB.Const THEN Put1(Ror, x.r, x.r, y.a+1); DEC(RH)
+    IF y.mode = ORB.Const THEN
+      IF (y.a # 31) THEN Put1(Ror, x.r, x.r, y.a+1) END ;
+      DEC(RH)
     ELSE
     IF ORS.debug THEN ORS.Twain("Bit/y.a1", y.a) END ;
     yr := loadXR(y);
