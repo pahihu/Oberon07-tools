@@ -717,20 +717,28 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
 
   (* Types and declarations *)
 
-  PROCEDURE IdentList(class: INTEGER; VAR first: ORB.Object);
+  PROCEDURE IdentListExpo(class: INTEGER; VAR first: ORB.Object; VAR anyExpo: BOOLEAN);
     VAR obj: ORB.Object;
-  BEGIN
+  BEGIN anyExpo := FALSE;
     IF sym = ORS.ident THEN
       ORB.NewObj(first, ORS.id, class); ORS.Get(sym); CheckExport(first.expo);
+      anyExpo := anyExpo OR first.expo;
       WHILE sym = ORS.comma DO
         ORS.Get(sym);
-        IF sym = ORS.ident THEN ORB.NewObj(obj, ORS.id, class); ORS.Get(sym); CheckExport(obj.expo)
+        IF sym = ORS.ident THEN
+          ORB.NewObj(obj, ORS.id, class); ORS.Get(sym); CheckExport(obj.expo);
+          anyExpo := anyExpo OR obj.expo
         ELSE ORS.Mark("ident?")
         END
       END ;
       IF sym = ORS.colon THEN ORS.Get(sym) ELSE ORS.Mark(":?") END
     ELSE first := NIL
     END
+  END IdentListExpo;
+
+  PROCEDURE IdentList(class: INTEGER; VAR first: ORB.Object);
+    VAR anyExpo: BOOLEAN;
+  BEGIN IdentListExpo(class, first, anyExpo)
   END IdentList;
   
   PROCEDURE ArrayType(VAR type: ORB.Type; baseExpo: BOOLEAN);
@@ -749,11 +757,36 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     typ.form := ORB.Array; typ.len := len; type := typ
   END ArrayType;
 
+  PROCEDURE CheckRecLevel(lev: INTEGER);
+  BEGIN
+    IF lev # 0 THEN ORS.Mark("ptr base must be global") END
+  END CheckRecLevel;
+
+  PROCEDURE NewAnonRec(base: ORB.Type; expo: BOOLEAN; lev: INTEGER): ORB.Object;
+    VAR obj: ORB.Object;
+        id: ORS.Ident;
+  BEGIN id[0] := CHR(arc MOD 254 + 1); id[1] := CHR(arc DIV 254 + 1); id[2] := 0X;
+    INC(arc);
+    ORB.NewObj(obj, id, ORB.Typ); obj.type := base; obj.expo := expo; obj.lev := lev;
+    IF expo THEN obj.exno := SHORT(exno); INC(exno) ELSE obj.exno := 0 END ;
+    RETURN obj
+  END NewAnonRec;
+
+  PROCEDURE AnonRecordType(VAR tp: ORB.Type; expo: BOOLEAN);
+  BEGIN ASSERT(tp.form = ORB.Record);
+    IF tp.typobj = NIL THEN (*anonymous record*)
+      tp.typobj := NewAnonRec(tp, expo, level);
+      IF level = 0 THEN ORG.BuildTD(tp, dc) END (*type descriptor; len used as its address*)
+    END ;
+    CheckRecLevel(level)
+  END AnonRecordType;
+
   PROCEDURE RecordType(VAR type: ORB.Type; baseExpo: BOOLEAN);
     VAR obj, obj0, new, bot, base: ORB.Object;
       typ, tp: ORB.Type;
       offset, off, n: LONGINT;
       recTyp: ORB.Object;
+      anyExpo: BOOLEAN;
   BEGIN recTyp := dclTyp; dclTyp := NIL;
     NEW(typ); typ.form := ORB.NoTyp; typ.base := NIL; typ.mno := -level; typ.nofpar := 0; offset := 0; bot := NIL;
     IF recTyp # NIL THEN recTyp.type := typ END ;
@@ -776,20 +809,21 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       Check(ORS.rparen, "no )")
     END ;
     WHILE sym = ORS.ident DO  (*fields*)
-      n := 0; obj := bot;
+      n := 0; obj := bot; anyExpo := FALSE;
       WHILE sym = ORS.ident DO
         obj0 := obj;
         WHILE (obj0 # NIL) & (obj0.name # ORS.id) DO obj0 := obj0.next END ;
         IF obj0 # NIL THEN ORS.Mark("mult def") END ;
         NEW(new); ORS.CopyId(new.name); new.class := ORB.Fld; new.next := obj; obj := new; INC(n);
-        ORS.Get(sym); CheckExport(new.expo);
+        ORS.Get(sym); CheckExport(new.expo); anyExpo := anyExpo OR new.expo;
         IF ~baseExpo & new.expo THEN ORS.Warn("base type not exported") END ;
         IF (sym # ORS.comma) & (sym # ORS.colon) THEN ORS.Mark("comma expected")
         ELSIF sym = ORS.comma THEN ORS.Get(sym)
         END
       END ;
-      Check(ORS.colon, "colon expected"); Type(tp, baseExpo);
+      Check(ORS.colon, "colon expected"); Type(tp, anyExpo);
       IF (tp.form = ORB.Array) & (tp.len < 0) THEN ORS.Mark("dyn array not allowed") END ;
+      IF tp.form = ORB.Record THEN AnonRecordType(tp, anyExpo) END ;
       IF tp.size > 1 THEN offset := (offset+3) DIV 4 * 4 END ;
       offset := offset + n * tp.size; off := offset; obj0 := obj;
       WHILE obj0 # bot DO obj0.type := tp; obj0.lev := 0; off := off - tp.size; obj0.val := off; obj0 := obj0.next END ;
@@ -872,21 +906,6 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     END
   END FormalType0;
 
-  PROCEDURE CheckRecLevel(lev: INTEGER);
-  BEGIN
-    IF lev # 0 THEN ORS.Mark("ptr base must be global") END
-  END CheckRecLevel;
-
-  PROCEDURE NewAnonRec(base: ORB.Type; expo: BOOLEAN; lev: INTEGER): ORB.Object;
-    VAR obj: ORB.Object;
-        id: ORS.Ident;
-  BEGIN id[0] := CHR(arc MOD 254 + 1); id[1] := CHR(arc DIV 254 + 1); id[2] := 0X;
-    INC(arc);
-    ORB.NewObj(obj, id, ORB.Typ); obj.type := base; obj.expo := expo; obj.lev := lev;
-    IF expo THEN obj.exno := SHORT(exno); INC(exno) ELSE obj.exno := 0 END ;
-    RETURN obj
-  END NewAnonRec;
-
   PROCEDURE Type0(VAR type: ORB.Type; baseExpo: BOOLEAN);
     VAR dmy: LONGINT; recobj, obj: ORB.Object; ptbase: PtrBase;
         ptrTyp: ORB.Object;
@@ -921,13 +940,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         ORS.Get(sym)
       ELSE IF ptrTyp # NIL THEN ptrTyp.type := type END ;
         Type(type.base, baseExpo);
-        IF type.base.form # ORB.Record THEN
-          ORS.Mark("must point to record")
-        ELSIF type.base.typobj = NIL THEN (*anonymous record*)
-          type.base.typobj := NewAnonRec(type.base, baseExpo, level);
-          IF level = 0 THEN ORG.BuildTD(type.base, dc) END    (*type descriptor; len used as its address*)
-        END ;
-        CheckRecLevel(level)
+        IF type.base.form # ORB.Record THEN ORS.Mark("must point to record")
+        ELSE AnonRecordType(type.base, baseExpo)
+        END
       END
     ELSIF sym = ORS.procedure THEN
       ORS.Get(sym); ORB.OpenScope;
@@ -940,7 +955,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
   PROCEDURE Declarations(VAR varsize: LONGINT; VAR stksize: LONGINT);
     VAR obj, first, dummy: ORB.Object;
       x: ORG.Item; tp: ORB.Type; ptbase: PtrBase;
-      expo: BOOLEAN; id: ORS.Ident;
+      anyExpo, expo: BOOLEAN; id: ORS.Ident;
       objsize: LONGINT;
   BEGIN (*sync*) pbsList := NIL; dclTyp := NIL;
     IF (sym < ORS.const) & (sym # ORS.end) & (sym # ORS.return) THEN ORS.Mark("declaration?");
@@ -988,7 +1003,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     IF sym = ORS.var THEN
       ORS.Get(sym);
       WHILE sym = ORS.ident DO
-        IdentList(ORB.Var, first); Type(tp, TRUE);
+        IdentListExpo(ORB.Var, first, anyExpo); Type(tp, anyExpo);
         obj := first;
         WHILE obj # NIL DO
           obj.type := tp; obj.lev := level;
