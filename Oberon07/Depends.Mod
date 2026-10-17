@@ -21,6 +21,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
     error: BOOLEAN;
     build, nocmd, force: BOOLEAN;
     pflags, lflags: ARRAY 8 OF CHAR;
+    compiled: BOOLEAN;
 
   PROCEDURE FindModule(VAR s: ARRAY OF CHAR): Module;
     VAR p: Module;
@@ -44,6 +45,10 @@ MODULE Depends; (* Phu 28.2.2026 *)
   PROCEDURE String(s: ARRAY OF CHAR);
   BEGIN Texts.WriteString(W, s)
   END String;
+
+  PROCEDURE Boolean(f: BOOLEAN);
+  BEGIN Texts.WriteBoolean(W, f)
+  END Boolean;
 
   PROCEDURE Eof(VAR S: Texts.Scanner): BOOLEAN;
   BEGIN RETURN (S.class = Texts.Char) & (S.c = 0FFX)
@@ -213,7 +218,8 @@ MODULE Depends; (* Phu 28.2.2026 *)
         mod, modbase, smb, rsc: Path;
         ext: ARRAY 8 OF CHAR;
         failed: BOOLEAN;
-        compileIt, modfound, smbfound, rscfound: BOOLEAN;
+        compileIt, localsmb: BOOLEAN;
+        modfound, smbfound, rscfound: BOOLEAN;
         i: INTEGER;
   BEGIN COPY(where, modbase); COPY(where, mod);
     modfound := FindOld(mod);
@@ -224,17 +230,45 @@ MODULE Depends; (* Phu 28.2.2026 *)
     rscfound := RedirFiles.FindOld(rsc);
     compileIt := FALSE;
     (*compile if in force mode or .smb/.rsc not found or mod is newer then either .smb/.rsc*)
+    IF nocmd THEN
+      EndLine; String("  checking "); String(mod);
+      EndLine; String("   ");
+      IF smbfound THEN String(" smb") END ;
+      IF rscfound THEN String(" rsc") END ;
+      IF modfound THEN
+        String(" mod");
+        String(" Older(mod,smb)="); Boolean(Older(mod,smb));
+        String(" Older(mod,rsc)="); Boolean(Older(mod,rsc))
+      END
+    END;
     compileIt := force OR ~smbfound OR ~rscfound OR (modfound & (~Older(mod, smb) OR ~Older(mod, rsc)));
+    IF nocmd THEN
+      EndLine; String("    --> compile="); Boolean(compileIt)
+    END ;
     i := 0;
+    IF nocmd THEN EndLine; String("    checking imports") END ;
     WHILE (i < nimports) & ~compileIt DO
       (*check all imports: if any imported .smb is newer than .mod/.rsc then compile*)
       MakeFilename(smb, imports[i], ".smb");
       smbfound := RedirFiles.FindOld(smb);
-      (*IF nocmd THEN String(smb); String(" found="); Texts.WriteBoolean(W, smbfound) END ;*)
-      compileIt := compileIt OR ~smbfound OR (modfound & ~Older(mod, smb));
+      localsmb := smbfound & (smb[0] = ".");
+      IF nocmd THEN
+        EndLine; String("      "); String(imports[i]);
+        IF smbfound THEN
+          String(" smb"); IF localsmb THEN String("(local)") END
+        END ;
+        IF modfound THEN
+          String(" Older(mod,smb)="); Boolean(Older(mod,smb))
+        END
+      END ;
+      compileIt := compileIt OR ~smbfound OR (modfound & localsmb & ~Older(mod, smb));
+      IF nocmd THEN
+        EndLine; String("      --> compile="); Boolean(compileIt)
+      END ;
       INC(i)
     END ;
     IF compileIt THEN
+      compiled := compiled OR compileIt;
       cmd := "ORP Compile "; StrCat(cmd, mod);
       IF force OR (pflags[0] # 0X) THEN
         StrCat(cmd, "/"); StrCat(cmd, pflags);
@@ -313,7 +347,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
     IF S.class = Texts.Name THEN
       COPY(S.s, fname); Option(S); ScanOne(fname)
     END ;
-    IF ~error THEN Link(fname) END ;
+    IF ~error & compiled THEN Link(fname) END ;
     EndLine
   END BuildInt;
 
@@ -348,6 +382,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
   PROCEDURE InitBuild*;
   BEGIN
     error := FALSE; build := FALSE; nocmd := FALSE; force := FALSE;
+    compiled := FALSE;
     pflags := "ahl"; RedirFiles.GetEnv("O7PFLAGS", pflags);
     lflags := "i"; RedirFiles.GetEnv("O7LFLAGS", lflags)
   END InitBuild;
