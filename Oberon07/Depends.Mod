@@ -159,7 +159,8 @@ MODULE Depends; (* Phu 28.2.2026 *)
     VAR da, ta, db, tb: LONGINT;
         A, B: Files.File;
         ret: BOOLEAN;
-  BEGIN ret := FALSE;
+  BEGIN (*EndLine; String("a="); String(a); String(" b="); String(b); EndLine;*)
+    ret := FALSE;
     A := Files.Old(a);
     B := Files.Old(b);
     ASSERT(A # NIL);
@@ -175,11 +176,11 @@ MODULE Depends; (* Phu 28.2.2026 *)
     RETURN ret
   END Older;
 
-  PROCEDURE RunCommand(cmd: ARRAY OF CHAR): BOOLEAN;
+  PROCEDURE RunCommand(cmd: ARRAY OF CHAR; nocmd: BOOLEAN): BOOLEAN;
     VAR ret: LONGINT;
   BEGIN
-    Texts.WriteLn(W); Texts.WriteString(W, cmd); Texts.Append(Oberon.Log, W.buf);
-    ret := Unix.system(cmd);
+    EndLine; String(cmd); Texts.Append(Oberon.Log, W.buf);
+    IF nocmd THEN ret := 0 ELSE ret := Unix.system(cmd) END ;
     RETURN ret # 0
   END RunCommand;
 
@@ -194,19 +195,28 @@ MODULE Depends; (* Phu 28.2.2026 *)
     IF lflags[0] # 0X THEN
       StrCat(cmd, "/"); StrCat(cmd, lflags);
     END ;
-    Texts.WriteLn(W); Texts.WriteString(W, cmd); Texts.Append(Oberon.Log, W.buf);
-    IF nocmd THEN failed := FALSE ELSE failed := RunCommand(cmd) END ;
+    failed := RunCommand(cmd, nocmd);
     error := error OR failed
   END Link;
+
+  PROCEDURE FindOld(path: Path): BOOLEAN;
+    VAR F: Files.File;
+        ret: BOOLEAN;
+  BEGIN F := Files.Old(path);
+    ret := F # NIL;
+    IF ret THEN Files.Close(F) END ;
+    RETURN ret
+  END FindOld;
 
   PROCEDURE Compile(where: ARRAY OF CHAR; nimports: INTEGER; imports: ARRAY OF Ident);
     VAR cmd: ARRAY CmdLen OF CHAR;
         mod, modbase, smb, rsc: Path;
         ext: ARRAY 8 OF CHAR;
         failed: BOOLEAN;
-        compileIt, smbfound, rscfound: BOOLEAN;
+        compileIt, modfound, smbfound, rscfound: BOOLEAN;
         i: INTEGER;
   BEGIN COPY(where, modbase); COPY(where, mod);
+    modfound := FindOld(mod);
     GetFileExt(modbase, ext);
     MakeFilename(smb, modbase, ".smb");
     smbfound := RedirFiles.FindOld(smb);
@@ -214,13 +224,14 @@ MODULE Depends; (* Phu 28.2.2026 *)
     rscfound := RedirFiles.FindOld(rsc);
     compileIt := FALSE;
     (*compile if in force mode or .smb/.rsc not found or mod is newer then either .smb/.rsc*)
-    compileIt :=  force OR~smbfound OR ~rscfound OR ~Older(mod, smb) OR ~Older(mod, rsc);
+    compileIt := force OR ~smbfound OR ~rscfound OR (modfound & (~Older(mod, smb) OR ~Older(mod, rsc)));
     i := 0;
     WHILE (i < nimports) & ~compileIt DO
       (*check all imports: if any imported .smb is newer than .mod/.rsc then compile*)
       MakeFilename(smb, imports[i], ".smb");
       smbfound := RedirFiles.FindOld(smb);
-      compileIt := compileIt OR ~smbfound OR Older(mod, smb);
+      (*IF nocmd THEN String(smb); String(" found="); Texts.WriteBoolean(W, smbfound) END ;*)
+      compileIt := compileIt OR ~smbfound OR (modfound & ~Older(mod, smb));
       INC(i)
     END ;
     IF compileIt THEN
@@ -229,7 +240,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
         StrCat(cmd, "/"); StrCat(cmd, pflags);
         IF force THEN StrCat(cmd, "s") END
       END ;
-      IF nocmd THEN failed := FALSE ELSE failed := RunCommand(cmd) END ;
+      failed := RunCommand(cmd, nocmd);
       error := error OR failed
     END
   END Compile;
@@ -242,11 +253,12 @@ MODULE Depends; (* Phu 28.2.2026 *)
         fname, fnamei: Path;
         found: BOOLEAN;
         ret: LONGINT;
-  BEGIN Texts.WriteString(W, " scanning "); Texts.WriteString(W, path); Texts.Append(Oberon.Log, W.buf);
+  BEGIN
     COPY(path, fname); found := RedirFiles.FindOld(fname);
+    IF found & (fname[0] = ".") THEN
+    EndLine; String(" scanning "); String(path); Texts.Append(Oberon.Log, W.buf);
     NEW(T); Texts.Open(T, fname);
     IF T.len > 0 THEN
-      EndLine;
       ScanImports(T, mod, nimports, imports);
       IF ~build THEN DependencyRule(mod, nimports, imports) END ;
       IF recurse & ~error THEN
@@ -257,7 +269,8 @@ MODULE Depends; (* Phu 28.2.2026 *)
         END ;
         IF build & ~error THEN Compile(path, nimports, imports) END
       END
-    ELSE Texts.WriteString(W, " cannot open"); EndLine
+    ELSE String(" cannot open")
+    END ;
     END
   END ScanOne;
 
@@ -288,7 +301,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
     WHILE S.class = Texts.Name DO
       COPY(S.s, fname); recurse := FALSE; Option(S); ScanOne(fname); Texts.Scan(S)
     END;
-    Texts.WriteString(V, "###"); Ln; Texts.Append(Oberon.Log, V.buf)
+    EndLine; Texts.WriteString(V, "###"); Ln; Texts.Append(Oberon.Log, V.buf)
   END Scan;
 
   PROCEDURE BuildInt(rebuild: BOOLEAN);
@@ -320,7 +333,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
   END Clean;
 
   PROCEDURE Help*;
-  BEGIN Texts.WriteString(W, "usage: Depends Scan module[/rv] ... | Build|Rebuild module[/nv] | Clean");
+  BEGIN String("usage: Depends Scan module[/rv] ... | Build|Rebuild module[/nv] | Clean");
     EndLine; String("notes: Rebuild enables ORP Compile /s flag");
     EndLine; String("options:");
     EndLine; String("  /n         - dry run build");
@@ -339,7 +352,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
     lflags := "i"; RedirFiles.GetEnv("O7LFLAGS", lflags)
   END InitBuild;
 
-BEGIN Texts.OpenWriter(W); Texts.WriteString(W, "Depends Phu 4.2.26"); EndLine;
+BEGIN Texts.OpenWriter(W); String("Depends Phu 4.2.26"); EndLine;
   cls[Texts.Inval] := "Inval";
   cls[Texts.Name] := "Name";
   cls[Texts.String] := "String";

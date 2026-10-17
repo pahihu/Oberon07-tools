@@ -21,7 +21,9 @@ MODULE O7Depends;
   BEGIN Depends.Help
   END Help;
 
-BEGIN RedirFiles.Init("~/.o7.red"); Oberon.Run
+BEGIN
+  RedirFiles.InitFromEnv("ORPRED", "~/.orp.red");
+  Oberon.Run
 END O7Depends.
 
 (* vim:set ts=2 sw=2 et: *)
