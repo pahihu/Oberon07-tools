@@ -316,7 +316,7 @@ MODULE Depends; (* Phu 28.2.2026 *)
     VAR ret: LONGINT;
   BEGIN
     ret := Unix.system("rm -f *.bin *.smb *.rsc");
-    ret := Unix.system("rm -f *.pos *.lst")
+    ret := Unix.system("rm -f *.map *.pos *.lst")
   END Clean;
 
   PROCEDURE Help*;
