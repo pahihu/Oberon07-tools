@@ -11,8 +11,10 @@ VAR
   p: StringPtr;
   tmp: ARRAY 1024 OF CHAR;
 
-PROCEDURE Exchange(src: R0; VAR dst: R0);
-BEGIN dst := src
+PROCEDURE Exchange(src: R0; VAR dst: R0; msg: ARRAY OF CHAR);
+BEGIN Out.Ln; Out.String("--- "); Out.String(msg); Out.String(" ---");
+  dst(R0) := src;
+  Out.Ln; Out.String("--- END ---");
 END Exchange;
 
 PROCEDURE PrintR0(r0: R0);
@@ -32,8 +34,10 @@ BEGIN
   s0.i := 1;
   s1.i := 11;
   s1.j := 12;
-  Exchange(s0, r0); PrintR0(r0);
-  Exchange(s1, r1); PrintR1(r1)
+  Exchange(s0, r0, "0>0"); PrintR0(r0);
+  Exchange(s1, r0, "1>0"); PrintR0(r0);
+  Exchange(s1, r1, "1>1"); PrintR1(r1);
+  Exchange(s0, r1, "0>1"); PrintR0(r0);
 END TestExchange;
 
 PROCEDURE StrCopy(VAR dst: ARRAY OF CHAR; src: StringPtr);

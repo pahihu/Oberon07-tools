@@ -129,7 +129,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     IF OpaquePtr(xt) THEN ORS.Mark("opaque pointer") END ;
     IF (T.form = xt.form ) & ((T.form = ORB.Pointer) OR (T.form = ORB.Record) & (x.mode = ORB.Par)) THEN
       WHILE (xt # T) & (xt # NIL) DO xt := xt.base END ;
-      IF xt # T THEN xt := x.type;
+      IF (xt # T) OR (x.mode = ORB.Par) THEN xt := x.type;
         IF guard THEN nguard := 1 ELSE nguard := 0 END ;
         IF xt.form = ORB.Pointer THEN
           IF IsExtension(xt.base, T.base) THEN
@@ -627,7 +627,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
             ORS.Get(sym); CheckReadOnly(x); expression(y);
             IF CompTypes(x.type, y.type, FALSE) THEN
               IF (x.type.form <= ORB.Pointer) OR (x.type.form = ORB.Proc) THEN ORG.Store(x, y)
-              ELSE ORG.StoreStruct(x, y)
+              ELSE TypeTest(x, x.type, TRUE); ORG.StoreStruct(x, y)
               END
             ELSIF (x.type.form = ORB.Array) & (y.type.form = ORB.Array) & (x.type.base = y.type.base) & (y.type.len < 0) THEN
               ORG.StoreStruct(x, y)
