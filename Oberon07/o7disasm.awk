@@ -55,6 +55,11 @@ func printasm(pc ,i,asmline,cnt,instr,pre)
         }
         sum += cnt;
         pre = sprintf("%10d", cnt);
+        if (match(asmline, /(.* ; ===>) ([0-9]*)/, grp)) {
+            dst = grp[2];
+            hexdst = sprintf("%05X", C0DE + dst * 4);
+            asmline = grp[1] " " hexdst
+        }
         printf "%s  %05X   %s\n", pre, C0DE + i * 4, asmline;
     }
     printf "%9s;  %d clk\n", "", sum;
