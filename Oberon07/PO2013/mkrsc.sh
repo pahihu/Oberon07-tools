@@ -1,5 +1,10 @@
 BUILD=$1
 MODS=$(ls *.Mod.txt)
+MAKE=make
+if [ ! -z "$ADIR" ];
+then
+  MAKE=omake
+fi
 for mod in $MODS
 do
   compile=0
@@ -21,6 +26,6 @@ do
   if [ "X$BUILD" != "X" -a $compile -ne 0 ]; 
   then
     echo "-I-MKRSC: compiling $mod"
-    make $rsc
+    $MAKE $rsc
   fi
 done

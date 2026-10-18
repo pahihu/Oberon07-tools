@@ -52,7 +52,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     KWX: ARRAY 10 OF INTEGER;
     keyTab: ARRAY NKW OF
         RECORD sym: INTEGER; id: ARRAY 12 OF CHAR END;
-    debug*, warning*: BOOLEAN;
+    debug*, warning*, werror*: BOOLEAN;
     options*: ARRAY 26 OF BOOLEAN; (*$X compiler options*)
     comm: ARRAY 4 OF CHAR; (*last comment prefix*)
     commLen: INTEGER; (*last comment length*)
@@ -88,7 +88,10 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
 
   PROCEDURE Warn*(msg: ARRAY OF CHAR);
     VAR p: LONGINT;
-  BEGIN p := Pos(); WritePos(msg, "warning: ", p);
+  BEGIN
+    IF werror THEN Mark(msg)
+    ELSE p := Pos(); WritePos(msg, "warning: ", p)
+    END
   END Warn;
 
   PROCEDURE Twain*(msg: ARRAY OF CHAR; arg: LONGINT);
@@ -358,6 +361,10 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   BEGIN COPY(name, keyTab[k].id); keyTab[k].sym := sym; INC(k)
   END EnterKW;
 
+  PROCEDURE WarningIsError*;
+  BEGIN werror := TRUE
+  END WarningIsError;
+
   PROCEDURE EnableTwainWarning*;
   BEGIN warning := TRUE
   END EnableTwainWarning;
@@ -413,6 +420,7 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   EnterKW(procedure, "PROCEDURE");
   KWX[9] := k;
   warning := FALSE; debug := FALSE; reportLine := FALSE; lineNo := 1;
+  werror := FALSE;
 
   InitOptions;
   RedirFiles.InitFromEnv("ORPRED", "~/.orp.red")

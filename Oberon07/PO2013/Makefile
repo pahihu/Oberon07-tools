@@ -7,7 +7,7 @@ INNER_SMB=$(INNER_MOD:.Mod.txt=.smb)
 INNER_DUMP=$(INNER_RSC:.rsc=.dump)
 
 %.rsc %.smb: %.Mod.txt
-	ORP Compile $<
+	ORP Compile $</al
 
 %.xxd: %.bin
 	xxd $< > $@

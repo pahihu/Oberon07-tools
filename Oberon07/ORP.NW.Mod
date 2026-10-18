@@ -836,6 +836,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     IF (sym # ORS.ident) & (sym < ORS.array) THEN ORS.Mark("not a type");
       REPEAT ORS.Get(sym) UNTIL (sym = ORS.ident) OR (sym >= ORS.array)
     END ;
+    IF baseExpo & (ptrTyp = NIL) & (sym # ORS.ident) THEN ORS.Warn("exported variable base type is anonymous") END ;
     IF sym = ORS.ident THEN
       qualident(obj);
       IF obj.class = ORB.Typ THEN
@@ -1075,9 +1076,10 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       Texts.Scan(S); Texts.Scan(S); 
       IF S.class = Texts.Name THEN
         FOR i := 0 TO S.len DO
-             IF S.s[i] = "s" THEN   newSF := TRUE
-          ELSIF S.s[i] = "a" THEN astrobe := TRUE
+             IF S.s[i] = "a" THEN astrobe := TRUE
+          ELSIF S.s[i] = "e" THEN ORS.WarningIsError
           ELSIF S.s[i] = "l" THEN ORS.reportLine := TRUE
+          ELSIF S.s[i] = "s" THEN newSF := TRUE
           END
         END
       END
@@ -1113,6 +1115,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     Ln; String("usage: ORP Compile name[/als]...");
     Ln; String("options:");
     Ln; String("  /a    - enabled Astrobe-compatibility");
+    Ln; String("  /e    - warning is error");
     Ln; String("  /l    - report position as line:char");
     Ln; String("  /s    - enable new symbol file");
     Ln; String("comment embedded options: opt=+|-");

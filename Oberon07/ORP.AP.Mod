@@ -913,6 +913,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     IF (sym # ORS.ident) & (sym < ORS.array) THEN ORS.Mark("not a type");
       REPEAT ORS.Get(sym) UNTIL (sym = ORS.ident) OR (sym >= ORS.array)
     END ;
+    IF baseExpo & (ptrTyp = NIL) & (sym # ORS.ident) THEN ORS.Warn("exported variable base type is anonymous") END ;
     IF sym = ORS.ident THEN
       qualident(obj);
       IF obj.class = ORB.Typ THEN
@@ -1176,6 +1177,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         FOR i := 0 TO S.len DO 
              IF S.s[i] = "s" THEN newSF := TRUE
           ELSIF S.s[i] = "a" THEN ORG.astrobe := TRUE
+          ELSIF S.s[i] = "e" THEN ORS.WarningIsError
           ELSIF S.s[i] = "g" THEN ORS.warning := TRUE; ORS.debug := TRUE
           ELSIF S.s[i] = "h" THEN ORS.SetOption("H", FALSE)
           ELSIF S.s[i] = "l" THEN ORS.reportLine := TRUE
@@ -1217,6 +1219,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
     Ln; String("usage: ORP Compile name[/als]...");
     Ln; String("options:");
     Ln; String("  /a    - enable Astrobe-compatibility");
+    Ln; String("  /e    - warning is error");
     Ln; String("  /h    - don't convert type descriptor size for heap allocation");
     Ln; String("  /l    - report position as line:char");
     Ln; String("  /s    - enable new symbol file");
