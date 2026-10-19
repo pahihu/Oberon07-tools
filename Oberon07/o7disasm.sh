@@ -6,8 +6,15 @@ then
 fi
 MOD=$1
 
+opsys=$(uname -o)
+AWK=awk
+if [ "$opsys" = "Darwin" ];
+then
+  AWK=gawk
+fi
+
 omake $MOD.lst
-c0de=$(grep $MOD *.map | head -1 | awk '{print $4;}')
+c0de=$(grep $MOD *.map | head -1 | $AWK '{print $4;}')
 
 ### DecObj file
 cat $MOD.lst >match.inp
@@ -33,11 +40,11 @@ fi
 
 echo "###" >>match.inp
 
-awk -f $O7DIR/Oberon07/lineno.awk $MODNAME >$MOD.lno
+$AWK -f $O7DIR/Oberon07/lineno.awk $MODNAME >$MOD.lno
 cat $MOD.lno >>match.inp
 
 ### process
-awk -f $O7DIR/Oberon07/o7disasm.awk -v MOD=$MOD -v C0DE=$c0de match.inp
+$AWK -f $O7DIR/Oberon07/o7disasm.awk -v MOD=$MOD -v C0DE=$c0de match.inp
 
 rm -f match.inp
 rm -f $MOD.lno
