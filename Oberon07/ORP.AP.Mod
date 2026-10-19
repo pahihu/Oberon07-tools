@@ -520,6 +520,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       ELSIF pno = 12 THEN CheckInt(x); CheckInt(y); CheckInt(z); ORG.Copy(x, y, z)
       ELSIF pno = 13 THEN CheckConst(x); CheckInt(x); ORG.LDPSR(x)
       ELSIF pno = 14 THEN CheckInt(x); ORG.LDREG(x, y)
+      ELSIF ORG.astrobe & (pno = 16) THEN CheckReadOnly(x); ORG.Clear(x)
       END
     ELSE ORS.Mark("wrong nof parameters")
     END ;

@@ -439,6 +439,7 @@ BEGIN
   enter("PACK", SProc, noType, 62);
   enter("NEW", SProc, noType, 51);
   enter("DISPOSE", SProc, noType, 151);
+  enter("CLEAR", SProc, noType, 161);
   enter("ASSERT", SProc, noType, 41);
   enter("EXCL", SProc, noType, 32);
   enter("INCL", SProc, noType, 22);

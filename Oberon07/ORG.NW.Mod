@@ -944,6 +944,30 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     Put1(Sub, z.r, z.r, 1); Put3(BC, NE, -6); DEC(RH, 3)
   END Copy;
 
+  PROCEDURE Clear*(VAR x: Item);
+    VAR y: Item;
+        xt: ORB.Type;
+  BEGIN xt := x.type;
+    IF xt.form = ORB.Pointer THEN
+      load(x); NilCheck;
+      xt := xt.base
+    ELSE loadAdr(x)
+    END ;
+    IF xt.form IN {ORB.Byte, ORB.Bool, ORB.Char} THEN
+      Put1(Mov, RH, 0, 0);
+      Put2(Str+V, RH, x.r, 0);
+    ELSE
+      y.mode := ORB.Const; y.a := x.type.size DIV 4;
+      load(y);
+      Put3(BC, EQ, 5);
+      Put1(Mov, RH, 0, 0);
+      Put2(Str, RH, x.r, 0); Put1(Add, x.r, x.r, 4);
+      Put1(Sub, y.r, y.r, 1); Put3(BC, NE, -4);
+      DEC(RH)
+    END ;
+    DEC(RH)
+  END Clear;
+
   PROCEDURE LDPSR*(VAR x: Item);
   BEGIN (*x.mode = Const*)  Put3(0, 15, x.a + 20H)
   END LDPSR;
