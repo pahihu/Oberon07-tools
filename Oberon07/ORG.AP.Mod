@@ -1288,11 +1288,11 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       xt := xt.base
     ELSE loadAdr(x)
     END ;
-    IF xt.form IN {ORB.Byte, ORB.Bool, ORB.Char} THEN
+    IF xt.ref IN {ORB.Byte, ORB.Bool, ORB.Char} THEN
       Put1(Mov, RH, 0, 0);
-      Put2(Str+V, RH, x.r, 0);
+      Put2(Str+1, RH, x.r, 0);
     ELSE
-      y.mode := ORB.Const; y.a := x.type.size DIV 4;
+      y.mode := ORB.Const; y.type := ORB.intType; y.a := x.type.size DIV 4;
       load(y);
       Put3(BC, EQ, 5);
       Put1(Mov, RH, 0, 0);

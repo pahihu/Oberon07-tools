@@ -815,7 +815,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
             IF rbt.typobj # NIL THEN rbt.typobj.extended := TRUE END
           ELSE typ.base := ORB.intType; ORS.Mark("invalid extension")
           END ;
-          IF baseExpo & (typ.base.typobj # NIL) & ~typ.base.typobj.expo THEN ORS.Warn("base type not exported") END ;
+          IF baseExpo & (typ.base.mno = 0) & (typ.base.typobj # NIL) & ~typ.base.typobj.expo THEN ORS.Warn("base type not exported") END ;
           typ.nofpar := typ.base.nofpar + 1; (*"nofpar" here abused for extension level*)
           bot := typ.base.dsc; offset := typ.base.size
         ELSE ORS.Mark("type expected")
@@ -832,7 +832,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         IF obj0 # NIL THEN ORS.Mark("mult def") END ;
         NEW(new); ORS.CopyId(new.name); new.class := ORB.Fld; new.next := obj; obj := new; INC(n);
         ORS.Get(sym); CheckExport(new.expo); anyExpo := anyExpo OR new.expo;
-        IF ~baseExpo & new.expo THEN ORS.Warn("base type not exported") END ;
+        IF ~baseExpo & new.expo THEN ORS.Warn("record type not exported") END ;
         IF (sym # ORS.comma) & (sym # ORS.colon) THEN ORS.Mark("comma expected")
         ELSIF sym = ORS.comma THEN ORS.Get(sym)
         END
