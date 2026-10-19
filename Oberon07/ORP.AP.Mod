@@ -627,7 +627,14 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
             ORS.Get(sym); CheckReadOnly(x); expression(y);
             IF CompTypes(x.type, y.type, FALSE) THEN
               IF (x.type.form <= ORB.Pointer) OR (x.type.form = ORB.Proc) THEN ORG.Store(x, y)
-              ELSE TypeTest(x, x.type, TRUE); ORG.StoreStruct(x, y)
+              ELSE
+                IF (x.type.form = ORB.Record) & (x.mode IN {ORB.Par, ORG.RegI}) THEN
+                  IF ORB.IsExtensible(x.type.typobj) THEN
+                    ORS.Warn("cannot assign entire extensible record");
+                    IF x.mode = ORB.Par THEN TypeTest(x, x.type, TRUE) END
+                  END
+                END ;
+                ORG.StoreStruct(x, y)
               END
             ELSIF (x.type.form = ORB.Array) & (y.type.form = ORB.Array) & (x.type.base = y.type.base) & (y.type.len < 0) THEN
               ORG.StoreStruct(x, y)
@@ -787,6 +794,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       offset, off, n: LONGINT;
       recTyp: ORB.Object;
       anyExpo: BOOLEAN;
+      rbt: ORB.Type;
   BEGIN recTyp := dclTyp; dclTyp := NIL;
     NEW(typ); typ.form := ORB.NoTyp; typ.base := NIL; typ.mno := -level; typ.nofpar := 0; offset := 0; bot := NIL;
     IF recTyp # NIL THEN recTyp.type := typ END ;
@@ -796,8 +804,10 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       IF sym = ORS.ident THEN
         qualident(base);
         IF base.class = ORB.Typ THEN
-          IF base.type.form = ORB.Record THEN typ.base := base.type
+          IF base.type.form = ORB.Record THEN typ.base := base.type; base.extended := TRUE
           ELSIF (base.type.form = ORB.Pointer) & (base.type.base.form = ORB.Record) THEN typ.base := base.type.base;
+            rbt := base.type.base; typ.base := rbt;
+            IF rbt.typobj # NIL THEN rbt.typobj.extended := TRUE END
           ELSE typ.base := ORB.intType; ORS.Mark("invalid extension")
           END ;
           typ.nofpar := typ.base.nofpar + 1; (*"nofpar" here abused for extension level*)

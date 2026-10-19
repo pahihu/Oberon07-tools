@@ -28,7 +28,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
 
     ObjDesc*= RECORD
       class*, exno*: Sys.Byte; (* SYSTEM.BYTE; *)
-      expo*, rdo*: BOOLEAN;   (*exported / read-only*)
+      expo*, rdo*, extended*: BOOLEAN;   (*exported / read-only*)
       lev*: INTEGER;
       next*, dsc*: Object;
       type*: Type;
@@ -75,13 +75,26 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
 
     W: Texts.Writer;
 
+  PROCEDURE IsExtensible*(obj: Object): BOOLEAN;
+    VAR ret: BOOLEAN;
+  BEGIN
+    IF obj = NIL THEN
+      ret := FALSE
+    ELSE
+      ASSERT(obj.class = Typ);
+      ret :=  obj.expo OR (obj.type.mno # 0) OR obj.extended
+    END ;
+    RETURN ret
+  END IsExtensible;
+
   PROCEDURE NewObj*(VAR obj: Object; id: ORS.Ident; class: INTEGER);  (*insert new Object with name id*)
     VAR new, x: Object;
   BEGIN x := topScope;
     WHILE (x.next # NIL) & (x.next.name # id) DO x := x.next END ;
     IF x.next = NIL THEN
       NEW(new); new.name := id; new.class := SHORT(class); new.next := NIL; new.rdo := FALSE; new.dsc := NIL;
-      x.next := new; obj := new
+      x.next := new; obj := new;
+      new.extended := FALSE
     ELSE obj := x.next; ORS.Mark("mult def")
     END 
   END NewObj;
