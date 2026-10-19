@@ -394,7 +394,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       SetCC(x, 7)
     ELSE (*fetch tag into RH*)
       IF varpar THEN Put2(Ldr, RH, SP, x.a+4+frame)
-      ELSE load(x);
+      ELSE
+        (*dereferenced pointer type*)
+        IF x.mode = RegI THEN loadAdr(x) ELSE load(x) END ;
         pc0 := pc; Put3(BC, EQ, 0);  (*NIL belongs to every pointer type*)
         Put2(Ldr, RH, x.r, -8)
       END ;
@@ -660,7 +662,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     VAR s, pc0: LONGINT;
   BEGIN
     IF y.type.size # 0 THEN
-      loadAdr(x); loadAdr(y);
+      (*TypeTest for dereferenced pointer type leaves x in Reg*)
+      IF x.mode # Reg THEN loadAdr(x) END ; loadAdr(y);
       IF (x.type.form = ORB.Array) &  (x.type.len > 0) THEN
         IF y.type.len >= 0 THEN 
           IF x.type.size = y.type.size THEN Put1a(Mov, RH, 0, (y.type.size+3) DIV 4)

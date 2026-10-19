@@ -127,20 +127,22 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         nguard: LONGINT;
   BEGIN xt := x.type;
     IF OpaquePtr(xt) THEN ORS.Mark("opaque pointer") END ;
-    IF (T.form = xt.form ) & ((T.form = ORB.Pointer) OR (T.form = ORB.Record) & (x.mode = ORB.Par)) THEN
+    IF (T.form = xt.form ) & ((T.form = ORB.Pointer) OR (T.form = ORB.Record) & (x.mode IN {ORB.Par, ORG.RegI})) THEN
       WHILE (xt # T) & (xt # NIL) DO xt := xt.base END ;
-      IF (xt # T) OR (x.mode = ORB.Par) THEN xt := x.type;
+      IF (xt # T) OR (x.mode IN {ORB.Par, ORG.RegI}) THEN xt := x.type;
         IF guard THEN nguard := 1 ELSE nguard := 0 END ;
         IF xt.form = ORB.Pointer THEN
+          IF ORS.debug THEN ORS.Twain("ORP/TypeTest.Pointer",-1) END ;
           IF IsExtension(xt.base, T.base) THEN
             IF ORS.debug THEN ORS.Twain("TypeTest Pointer", nguard) END ;
             ORG.TypeTest(x, T.base, FALSE, guard); x.type := T
           ELSE ORS.Mark("not an extension")
           END
-        ELSIF (xt.form = ORB.Record) & (x.mode = ORB.Par) THEN
+        ELSIF (xt.form = ORB.Record) & (x.mode IN {ORB.Par, ORG.RegI}) THEN
+          IF ORS.debug THEN ORS.Twain("ORP/TypeTest.Record",-1) END ;
           IF IsExtension(xt, T) THEN
             IF ORS.debug THEN ORS.Twain("TypeTest VAR Record", nguard) END ;
-            ORG.TypeTest(x, T, TRUE, guard); x.type := T
+            ORG.TypeTest(x, T, x.mode = ORB.Par, guard); x.type := T
           ELSE ORS.Mark("not an extension")
           END
         ELSE ORS.Mark("incompatible types")
@@ -628,13 +630,15 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
             IF CompTypes(x.type, y.type, FALSE) THEN
               IF (x.type.form <= ORB.Pointer) OR (x.type.form = ORB.Proc) THEN ORG.Store(x, y)
               ELSE
+                IF ORS.debug THEN ORS.Twain("assignment/BEGIN", -1) END ;
                 IF (x.type.form = ORB.Record) & (x.mode IN {ORB.Par, ORG.RegI}) THEN
                   IF ORB.IsExtensible(x.type.typobj) THEN
                     ORS.Warn("cannot assign entire extensible record");
-                    IF x.mode = ORB.Par THEN TypeTest(x, x.type, TRUE) END
+                    TypeTest(x, x.type, TRUE);
                   END
                 END ;
-                ORG.StoreStruct(x, y)
+                ORG.StoreStruct(x, y);
+                IF ORS.debug THEN ORS.Twain("assignment/END", -1) END ;
               END
             ELSIF (x.type.form = ORB.Array) & (y.type.form = ORB.Array) & (x.type.base = y.type.base) & (y.type.len < 0) THEN
               ORG.StoreStruct(x, y)
@@ -810,6 +814,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
             IF rbt.typobj # NIL THEN rbt.typobj.extended := TRUE END
           ELSE typ.base := ORB.intType; ORS.Mark("invalid extension")
           END ;
+          IF baseExpo & (typ.base.typobj # NIL) & ~typ.base.typobj.expo THEN ORS.Warn("base type not exported") END ;
           typ.nofpar := typ.base.nofpar + 1; (*"nofpar" here abused for extension level*)
           bot := typ.base.dsc; offset := typ.base.size
         ELSE ORS.Mark("type expected")

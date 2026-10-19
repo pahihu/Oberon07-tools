@@ -312,6 +312,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE loadAdr(VAR x: Item);
   BEGIN
+    IF ORS.debug THEN ORS.Twain("loadAdr/x.mode=",x.mode) END ;
     IF x.mode = ORB.Var THEN
       IF x.r > 0 THEN
         IF isRegVar(x) THEN ORS.Mark("unable load Reg adr") END ;
@@ -351,7 +352,12 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   PROCEDURE loadTypTagAdr(T: ORB.Type);
     VAR x: Item;
-  BEGIN x.mode := ORB.Var; x.a := T.len; x.r := -T.mno; loadAdr(x)
+  BEGIN
+    IF ORS.debug THEN
+      ORS.Twain("loadTypTagAdr/T.len=", T.len);
+      ORS.Twain("loadTypTagAdr/T.mno=", T.mno)
+    END ;
+    x.mode := ORB.Var; x.a := T.len; x.r := -T.mno; loadAdr(x)
   END loadTypTagAdr;
 
   PROCEDURE loadStringAdr(VAR x: Item);
@@ -405,9 +411,11 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     VAR s, lim: LONGINT;
         yr: LONGINT;
   BEGIN s := x.type.base.size; lim := x.type.len;
-    IF ORS.debug THEN ORS.Twain("Index/ymode", y.mode) END ;
-    IF ORS.debug THEN ORS.Twain("Index/s", s) END ;
-    IF ORS.debug THEN ORS.Twain("Index/lim", lim) END ;
+    IF ORS.debug THEN
+      ORS.Twain("Index/ymode", y.mode);
+      ORS.Twain("Index/s", s);
+      ORS.Twain("Index/lim", lim)
+    END ;
     IF (y.mode = ORB.Const) & (lim >= 0) THEN
       IF ORS.debug THEN ORS.Twain("Index/Const", x.a) END ;
       IF (y.a < 0) OR (y.a >= lim) THEN ORS.Mark("bad index") END ;
@@ -546,6 +554,13 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE TypeTest*(VAR x: Item; T: ORB.Type; varpar, isguard: BOOLEAN);
     VAR pc0: LONGINT;
   BEGIN
+    IF ORS.debug THEN
+      ORS.Twain("TypeTest/BEGIN",-1);
+      ORS.Twain("TypeTest/x.mode=",x.mode);
+      IF T # NIL THEN ORS.Twain("TypeTest/T.form=",T.form) END ;
+      IF varpar THEN ORS.Twain("TypeTest/varpar=",1) ELSE ORS.Twain("TypeTest/varpar=",0) END ;
+      IF isguard THEN ORS.Twain("TypeTest/isguard=",1) ELSE ORS.Twain("TypeTest/isguard=",0) END ;
+    END ;
     IF T = NIL THEN
       IF x.mode >= Reg THEN DEC(RH) END ;
       IF isRegVar(x) THEN Put0(Mov, RH, 0, regVar(x)) END ;
@@ -554,7 +569,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     ELSE (*fetch tag into RH*)
       IF varpar THEN
         IF isRegVar(x) THEN Put0(Mov, RH, 0, regVar(x)+1) ELSE Put2(Ldr, RH, SP, x.a+4+frame) END
-      ELSE load(x);
+      ELSE
+        IF ORS.debug THEN ORS.Twain("TypeTest/load(x).mode=",x.mode) END ;
+        (*dereferenced pointer type*)
+        IF x.mode = RegI THEN loadAdr(x) ELSE load(x) END ;
         pc0 := pc; Put3(BC, EQ, 0);  (*NIL belongs to every pointer type*)
         Put2(Ldr, RH, x.r, -8)
       END ;
@@ -567,7 +585,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       ELSE IF ~varpar THEN DEC(RH) END ;
         SetCC(x, EQ)
       END
-    END
+    END ;
+    IF ORS.debug THEN ORS.Twain("TypeTest/END", -1) END
   END TypeTest;
 
   (* Code generation for Boolean operators *)
@@ -871,9 +890,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE StoreStruct*(VAR x, y: Item); (* x := y, frame = 0 *)
     VAR s, pc0: LONGINT;
   BEGIN
-    IF ORS.debug THEN ORS.Twain("StoreStruct=", pc) END ;
+    IF ORS.debug THEN ORS.Twain("StoreStruct/BEGIN=", pc) END ;
     IF y.type.size # 0 THEN
-      loadAdr(x); loadAdr(y);
+      (*TypeTest for dereferenced pointer type leaves x in Reg*)
+      IF x.mode # Reg THEN loadAdr(x) END; loadAdr(y);
       IF (x.type.form = ORB.Array) &  (x.type.len > 0) THEN
         IF y.type.len >= 0 THEN 
           IF x.type.size = y.type.size THEN Put1a(Mov, RH, 0, (y.type.size+3) DIV 4)
@@ -896,6 +916,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       Put2(Str, RH+1, x.r, 0); Put1(Add, x.r, x.r, 4);
       Put1(Sub, RH, RH, 1); Put3(BC, NE, -6)
     END ;
+    IF ORS.debug THEN ORS.Twain("StoreStruct/END=", pc) END ;
     RH := baseRH
   END StoreStruct;
 
