@@ -421,7 +421,8 @@ BEGIN
     LONGINT is synonym to INTEGER, LONGREAL to REAL.
     LED, ADC, SBC; LDPSR, LDREG, REG, COND are not in language definition*)
   system := NIL;  (*n = procno*10 + nofpar*)
-  enter("UML", SFunc, intType, 132);  (*functions*)
+  enter("LSR", SFunc, intType, 212);  (*functions*)
+  enter("UML", SFunc, intType, 132);
   enter("SBC", SFunc, intType, 122);
   enter("ADC", SFunc, intType, 112);
   enter("ROR", SFunc, intType, 92);
@@ -434,12 +435,12 @@ BEGIN
   enter("FLOOR", SFunc, intType, 21);
   enter("ODD", SFunc, boolType, 11);
   enter("ABS", SFunc, intType, 1);
-  enter("LED", SProc, noType, 81);  (*procedures*)
+  enter("CLEAR", SProc, noType, 161); (*procedures*)
+  enter("DISPOSE", SProc, noType, 151);
+  enter("LED", SProc, noType, 81);
   enter("UNPK", SProc, noType, 72);
   enter("PACK", SProc, noType, 62);
   enter("NEW", SProc, noType, 51);
-  enter("DISPOSE", SProc, noType, 151);
-  enter("CLEAR", SProc, noType, 161);
   enter("ASSERT", SProc, noType, 41);
   enter("EXCL", SProc, noType, 32);
   enter("INCL", SProc, noType, 22);

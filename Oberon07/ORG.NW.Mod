@@ -1021,8 +1021,19 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     VAR op: LONGINT;
   BEGIN load(x);
     IF fct = 0 THEN op := Lsl ELSIF fct = 1 THEN op := Asr ELSE op := Ror END ;
-    IF y.mode = ORB.Const THEN Put1(op, x.r, x.r, y.a MOD 20H)
-    ELSE load(y); Put0(op, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
+    IF y.mode = ORB.Const THEN
+      Put1(op, x.r, x.r, y.a MOD 20H);
+      IF fct = 14 THEN (*LSR*)
+        Put1(Lsl, x.r, x.r, y.a MOD 20H);
+        Put1(op,  x.r, x.r, y.a MOD 20H);
+      END
+    ELSE load(y);
+      Put0(op, RH-2, x.r, y.r);
+      IF fct = 14 THEN (*LSR*)
+        Put0(op, RH-2, RH-2, y.r);
+        Put0(op, RH-2, RH-2, y.r);
+      END ;
+      DEC(RH); x.r := RH-1
     END
   END Shift;
 
@@ -1197,3 +1208,4 @@ BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] 
   Texts.OpenWriter(W);
   sectionStart := NoSection
 END ORG.
+(* vim:set ts=2 sw=2 et:*)

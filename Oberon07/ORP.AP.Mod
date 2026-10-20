@@ -313,7 +313,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       ELSIF fct = 5 THEN (*CHR*) CheckInt(x); ORG.Ord(x)
       ELSIF fct = 6 THEN (*LEN*)
           IF x.type.form = ORB.Array THEN ORG.Len(x) ELSE ORS.Mark("not an array") END
-      ELSIF fct IN {7, 8, 9} THEN (*LSL, ASR, ROR*) CheckInt(y);
+      ELSIF fct IN {7, 8, 9, 21} THEN (*LSL, ASR, ROR, LSR*)
+        IF ~ORG.astrobe & (fct = 21) THEN ORS.Mark("not a function") END ;
+        CheckInt(y);
         IF x.type.form IN {ORB.Int, ORB.Set} THEN ORG.Shift(fct-7, x, y); restyp := x.type ELSE ORS.Mark("bad type") END
       ELSIF fct = 11 THEN (*ADC*) ORG.ADC(x, y)
       ELSIF fct = 12 THEN (*SBC*) ORG.SBC(x, y)
@@ -708,6 +710,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         ORS.Get(sym);
         IF sym = ORS.ident THEN
           qualident(obj); ORG.MakeItem(x, obj, level); CheckInt(x); CheckReadOnly(x);
+          IF ORG.astrobe THEN x.rdo := TRUE END ;
           IF sym = ORS.becomes THEN
             ORS.Get(sym); expression(y); CheckInt(y); ORG.For0(x, y); L0 := ORG.Here();
             Check(ORS.to, "no TO"); expression(z); CheckInt(z); obj.rdo := TRUE;
