@@ -512,6 +512,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         CheckSet(x); CheckReadOnly(x); CheckInt(y); ORG.Include(pno-2, x, y)
       ELSIF pno = 4 THEN CheckBool(x); ORG.Assert(x); drop := leaf OR ~ORS.GetOption("A");
       ELSIF pno IN {5, 15} THEN(*NEW/DISPOSE*) CheckReadOnly(x);
+        IF leaf THEN ORS.Mark("leaf procedure") END ;
         IF (x.type.form = ORB.Pointer) & (x.type.base.form = ORB.Record) THEN
           IF OpaquePtr(x.type) THEN
             ORS.Mark("opaque pointer")
