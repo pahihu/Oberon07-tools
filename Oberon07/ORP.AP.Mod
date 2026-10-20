@@ -122,11 +122,22 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
   BEGIN RETURN (T.base # NIL) & (T.base.len = 0) & (T.mno # 0)
   END OpaquePtr;
 
+  PROCEDURE IsVarRecord(x: ORG.Item): BOOLEAN;
+  BEGIN RETURN (x.mode = ORB.Par) & (x.type.form = ORB.Record) & ~x.rdo
+  END IsVarRecord;
+
+  PROCEDURE IsPointerToRecord(x: ORG.Item): BOOLEAN;
+  BEGIN RETURN (x.type.form = ORB.Pointer) & (x.type.base.form = ORB.Record)
+  END IsPointerToRecord;
+
   PROCEDURE TypeTest(VAR x: ORG.Item; T: ORB.Type; guard: BOOLEAN);
     VAR xt: ORB.Type;
         nguard: LONGINT;
   BEGIN xt := x.type;
     IF OpaquePtr(xt) THEN ORS.Mark("opaque pointer") END ;
+    (*ORS.Twain("TypeTest/x.type.form=", x.type.form);
+    ORS.Twain("TypeTest/x.mode=", x.mode);*)
+    IF (x.mode # ORG.RegI) & ~IsPointerToRecord(x) & ~IsVarRecord(x) THEN ORS.Mark("pointer or VAR record expected") END ;
     IF (T.form = xt.form ) & ((T.form = ORB.Pointer) OR (T.form = ORB.Record) & (x.mode IN {ORB.Par, ORG.RegI})) THEN
       WHILE (xt # T) & (xt # NIL) DO xt := xt.base END ;
       IF (xt # T) OR (x.mode IN {ORB.Par, ORG.RegI}) THEN xt := x.type;
