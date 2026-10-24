@@ -42,6 +42,9 @@ MODULE MemCtrl; (*Phu 18.9.26*)
         8KS24    79K
         8KS36    73K
     *)
+    (* 64KB Lines = 4096; (* 12bit *) Tags = 2; (* 1bit *) *)
+    (* 32KB Lines = 2048; (* 11bit *) Tags = 4; (* 2bit *) *)
+    (* 16KB Lines = 1024; (* 10bit *) Tags = 8; (* 3bit *) *)
     Lines = 512; (* 9bit *) Tags = 16; (* 4bit *)
     (* 4K Lines = 256; Tags = 32; *)
     (* 2K Lines = 128; Tags = 64; *)
@@ -79,6 +82,8 @@ MODULE MemCtrl; (*Phu 18.9.26*)
       enabled-: BOOLEAN;
       W: Texts.Writer;
       PROM*: ARRAY PromSize OF LONGINT;
+      allocateOnWrite*: BOOLEAN; (*use Dirty flag or Write-Through*)
+      busy*: LONGINT; (*controller busy w/ Write-Through*)
 
   PROCEDURE Where(s: ARRAY OF CHAR);
   BEGIN Texts.WriteLn(W); Texts.WriteString(W, s);
@@ -104,6 +109,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     FOR i := 0 TO LEN(TagMem) - 1 DO
       tags[i].flags := {}
     END ;
+    busy := 0; allocateOnWrite := FALSE
   END Init;
 
   PROCEDURE FillLine(VAR tags: TagMem; VAR lines: CacheMem; tag, idx: INTEGER; adr: Address);
@@ -147,12 +153,25 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     DebugInt(FALSE, "wsel", wsel);
   END SplitAdr;
 
-  PROCEDURE ReadInt(msg: ARRAY OF CHAR; adr: Address): Word;
+  PROCEDURE SetBusy(clk, delta: LONGINT);
+  BEGIN
+    IF busy > clk THEN (*still busy: busy - clk + clk + delta*)
+      busy := busy + delta
+    ELSE
+      busy := clk + delta
+    END
+  END SetBusy;
+
+  PROCEDURE ReadInt(msg: ARRAY OF CHAR; clk: LONGINT; adr: Address): Word;
     VAR ret: Word;
         tag, idx, wsel: INTEGER;
   BEGIN
     DebugInt(TRUE, msg, adr);
-    elapsedClks := 0;
+    IF busy > clk THEN
+      elapsedClks := busy - clk; busy := 0
+    ELSE
+      elapsedClks := 0
+    END ;
     IF enabled THEN
       SplitAdr(adr, tag, idx, wsel);
       IF ~(Valid IN tags[idx].flags) OR (tags[idx].tag # tag) THEN
@@ -168,30 +187,46 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     RETURN ret
   END ReadInt;
 
-  PROCEDURE Read*(adr: Address): Word;
+  PROCEDURE Read*(clk: LONGINT; adr: Address): Word;
     VAR ret: Word;
   BEGIN
     ASSERT((0 <= adr) & (adr < MaxMem), 10);
-    ret := ReadInt("READ", adr); INC(cntMemRd);
+    ret := ReadInt("READ", clk, adr); INC(cntMemRd);
     RETURN ret
   END Read;
 
-  PROCEDURE Write*(adr: Address; data: Word);
+  PROCEDURE Write*(clk: LONGINT; adr: Address; data: Word);
     VAR tag, idx, wsel: INTEGER;
+      valid, hit: BOOLEAN;
   BEGIN
     ASSERT((0 <= adr) & (adr < MaxMem), 10);
     DebugInt(TRUE, "WRITE", adr);
     elapsedClks := 0;
     IF enabled THEN
       SplitAdr(adr, tag, idx, wsel);
-      IF ~(Valid IN tags[idx].flags) OR (tags[idx].tag # tag) THEN
+      valid := Valid IN tags[idx].flags;
+      hit := valid & (tags[idx].tag = tag);
+      IF hit THEN
+        INC(cntHit);
+        cache[idx][wsel] := data;
+        IF allocateOnWrite THEN
+          INCL(tags[idx].flags, Dirty)
+        ELSE
+          M[adr] := data;
+          SetBusy(clk, FillClks + WriteBackClks)
+        END
+      ELSE
         INC(cntMiss);
-        IF Dirty IN tags[idx].flags THEN WriteBackLine(tags, cache, idx) END ;
-        FillLine(tags, cache, tag, idx, adr);
-      ELSE INC(cntHit)
+        IF allocateOnWrite THEN
+          IF Dirty IN tags[idx].flags THEN WriteBackLine(tags, cache, idx) END ;
+          FillLine(tags, cache, tag, idx, adr);
+          cache[idx][wsel] := data;
+          INCL(tags[idx].flags, Dirty)
+        ELSE
+          M[adr] := data;
+          SetBusy(clk, FillClks + WriteBackClks);
+        END
       END ;
-      cache[idx][wsel] := data;
-      INCL(tags[idx].flags, Dirty)
     ELSE
       M[adr] := data
     END ;
@@ -218,11 +253,11 @@ MODULE MemCtrl; (*Phu 18.9.26*)
   BEGIN RETURN (PromStart <= adr) & (adr < PromStart + PromSize)
   END IsPromAdr;
 
-  PROCEDURE Fetch*(adr: Address): Word;
+  PROCEDURE Fetch*(clk: LONGINT; adr: Address): Word;
     VAR ret: Word;
   BEGIN
     IF IsRamAdr(adr) THEN
-      ret := ReadInt("FETCH", adr)
+      ret := ReadInt("FETCH", clk, adr)
     ELSIF IsPromAdr(adr) THEN
       ret := PROM[adr - PromStart]
     ELSE

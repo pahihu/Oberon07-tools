@@ -263,7 +263,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
       IF profile & (PC < MemCtrl.MaxMem) THEN INC(instrCounts[PC]) END ;
-      IR := MemCtrl.Fetch(PC); INC(clk, MemCtrl.elapsedClks);
+      IR := MemCtrl.Fetch(clk, PC); INC(clk, MemCtrl.elapsedClks);
       IF spiDeviceCS # 3 THEN
         spiBus[spiDeviceCS].Cycle
       END ;
@@ -338,7 +338,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         IF Debug THEN ShowHex(W, "badr=", badr); ShowHex(W, " adr=", adr) END ;
         IF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
-            A := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks);
+            A := MemCtrl.Read(clk, adr); INC(clk, MemCtrl.elapsedClks);
             IF A = Undef THEN Err(W, "read undefined", rs, PC - 1, badr) END ;
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
@@ -366,7 +366,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
               IF adr >= MemCtrl.MaxMem THEN
                 Err(W, "address out of range", rs, PC - 1, badr)
               END ;
-              R[a] := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks)
+              R[a] := MemCtrl.Read(clk, adr); INC(clk, MemCtrl.elapsedClks)
             END
           END
         ELSE
@@ -378,9 +378,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
               IF Debug THEN
                 Ln(W); Hex(W, A); String(W, " @"); Hex(W, badr); Ln(W);
               END;
-              tmp := MemCtrl.Read(adr); INC(clk, MemCtrl.elapsedClks);
-              MemCtrl.Write(adr, InsertByte(W, tmp, R[a] MOD 100H, badr MOD 4)); INC(clk, MemCtrl.elapsedClks)
-            ELSE MemCtrl.Write(adr, R[a]); INC(clk, MemCtrl.elapsedClks)
+              tmp := MemCtrl.Read(clk, adr); INC(clk, MemCtrl.elapsedClks);
+              MemCtrl.Write(clk, adr, InsertByte(W, tmp, R[a] MOD 100H, badr MOD 4)); INC(clk, MemCtrl.elapsedClks)
+            ELSE MemCtrl.Write(clk, adr, R[a]); INC(clk, MemCtrl.elapsedClks)
             END
           ELSE (*output*);
                IF adr =  -1 THEN (* WriteInt *) Texts.WriteInt(W, R[a], 4)
@@ -407,7 +407,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
               IF adr >= MemCtrl.MaxMem THEN
                 Err(W, "address out of range", rs, PC - 1, badr)
               END ;
-              MemCtrl.Write(adr, R[a]); INC(clk, MemCtrl.elapsedClks)
+              MemCtrl.Write(clk, adr, R[a]); INC(clk, MemCtrl.elapsedClks)
             END
           END
         END

@@ -266,7 +266,7 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
       IF nofWords = 0 THEN
         s := cmdPrev
       ELSE
-        s := words[0]; DEC(nofWords);
+        s := words[0]; DEC(nofWords); rs.step := -1;
         FOR i := nofWords TO LEN(args) - 1 DO args[i] := -1 END ;
       END ;
       IF s[0] # 0X THEN

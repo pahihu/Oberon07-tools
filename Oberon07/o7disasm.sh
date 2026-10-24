@@ -1,10 +1,15 @@
 #!/bin/sh
-if [ $# -ne 1 ];
+if [ $# -eq 0 ] || [ $# -gt 2 ];
 then
-  echo "usage: o7disasm.sh <module>"
+  echo "usage: o7disasm.sh <module> [<map>]"
   exit 1
 fi
 MOD=$1
+MAP=$(ls *.map)
+if [ ! -z "$2" ];
+then
+  MAP=$2
+fi
 
 opsys=$(uname -o)
 AWK=awk
@@ -14,7 +19,7 @@ then
 fi
 
 omake $MOD.lst
-c0de=$(grep $MOD *.map | head -1 | $AWK '{print $4;}')
+c0de=$(grep $MOD $MAP | head -1 | $AWK '{print $4;}')
 
 ### DecObj file
 cat $MOD.lst >match.inp
