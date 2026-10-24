@@ -109,7 +109,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     FOR i := 0 TO LEN(TagMem) - 1 DO
       tags[i].flags := {}
     END ;
-    busy := 0; allocateOnWrite := FALSE
+    busy := 0; allocateOnWrite := TRUE
   END Init;
 
   PROCEDURE FillLine(VAR tags: TagMem; VAR lines: CacheMem; tag, idx: INTEGER; adr: Address);
