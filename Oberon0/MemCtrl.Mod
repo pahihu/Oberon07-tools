@@ -53,10 +53,12 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     (* 128KB MaxMem* = 32768; *)
     MaxMem* = 112 * 1024 DIV 4; (*1C000H*)
     MemMask* = 20000H; (*17 bit*)
-    WriteBackClks = 2 + 6 +  WordsPerLine * 8 + 1; FillClks = WriteBackClks + 6;
-    (* 24MHz WriteBackClks = 21; FillClks = 23; *)
-    (* 36MHz WriteBackClks = 14; FillClks = 16; *)
+    WriteBackWordClks = 2 + 6 +  8 + 1;
+    WriteBackLineClks = 2 + 6 +  WordsPerLine * 8 + 1; FillLineClks = WriteBackLineClks + 6;
+    (* 24MHz WriteBackLineClks = 21; FillLineClks = 23; *)
+    (* 36MHz WriteBackLineClks = 14; FillLineClks = 16; *)
     Debug = FALSE;
+    WriteBack = 0; WriteThru = 1;
     Valid = 0; Dirty = 1;
     PromSize* = 512; PromStart* = 3FF800H; (*in words*)
 
@@ -82,8 +84,9 @@ MODULE MemCtrl; (*Phu 18.9.26*)
       enabled-: BOOLEAN;
       W: Texts.Writer;
       PROM*: ARRAY PromSize OF LONGINT;
-      allocateOnWrite*: BOOLEAN; (*use Dirty flag or Write-Through*)
-      busy*: LONGINT; (*controller busy w/ Write-Through*)
+      cachePolicy*: INTEGER; (*WriteBack (Allocate-on-Write), WriteThu*)
+      lineWriteThru*: BOOLEAN; (*WriteThru writes back the entire line*)
+      busy*: LONGINT; (*controller busy w/ WriteThru*)
 
   PROCEDURE Where(s: ARRAY OF CHAR);
   BEGIN Texts.WriteLn(W); Texts.WriteString(W, s);
@@ -109,7 +112,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     FOR i := 0 TO LEN(TagMem) - 1 DO
       tags[i].flags := {}
     END ;
-    busy := 0; allocateOnWrite := TRUE
+    busy := 0; cachePolicy := WriteBack; lineWriteThru := TRUE
   END Init;
 
   PROCEDURE FillLine(VAR tags: TagMem; VAR lines: CacheMem; tag, idx: INTEGER; adr: Address);
@@ -125,7 +128,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     INCL(tags[idx].flags, Valid);
     EXCL(tags[idx].flags, Dirty);
 
-    INC(elapsedClks, FillClks - 1); (*RISC will count 1 for each instr*)
+    INC(elapsedClks, FillLineClks - 1); (*RISC will count 1 for each instr*)
   END FillLine;
 
   PROCEDURE WriteBackLine(VAR tags: TagMem; VAR lines: CacheMem; idx: INTEGER);
@@ -140,7 +143,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     END ;
     EXCL(tags[idx].flags, Dirty);
 
-    INC(elapsedClks, WriteBackClks - 1); (*RISC will count 1 for each instr*)
+    INC(elapsedClks, WriteBackLineClks - 1); (*RISC will count 1 for each instr*)
   END WriteBackLine;
 
   PROCEDURE SplitAdr(adr: Address; VAR tag, idx, wsel: INTEGER);
@@ -198,6 +201,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
   PROCEDURE Write*(clk: LONGINT; adr: Address; data: Word);
     VAR tag, idx, wsel: INTEGER;
       valid, hit: BOOLEAN;
+      busyClks: LONGINT;
   BEGIN
     ASSERT((0 <= adr) & (adr < MaxMem), 10);
     DebugInt(TRUE, "WRITE", adr);
@@ -209,22 +213,32 @@ MODULE MemCtrl; (*Phu 18.9.26*)
       IF hit THEN
         INC(cntHit);
         cache[idx][wsel] := data;
-        IF allocateOnWrite THEN
+        IF cachePolicy = WriteBack THEN
           INCL(tags[idx].flags, Dirty)
         ELSE
           M[adr] := data;
-          SetBusy(clk, FillClks + WriteBackClks)
+          IF lineWriteThru THEN
+            busyClks := WriteBackLineClks
+          ELSE
+            busyClks := WriteBackWordClks
+          END ;
+          SetBusy(clk, busyClks)
         END
       ELSE
         INC(cntMiss);
-        IF allocateOnWrite THEN
+        IF cachePolicy = WriteBack THEN
           IF Dirty IN tags[idx].flags THEN WriteBackLine(tags, cache, idx) END ;
           FillLine(tags, cache, tag, idx, adr);
           cache[idx][wsel] := data;
           INCL(tags[idx].flags, Dirty)
         ELSE
           M[adr] := data;
-          SetBusy(clk, FillClks + WriteBackClks);
+          IF lineWriteThru THEN
+            busyClks := FillLineClks + WriteBackLineClks
+          ELSE
+            busyClks := WriteBackWordClks
+          END ;
+          SetBusy(clk, busyClks);
         END
       END ;
     ELSE
