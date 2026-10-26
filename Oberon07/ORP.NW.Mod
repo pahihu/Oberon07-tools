@@ -1148,7 +1148,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     Ln; String("comment embedded options: opt=+|-");
     Ln; String("  $Aopt - ASSERT generation");
     Ln; String("  $Copt - run-time checks (toggles $P $T $X)");
-    Ln; String("  $Lopt - leaf PROCEDURE generation (implies $A- $C-)");
+    Ln; String("  $Lopt - leaf PROCEDURE generation (implies $A- $C- $V-)");
     Ln; String("  $Popt - NIL pointer, procedure call check");
     Ln; String("  $Sopt - allow new symbol file");
     Ln; String("  $Topt - type guard check");

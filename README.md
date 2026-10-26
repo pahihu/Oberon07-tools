@@ -18,7 +18,7 @@ Changes:
 Embedded compiler options
 * $A - ASSERT generation
 * $C - run-time checks (toggles $P $T $X)
-* $L - leaf PROCEDURE generation (implies $A- $C-)
+* $L - leaf PROCEDURE generation (implies $A- $C- $V-)
 * $P - NIL pointer, procedure call check
 * $S - allow new symbol file
 * $T - type guard check
