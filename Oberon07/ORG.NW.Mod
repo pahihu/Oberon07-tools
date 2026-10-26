@@ -48,7 +48,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     frame: LONGINT;  (*frame offset changed in SaveRegs and RestoreRegs*)
     fixorgP, fixorgD, fixorgT: LONGINT;   (*origins of lists of locations to be fixed up by loader*)
     check: BOOLEAN;  (*emit run-time checks*)
-    oldchecks: ARRAY 4 OF BOOLEAN;
+    oldchecks: ARRAY 5 OF BOOLEAN;
     version: INTEGER;  (* 0 = RISC-0, 1 = RISC-5 *)
     
     relmap: ARRAY 6 OF INTEGER;  (*condition codes for relations*)
@@ -837,7 +837,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     oldchecks[0] := ORS.GetOption("C");
     oldchecks[1] := ORS.GetOption("P");
     oldchecks[2] := ORS.GetOption("T");
-    oldchecks[3] := ORS.GetOption("X")
+    oldchecks[3] := ORS.GetOption("V");
+    oldchecks[4] := ORS.GetOption("X")
   END SaveChecks;
 
   PROCEDURE RestoreChecks;
@@ -845,13 +846,15 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     ORS.SetOption("C", oldchecks[0]);
     ORS.SetOption("P", oldchecks[1]);
     ORS.SetOption("T", oldchecks[2]);
-    ORS.SetOption("X", oldchecks[3])
+    ORS.SetOption("V", oldchecks[3]);
+    ORS.SetOption("X", oldchecks[4])
   END RestoreChecks;
 
   PROCEDURE SetChecks(flag: BOOLEAN);
   BEGIN
     ORS.SetOption("P", flag);
     ORS.SetOption("T", flag);
+    IF ~flag THEN ORS.SetOption("V", flag) END ;
     ORS.SetOption("X", flag);
   END SetChecks;
 
