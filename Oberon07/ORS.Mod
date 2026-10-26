@@ -58,7 +58,12 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     commLen: INTEGER; (*last comment length*)
     reportLine*: BOOLEAN;
     lineNo*: INTEGER;
+    lastSym*: INTEGER;
   
+  PROCEDURE ClearLastSym*;
+  BEGIN lastSym := null
+  END ClearLastSym;
+
   PROCEDURE CopyId*(VAR ident: Ident);
   BEGIN ident := id
   END CopyId;
@@ -298,7 +303,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   END comment;
 
   PROCEDURE Get*(VAR sym: INTEGER);
-  BEGIN
+  BEGIN lastSym := sym;
     IF lineNo # R.lineNo THEN lineNo := Sys.Short(R.lineNo) END ;
     REPEAT
       WHILE ~R.eot & (ch <= " ") DO Texts.Read(R, ch) END;
@@ -420,7 +425,7 @@ BEGIN Texts.OpenWriter(W); k := 0; KWX[0] := 0; KWX[1] := 0;
   EnterKW(procedure, "PROCEDURE");
   KWX[9] := k;
   warning := FALSE; debug := FALSE; reportLine := FALSE; lineNo := 1;
-  werror := FALSE;
+  werror := FALSE; lastSym := null;
 
   InitOptions;
   RedirFiles.InitFromEnv("ORPRED", "~/.orp.red")

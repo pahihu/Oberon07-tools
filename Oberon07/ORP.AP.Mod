@@ -33,6 +33,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
 
   PROCEDURE Check(s: INTEGER; msg: ARRAY OF CHAR);
   BEGIN
+    IF (s = ORS.end) & (ORS.lastSym = ORS.semicolon) THEN ORS.Warn("unnecessary semicolon") END ;
     IF sym = s THEN ORS.Get(sym) ELSE ORS.Mark(msg) END
   END Check;
 
@@ -1176,7 +1177,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
       WHILE sym = ORS.procedure DO ProcedureDecl; Check(ORS.semicolon, "no ;") END ;
       ORG.Header;
       IF sym = ORS.begin THEN ORS.Get(sym); StatSequence END ;
-      Check(ORS.end, "no END");
+      ORS.ClearLastSym; Check(ORS.end, "no END");
       IF sym = ORS.ident THEN
         IF ORS.id # modid THEN ORS.Mark("no match") END ;
         ORS.Get(sym)
