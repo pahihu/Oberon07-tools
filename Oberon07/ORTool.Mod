@@ -124,16 +124,19 @@ MODULE ORTool;  (*NW 18.2.2013*)
       IF k = 0 THEN
         Texts.WriteString(W, mnemo0[op]);
         IF u = 1 THEN Texts.Write(W, "'") END ;
+        Texts.Write(W, " ");
         WriteReg(a); IF (op # 0 (*MOV*)) & (a # b) THEN WriteReg(b) END; WriteReg(w MOD 10H)
       ELSIF k = 1 THEN
         Texts.WriteString(W, mnemo0[op]);
         IF u = 1 THEN Texts.Write(W, "'") END ;
+        Texts.Write(W, " ");
         WriteReg(a); IF (op # 0) & (a # b) THEN WriteReg(b) END; w := w MOD 10000H;
         IF w >= 8000H THEN w := w - 10000H END ;
         Texts.Write(W, " "); Texts.WriteInt(W, w, 1)
       ELSIF k = 2 THEN  (*LDR/STR*)
         IF u = 1 THEN Texts.WriteString(W, "ST") ELSE Texts.WriteString(W, "LD") END ;
         IF v = 1 THEN Texts.Write(W, "B") ELSE Texts.Write(W, "R") END ;
+        Texts.Write(W, " ");
         WriteReg(a); WriteReg(b); w := w MOD 100000H;
         IF w >= 80000H THEN w := w - 100000H END ;
         Texts.Write(W, " "); Texts.WriteInt(W, w, 1)
@@ -146,7 +149,7 @@ MODULE ORTool;  (*NW 18.2.2013*)
         ELSE
           Texts.Write(W, "B");
           IF v = 1 THEN Texts.Write(W, "L") END ;
-          Texts.WriteString(W, mnemo1[a]);
+          Texts.WriteString(W, mnemo1[a]); Texts.Write(W, " ");
           IF u = 0 THEN
             IF fn = 8 THEN Texts.WriteString(W, "PC ") END;
             WriteReg(w MOD 10H);
