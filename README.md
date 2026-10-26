@@ -12,9 +12,32 @@ The original sources depend on the assumption, that `SIZE(INTEGER) = 4`. Hence I
 Register allocated parameters, local variables are available in the numeric CASE compiler.
 
 Changes:
-* Embedded compiler options: (*$A-*) turn off assertion checking, (*$C-*) turn off run-time checks, (*$L+*) compile as leaf procedure
+* Embedded compiler options to selectively enable/disable run-time checks
 * In leaf procedures ASSERTs are ignored and no run-time checks are generated. The LNK register is not saved. In the numeric CASE compiler parameters and local variables (except ARRAYs/RECORDs) are stored in registers. The CASE statement is not supported in leaf procedures.
  
+Embedded compiler options
+* $A - ASSERT generation
+* $C - run-time checks (toggles $P $T $X)
+* $L - leaf PROCEDURE generation (implies $A- $C-)
+* $P - NIL pointer, procedure call check
+* $S - allow new symbol file
+* $T - type guard check
+* $V - overflow check (default disabled)
+* $X - index/unmatched CASE/array/string length check
+
+Traps
+| trap number | compiler option | description           |
+| ----------- | --------------- | --------------------- |
+| 1           | $X              | index, unmatched CASE |
+| 2           | $T              | type guard            |
+| 3           | $X              | array/string length   |
+| 4           | $P              | NIL pointer           |
+| 5           | $P              | procedure call        |
+| 6           |                 | DIV by zero           |
+| 7           | $A              | ASSERT                |
+| 9           | $V              | overflow              |
+
+
 Astrobe compatibility (/a option):
 * The leaf procedure and interrupt handler syntax is supported.
 * Parse ASSERT(cond, code) but ignores the code.

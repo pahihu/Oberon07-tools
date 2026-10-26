@@ -1079,6 +1079,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       END ;
       IF sym # ORS.period THEN ORS.Mark("period missing") END ;
       IF (ORS.errcnt = 0) & (version # 0) THEN
+        newSF := newSF OR ORS.GetOption("S");
         ORB.Export(modid, newSF, key);
         IF newSF THEN Texts.WriteLn(W); Texts.WriteString(W, "  new symbol file") END
       END ;
@@ -1115,7 +1116,8 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     VAR T: Texts.Text;
         S: Texts.Scanner;
         path: ORS.Path;
-  BEGIN Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
+  BEGIN ORS.SetOption("S", FALSE);
+    Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     WHILE S.class = Texts.Name DO
       NEW(T); COPY(S.s, path); ORS.ResolvePath(path); Texts.Open(T, path);
       IF T.len > 0 THEN Option(S); ORS.Init(T, 0); Module
@@ -1144,9 +1146,14 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     Ln; String("  /l    - report position as line:char");
     Ln; String("  /s    - enable new symbol file");
     Ln; String("comment embedded options: opt=+|-");
-    Ln; String("  $Aopt - enable/disable ASSERTs");
-    Ln; String("  $Copt - enable/disable run-time checks");
-    Ln; String("  $Lopt - leaf PROCEDURE (implies $A- $C- )");
+    Ln; String("  $Aopt - ASSERT generation");
+    Ln; String("  $Copt - run-time checks (toggles $P $T $X)");
+    Ln; String("  $Lopt - leaf PROCEDURE generation (implies $A- $C-)");
+    Ln; String("  $Popt - NIL pointer, procedure call check");
+    Ln; String("  $Sopt - allow new symbol file");
+    Ln; String("  $Topt - type guard check");
+    Ln; String("  $Vopt - overflow check (default disabled)");
+    Ln; String("  $Xopt - index, unmatched CASE, array/string length check");
     Ln; Texts.Append(Oberon.Log, W.buf)
   END Help;
 

@@ -18,7 +18,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     Fad = 12; Fsb = 13; Fml = 14; Fdv = 15;
     Ldr = 8; Str = 10;
     BR = 0; BLR = 1; BC = 2; BL = 3;
-    MI = 0; PL = 8; EQ = 1; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
+    MI = 0; PL = 8; EQ = 1; VS = 3; NE = 9; LT = 5; GE = 13; LE = 6; GT = 14;
 
     TYPE
       LONGINT = Sys.INT32;
@@ -47,7 +47,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     RH: LONGINT;  (*available registers R[0] ... R[H-1]*)
     frame: LONGINT;  (*frame offset changed in SaveRegs and RestoreRegs*)
     fixorgP, fixorgD, fixorgT: LONGINT;   (*origins of lists of locations to be fixed up by loader*)
-    check, oldcheck: BOOLEAN;  (*emit run-time checks*)
+    check: BOOLEAN;  (*emit run-time checks*)
+    oldchecks: ARRAY 4 OF BOOLEAN;
     version: INTEGER;  (* 0 = RISC-0, 1 = RISC-5 *)
     
     relmap: ARRAY 6 OF INTEGER;  (*condition codes for relations*)
@@ -185,7 +186,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END GetSB;
 
   PROCEDURE NilCheck;
-  BEGIN IF check THEN Trap(EQ, 4) END
+  BEGIN IF ORS.GetOption("P") THEN Trap(EQ, 4) END
   END NilCheck;
 
   PROCEDURE load(VAR x: Item);
@@ -310,7 +311,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       ELSIF x.mode = ORB.Par THEN x.b := y.a * s + x.b
       END
     ELSE load(y);
-      IF check THEN  (*check array bounds*)
+      IF ORS.GetOption("X") THEN  (*check array bounds*)
         IF lim >= 0 THEN Put1a(Cmp, RH, y.r, lim)
         ELSE (*open array*)
           IF x.mode IN {ORB.Var, ORB.Par} THEN Put2(Ldr, RH, SP, x.a+4+frame); Put0(Cmp, RH, y.r, RH)
@@ -405,7 +406,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       Put0(Cmp, RH-1, RH-1, RH-2); DEC(RH, 2);
       IF ~varpar THEN fix(pc0, pc - pc0 - 1) END ;
       IF isguard THEN
-        IF check THEN Trap(NE, 2) END
+        IF ORS.GetOption("T") THEN Trap(NE, 2) END
       ELSE SetCC(x, EQ);
         IF ~varpar THEN DEC(RH) END
       END
@@ -478,7 +479,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
         IF y.a # 0 THEN Put1a(Sub, x.r, x.r, y.a) END
       ELSE load(x); load(y); Put0(Sub, RH-2, x.r, y.r); DEC(RH); x.r := RH-1
       END
-    END
+    END ;
+    IF ORS.GetOption("V") THEN Trap(VS, 9) END
   END AddOp;
 
   PROCEDURE log2(m: LONGINT; VAR e: LONGINT): LONGINT;
@@ -674,7 +676,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
           IF s = 1 THEN Put1(Add, RH, RH, 3); Put1(Asr, RH, RH, 2)
           ELSIF s # 4 THEN Put1a(Mul, RH, RH, s DIV 4)
           END ;
-          IF check THEN
+          IF ORS.GetOption("X") THEN
             Put1a(Mov, RH+1, 0, (x.type.size+3) DIV 4); Put0(Cmp, RH+1, RH, RH+1); Trap(GT, 3)
           END ;
           fix(pc0, pc + 5 - pc0)
@@ -694,7 +696,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
    BEGIN loadAdr(x); len := x.type.len;
     IF len >= 0 THEN
       IF len <  y.b THEN ORS.Mark("string too long") END
-    ELSIF check THEN Put2(Ldr, RH, SP, x.a+4);  (*open array len, frame = 0*)
+    ELSIF ORS.GetOption("X") THEN Put2(Ldr, RH, SP, x.a+4);  (*open array len, frame = 0*)
       Put1(Cmp,RH, RH, y.b); Trap(LT, 3)
     END ;
     loadStringAdr(y);
@@ -820,7 +822,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       IF x.mode <= ORB.Par THEN load(x); DEC(RH)
       ELSE Put2(Ldr, RH, SP, 0); Put1(Add, SP, SP, 4); DEC(r); DEC(frame, 4)
       END ;
-      IF check THEN Trap(EQ, 5) END ;
+      IF ORS.GetOption("P") THEN Trap(EQ, 5) END ;
       Put3(BLR, 7, RH)
     END ;
     IF x.type.base.form = ORB.NoTyp THEN (*procedure*) RH := 0
@@ -830,10 +832,38 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     END
   END Call;
 
+  PROCEDURE SaveChecks;
+  BEGIN
+    oldchecks[0] := ORS.GetOption("C");
+    oldchecks[1] := ORS.GetOption("P");
+    oldchecks[2] := ORS.GetOption("T");
+    oldchecks[3] := ORS.GetOption("X")
+  END SaveChecks;
+
+  PROCEDURE RestoreChecks;
+  BEGIN
+    ORS.SetOption("C", oldchecks[0]);
+    ORS.SetOption("P", oldchecks[1]);
+    ORS.SetOption("T", oldchecks[2]);
+    ORS.SetOption("X", oldchecks[3])
+  END RestoreChecks;
+
+  PROCEDURE SetChecks(flag: BOOLEAN);
+  BEGIN
+    ORS.SetOption("P", flag);
+    ORS.SetOption("T", flag);
+    ORS.SetOption("X", flag);
+  END SetChecks;
+
   PROCEDURE Enter*(parblksize, locblksize: LONGINT; int, leaf: BOOLEAN);
     VAR a, r: LONGINT;
   BEGIN frame := 0;
-    IF int OR leaf THEN oldcheck := check; check := FALSE ELSE check := ORS.GetOption("C") END ;
+    IF int OR leaf THEN
+      SaveChecks; check := FALSE;
+      SetChecks(check)
+    ELSE
+      check := ORS.GetOption("C")
+    END ;
     IF ~int THEN (*procedure prolog*)
       IF locblksize >= 10000H THEN ORS.Mark("too many locals") END ;
       a := 4; r := 0;
@@ -856,7 +886,11 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
       Put3(BR, 7, 10H) (*RTI*)
     END ;
-    IF int OR leaf THEN check := oldcheck ELSE check := ORS.GetOption("C") END ;
+    IF int OR leaf THEN
+      RestoreChecks; check := ORS.GetOption("C")
+    ELSE
+      check := ORS.GetOption("C")
+    END ;
     RH := 0
   END Return;
 
@@ -875,7 +909,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     ELSE loadAdr(x); zr := RH; Put2(Ldr+v, RH, x.r, 0); incR;
       IF y.mode = ORB.Const THEN Put1a(op, zr, zr, y.a) ELSE load(y); Put0(op, zr, zr, y.r); DEC(RH) END ;
       Put2(Str+v, zr, x.r, 0); DEC(RH, 2)
-    END
+    END ;
+    IF ORS.GetOption("V") THEN Trap(VS, 9) END
   END Increment;
 
   PROCEDURE Include*(inorex: LONGINT; VAR x, y: Item);
@@ -936,7 +971,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     IF z.mode = ORB.Const THEN
       IF z.a > 0 THEN load(z) ELSE ORS.Mark("bad count") END
     ELSE load(z);
-      IF check THEN Trap(LT, 3) END ;
+      IF ORS.GetOption("X") THEN Trap(LT, 3) END ;
       Put3(BC, EQ, 6)
     END ;
     Put2(Ldr, RH, x.r, 0); Put1(Add, x.r, x.r, 4);
@@ -1082,7 +1117,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   PROCEDURE Open*(v: INTEGER);
   BEGIN pc := 0; tdx := 0; strx := 0; RH := 0; fixorgP := 0; fixorgD := 0; fixorgT := 0; check := v # 0; version := v;
-    ORS.SetOption("C", check);
+    ORS.SetOption("C", check); SetChecks(check);
     IF v = 0 THEN pc := 1;
       REPEAT code[pc] := 0; INC(pc) UNTIL pc = 8
     END
