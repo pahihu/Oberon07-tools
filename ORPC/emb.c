@@ -2,11 +2,6 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#define _XOPEN_SOURCE 1
-#include <ucontext.h>
-#include <setjmp.h>
-#include <errno.h>
-
 #include "ocg_runtime.h"
 
 int emb_putchar(uint8_t ch)
@@ -41,6 +36,12 @@ long emb_utime(void)
   gettimeofday(&T1, NULL);
   return 1000000 * (T1.tv_sec - T0.tv_sec) + (T1.tv_usec - T0.tv_usec);
 }
+
+#ifdef __APPLE__
+#define _XOPEN_SOURCE 1
+#include <ucontext.h>
+#include <setjmp.h>
+#include <errno.h>
 
 void emb_coro_current(long *coro)
 {
@@ -77,5 +78,5 @@ void emb_coro_transfer(long *from, long to)
 {
   swapcontext((ucontext_t*)*from, (const ucontext_t*)to);
 }
-
+#endif
 /* vim:set ts=2 sw=2 et:*/

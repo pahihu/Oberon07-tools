@@ -17,7 +17,7 @@ BEGIN i := 0;
   WHILE s[i] # 0X DO ch := s[i];
     IF ch = "$" THEN Write("$$")
     ELSE
-      IF (ch = " ") OR (ch = 9X) OR (ch = "#") OR (ch = ":") OR (ch = "\") THEN Files.Write(R, "\") END;
+      IF (ch = " ") OR (ch = 9X) OR (ch = "#") OR (ch = "\") THEN Files.Write(R, "\") END;
       Files.Write(R, ch)
     END; INC(i)
   END
@@ -79,9 +79,10 @@ BEGIN IF first # NIL THEN
     Line("OCG_RUNTIME_PATH := ."); Line("endif");
     Line("OCG_RUNTIME_HEADER := $(OCG_RUNTIME_PATH)/ocg_runtime.h");
     Line("ocg_empty :="); Line("ocg_space := $(ocg_empty) $(ocg_empty)");
-    Line("OCG_RUNTIME_DEP := $(subst $(ocg_space),\$(ocg_space),$(subst :,\:,$(OCG_RUNTIME_HEADER)))");
+    Line("OCG_RUNTIME_DEP := $(subst $(ocg_space),\$(ocg_space),$(OCG_RUNTIME_HEADER))");
     Line("ocg_shell_quote = '$(subst ','\'',$(1))'");
     Line('OCG_RUNTIME_CPPFLAGS := -DOCG_RUNTIME_HEADER=$(call ocg_shell_quote,"$(OCG_RUNTIME_HEADER)")');
+    (* Shell quoting preserves literal colons in the compiler path. *)
     Write("ORPC ?= "); Args.GetArg(0, exe); Quoted(exe); Ln;
     (* Keep the user's original short command argument and option suffix.
        Resolved ORPRED paths can exceed the command scanner's token limit. *)

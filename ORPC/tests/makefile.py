@@ -256,17 +256,35 @@ for folder in ['src space', 'src#hash', 'src$cash', "src'quote"]:
         for path in (root / 'tests/build').glob('Build*.Mod'):
             shutil.copy(path, source_dir / path.name)
         shutil.copy(root / 'ocg_runtime.h', work)
-        (work / 'bin space').mkdir()
-        local_compiler = work / 'bin space/ORPC'
+        (work / 'bin: space').mkdir()
+        local_compiler = work / 'bin: space/ORPC'
         shutil.copy(compiler, local_compiler)
         prepare_recorder(work)
         argument = f'"{folder}/BuildMain.Mod"/b'
         run([str(local_compiler), 'Compile', argument])
+        generated = (work / 'BuildMain.mk').read_text()
+        definition = next(line for line in generated.splitlines() if line.startswith('ORPC ?='))
+        assert 'bin: space/ORPC' in definition and '\\:' not in definition, definition
+        dependency = next(line for line in generated.splitlines() if line.startswith('OCG_RUNTIME_DEP :='))
+        assert '\\:' not in dependency, dependency
         run(command)
         run(['./BuildMain'])
         edit(f'{folder}/BuildBase.Mod', 'INC(order)', 'order := order+1')
         run(command)
         run(['./BuildMain'])
+
+# Path() preserves colons in both SOURCES and the emitted source rules.
+with tempfile.TemporaryDirectory() as directory:
+    work = Path(directory)
+    (work / 'src:colon').mkdir()
+    for path in (root / 'tests/build').glob('Build*.Mod'):
+        shutil.copy(path, work / 'src:colon' / path.name)
+    run([compiler, 'Compile', '"src:colon/BuildMain.Mod"/b'])
+    generated = (work / 'BuildMain.mk').read_text()
+    sources = next(line for line in generated.splitlines() if line.startswith('SOURCES :='))
+    assert 'src:colon/BuildMain.Mod' in sources and '\\:' not in sources, sources
+    assert 'src:colon/BuildMain.Mod:\n' in generated
+    assert 'src\\:colon' not in generated
 
 print('PASS: generated makefile, executable name, parallel/no-op builds, compiler-call tracking, stable outputs, '
       'body/interface/C/header edits, transitive dependencies, graph updates, clean/clobber, escaped paths, and failure handling')
