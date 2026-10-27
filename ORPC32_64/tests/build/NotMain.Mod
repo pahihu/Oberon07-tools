@@ -1,0 +1,2 @@
+MODULE NotMain;
+END NotMain.

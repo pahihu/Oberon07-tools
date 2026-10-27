@@ -1,0 +1,17 @@
+# Place these sources beside ORS.Mod and BIF07.Mod in Oberon07-tools/Oberon07.
+O2C ?= o2c
+O2CFLAGS ?= -M
+# The repository's .env normally supplies DYNEXPORT. Linux needs exported
+# command symbols for Oberon.Run/Modules.ThisCommand.
+ifeq ($(origin DYNEXPORT),undefined)
+  ifeq ($(shell uname -s),Linux)
+    DYNEXPORT = --ldflags -Wl,--export-dynamic
+  endif
+endif
+.PHONY: all test
+all: ORPC
+ORPC: ORPC.Mod OCG.Mod OCB.Mod OCGPos.Mod OCGBuild.Mod OCGMake.Mod OCGFiles.Mod OCGTarget.Mod ORS.Mod BIF07.Mod
+	$(O2C) $(O2CFLAGS) $(DYNEXPORT) ORPC
+
+test: ORPC
+	./tests/run.sh "$(CURDIR)/ORPC"

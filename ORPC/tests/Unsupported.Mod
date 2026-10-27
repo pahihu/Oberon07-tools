@@ -1,0 +1,5 @@
+MODULE Unsupported;
+IMPORT SYSTEM;
+VAR x: INTEGER;
+BEGIN x := SYSTEM.REG(1)
+END Unsupported.
