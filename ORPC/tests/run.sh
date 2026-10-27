@@ -23,7 +23,7 @@ ASAN_OPTIONS=detect_leaks=0 ./checks
 $cc $flags Traps.c o7traps.c -lm -o o7traps
 for n in 0 1 2 3 4 5 6; do
   if ASAN_OPTIONS=detect_leaks=0 ./o7traps "$n" > trap.log 2>&1; then echo "trap $n did not fire"; exit 1; fi
-  if ! grep -q 'Oberon trap:' trap.log; then cat trap.log; echo "unexpected crash in trap $n"; exit 1; fi
+  if ! grep -Eq 'Oberon trap: .* in module Traps at position [0-9]+' trap.log; then cat trap.log; echo "unexpected crash or missing source position in trap $n"; exit 1; fi
 done
 "$compiler" Compile Unsupported.Mod/s > unsupported.log 2>&1 || :
 if test -e Unsupported.c; then echo "RISC intrinsic incorrectly accepted"; exit 1; fi
@@ -47,5 +47,7 @@ python3 "$root/tests/anonymous.py" "$compiler"
 python3 "$root/tests/recordassignment.py" "$compiler"
 
 python3 "$root/tests/native.py" "$compiler"
+
+python3 "$root/tests/positions.py" "$compiler"
 
 python3 "$root/tests/cortex.py" "$compiler"

@@ -81,6 +81,21 @@ PROCEDURE Invoke(name: ARRAY OF CHAR; a, b: Text): Text;
   VAR t: Text;
 BEGIN t := Cat(S(name), Wrap("(", a, ""));
   IF b # NIL THEN t := Cat(C(t, ", "), b) END;
+  (* Capture scanner metadata in each check, before delayed expression output.
+     Explicit arguments survive nested calls and interrupt handlers. *)
+  IF (name = "ocg_fail") OR (name = "ocg_assert") OR (name = "ocg_nonnull") OR
+    (name = "ocg_alloc") OR (name = "ocg_recordcopy") OR (name = "ocg_recordassign") OR
+    (name = "ocg_arraycopy") OR (name = "ocg_addv") OR (name = "ocg_subv") OR
+    (name = "ocg_mulv") OR (name = "ocg_div") OR (name = "ocg_mod") OR
+    (name = "ocg_index") OR (name = "ocg_single") OR (name = "ocg_range") OR
+    (name = "ocg_abs") OR (name = "ocg_floor") OR (name = "ocg_string") OR
+    (name = "ocg_bytes") OR (name = "ocg_bit") THEN
+    IF name # "ocg_fail" THEN
+      t := Cat(S(name), Wrap("_at(", a, ""));
+      IF b # NIL THEN t := Cat(C(t, ", "), b) END
+    END;
+    t := Cat(C(Cat(C(t, ', "'), S(moduleName)), '", '), N(ORS.Pos()))
+  END;
   RETURN C(t, ")")
 END Invoke;
 PROCEDURE Emit(t: Text);
@@ -567,7 +582,7 @@ BEGIN t := S("");
     t := Cat(t, C(Cat(Wrap("if (", cond, ") goto ocg_L"), N(tab[i].label)), ";")); t := Cat(t, S(0AX));
     code[tab[i].label].used := TRUE
   END;
-  IF L1 = 0 THEN t := C(t, 'ocg_fail("CASE");' )
+  IF L1 = 0 THEN t := Cat(t, C(Invoke("ocg_fail", S('"CASE"'), NIL), ";"))
   ELSE t := C(Cat(C(t, "goto ocg_L"), N(L1)), ";"); code[L1].used := TRUE END;
   code[L0].text := t
 END CaseTail;

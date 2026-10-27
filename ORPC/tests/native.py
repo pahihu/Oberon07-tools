@@ -35,9 +35,6 @@ if os.environ.get('SANITIZE') == '1':
 with tempfile.TemporaryDirectory() as directory:
     work = Path(directory)
     shutil.copy(root / 'ocg_runtime.h', work)
-    with (work / 'ocg_runtime.h').open('a') as stream:
-        stream.write('\n#define ocg_assert(b) ((b) ? (void)0 : '
-                     '(fprintf(stderr,"failed: %s\\n",#b),ocg_fail("ASSERT/type guard")))\n')
     (work / 'NativeBase.Mod').write_text(f'''MODULE NativeBase;
 IMPORT SYSTEM;
 CONST Max* = {maximum_hex}; Min* = {minimum_hex}; Large* = {large};

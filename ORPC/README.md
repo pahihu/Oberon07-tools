@@ -563,3 +563,5 @@ ORPC and OCB derive from the uploaded `orp.zip`; ORS is the user's updated
 scanner supplied with the underscore change, extended for native numeric literals. Support modules come from the
 supplied repository. Original author/provenance comments are
 retained in the adapted source files.
+
+Runtime traps report the module name and scanner file position (`ORS.Pos()`, a character offset, not a line number). Generated checks pass this metadata explicitly to the runtime, including nested expressions and checks in imported modules. For example: `Oberon trap: index in module Main at position 123`. Rebuild ORPC and regenerate C files when updating the runtime. Cortex board code can define `OCG_TRAP_AT(reason,module,position)` to receive the same metadata; the existing `OCG_TRAP(reason)` hook remains supported.
