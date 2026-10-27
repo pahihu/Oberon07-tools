@@ -117,7 +117,8 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     REPEAT
       IF i < IdLen-1 THEN id[i] := ch; INC(i) END ;
       Texts.Read(R, ch)
-    UNTIL (ch < "0") OR (ch > "9") & (ch < "A") OR (ch > "Z") & (ch < "a") OR (ch > "z");
+    (*UNTIL (ch < "0") OR (ch > "9") & (ch < "A") OR (ch > "Z") & (ch < "a") OR (ch > "z");*)
+    UNTIL ~(("0" <= ch) & (ch <= "9") OR (ch = "_") OR ("A" <= ch) & (ch <= "Z") OR ("a" <= ch) & (ch <= "z"));
     id[i] := 0X; 
     IF i < 10 THEN k := KWX[i-1];  (*search for keyword*)
       WHILE (id # keyTab[k].id) & (k < KWX[i]) DO INC(k) END ;
