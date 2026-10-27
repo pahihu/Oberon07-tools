@@ -26,6 +26,10 @@ MODULE System;
   BEGIN RETURN SHORT(x);
   END Short;
 
+  PROCEDURE Long*(x: INT32): LONGINT;
+  BEGIN RETURN LONG(x);
+  END Long;
+
   PROCEDURE ReadByte*(VAR R: Files.Rider; VAR x: Byte);
     VAR ch: CHAR;
   BEGIN Files.Read(R, ch); x := SHORT(ORD(ch));

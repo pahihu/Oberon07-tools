@@ -11,7 +11,7 @@ endif
 .PHONY: all test
 all: ORPC
 ORPC: ORPC.Mod OCG.Mod OCB.Mod OCGPos.Mod OCGBuild.Mod OCGMake.Mod OCGFiles.Mod OCGTarget.Mod ORS.Mod BIF07.Mod
-	$(O2C) $(O2CFLAGS) $(DYNEXPORT) ORPC
+	$(O2C) $(O2CFLAGS) $(DYNEXPORT) ORPC | o2ef
 
 test: ORPC
 	./tests/run.sh "$(CURDIR)/ORPC"

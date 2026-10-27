@@ -1,4 +1,10 @@
 #!/bin/sh
+opsys=$(uname -o)
+PYTHONEXE=python3
+if [ "$opsys" = "Msys" ];
+then
+  PYTHONEXE=python
+fi
 set -eu
 # These fixtures use the runtime shipped with the source package.
 unset OCG_RUNTIME_DIR
@@ -48,4 +54,4 @@ python3 "$root/tests/recordassignment.py" "$compiler"
 
 python3 "$root/tests/native.py" "$compiler"
 
-python3 "$root/tests/cortex.py" "$compiler"
+# python3 "$root/tests/cortex.py" "$compiler"

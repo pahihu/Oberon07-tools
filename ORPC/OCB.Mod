@@ -186,7 +186,7 @@ MODULE OCB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
     IF Target.WordSize = 8 THEN
       Files.ReadInt(R, high);
       IF value < 0 THEN value := value+MAX(Sys.INT32); value := value+MAX(Sys.INT32)+2 END;
-      value := value + SYSTEM.LSH(LONG(high), 4*Target.WordSize)
+      value := value + SYSTEM.LSH(Sys.Long(high), 4*Target.WordSize)
     END
   END ReadNative;
   PROCEDURE WriteNative(VAR R: Files.Rider; value: Target.Int);

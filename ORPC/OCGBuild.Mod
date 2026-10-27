@@ -1,9 +1,11 @@
 MODULE OCGBuild;
 (* Import-header prepass. Collect finishes before the parser is invoked, so
    neither recursive graph traversal nor compilation suspends ORS's scanner. *)
-IMPORT Texts, Oberon, ORS;
+IMPORT Texts, Oberon, ORS, Sys := System;
 CONST maxModules = 1024;
 TYPE
+  INTEGER = Sys.INT32;
+  LONGINT = Sys.INT32;
   Edge* = POINTER TO EdgeDesc;
   EdgeDesc* = RECORD name*: ORS.Ident; next*: Edge END;
   Node* = POINTER TO NodeDesc;
