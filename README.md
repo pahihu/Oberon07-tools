@@ -23,7 +23,7 @@ Embedded compiler options
 * $S - allow new symbol file
 * $T - type guard check
 * $V - overflow check (default disabled)
-* $X - index/unmatched CASE/array/string length check
+* $X - index, unmatched CASE, array/string length check
 
 Traps
 | trap number | compiler option | description           |
