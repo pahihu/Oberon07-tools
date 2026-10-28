@@ -108,8 +108,8 @@ ErrOut:
 
 void host_coro_transfer(long *p_from, long p_to)
 {
-  ucontext_t from = (ucontext_t *)(*p_from);
-  const ucontext_t to = (const ucontext_t *)(p_to);
+  ucontext_t *from = (ucontext_t *)(*p_from);
+  const ucontext_t *to = (const ucontext_t *)(p_to);
 
   assert(from != NULL && to != NULL);
   assert(from != to);
