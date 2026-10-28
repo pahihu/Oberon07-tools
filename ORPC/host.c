@@ -1,7 +1,6 @@
 #ifdef __WINNT
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0600
-#warning _WIN32_WINNT was not defined
 #endif
 #define WIN32_LEAN_AND_MEAN 1
 #include <windows.h>
@@ -21,7 +20,7 @@ int host_putchar(uint8_t ch)
 
 static struct timeval T0;
 
-long host_time(void)
+ocg_int host_time(void)
 {
   static int init = 0;
   struct timeval T1;
@@ -34,7 +33,7 @@ long host_time(void)
   return 1000 * (T1.tv_sec - T0.tv_sec) + (T1.tv_usec - T0.tv_usec) / 1000;
 }
 
-long host_utime(void)
+ocg_int host_utime(void)
 {
   static int init = 0;
   struct timeval T1;
@@ -55,7 +54,7 @@ long host_utime(void)
 
 ucontext_t main_ctx;
 
-long host_coro_current(long *coro)
+ocg_int host_coro_current(ocg_int *coro)
 {
   static int init = 0;
   int err;
@@ -69,11 +68,11 @@ long host_coro_current(long *coro)
       return err;
     }
   }
-  *coro = (long) &main_ctx;
+  *coro = (ocg_int) &main_ctx;
   return 0;
 }
 
-long host_coro_new(void (*proc)(void), uint8_t *stk, long stksize, long *coro)
+ocg_int host_coro_new(void (*proc)(void), uint8_t *stk, ocg_int stksize, ocg_int *coro)
 {
   const char *where;
   ucontext_t *ctx;
@@ -98,7 +97,7 @@ long host_coro_new(void (*proc)(void), uint8_t *stk, long stksize, long *coro)
 
   makecontext(ctx, proc, 0);
 
-  *coro = (long) ctx;
+  *coro = (ocg_int) ctx;
   return 0;
 ErrOut:
   fprintf(stderr, "host_coro_new: %s failed %s\n", where, strerror(err));
@@ -106,7 +105,7 @@ ErrOut:
   return err;
 }
 
-void host_coro_transfer(long *p_from, long p_to)
+void host_coro_transfer(ocg_int *p_from, ocg_int p_to)
 {
   ucontext_t *from = (ucontext_t *)(*p_from);
   const ucontext_t *to = (const ucontext_t *)(p_to);
@@ -136,27 +135,27 @@ void coro_finish(void)
   ConvertFiberToThread();
 }
 
-long host_coro_current(long *coro)
+ocg_int host_coro_current(ocg_int *coro)
 {
   static int init = 0;
 
   if (!init) {
     main_co.fiber = ConvertThreadToFiberEx(NULL, FIBER_FLAG_FLOAT_SWITCH);
     if (!main_co.fiber) {
-        long err = GetLastError();
+        ocg_int err = GetLastError();
         fprintf(stderr, "ConvertThreadToFiberEx failed: %lu\n",
-                (unsigned long)err);
+                (ocg_uint)err);
         *coro = 0;
         return err;
     }
     init = 0;
     atexit(coro_finish);
   }
-  *coro = (long)&main_co;
+  *coro = (ocg_int)&main_co;
   return 0;
 }
 
-void host_coro_transfer(long *p_from, long p_to)
+void host_coro_transfer(ocg_int *p_from, ocg_int p_to)
 {
   coroutine *from = (coroutine *)(*p_from);
   coroutine *to = (coroutine *)(p_to);
@@ -187,11 +186,11 @@ static VOID WINAPI coroutine_entry(LPVOID arg)
 }
 
 /* Returns zero on success; GetLastError() on failure. */
-long host_coro_new(void (*proc)(void), uint8_t *stk, long stksize, long *coro)
+ocg_int host_coro_new(void (*proc)(void), uint8_t *stk, ocg_int stksize, ocg_int *coro)
 {
   const char *where;
   coroutine *self;
-  long err;
+  ocg_int err;
 
   self = (coroutine *) malloc(sizeof(coroutine));
   if (!self) {
@@ -210,17 +209,17 @@ long host_coro_new(void (*proc)(void), uint8_t *stk, long stksize, long *coro)
     free(self);
     goto ErrOut;
   }
-  *coro = (long) self;
+  *coro = (ocg_int) self;
   return 0;
 
 ErrOut:
-  fprintf(stderr, "host_coro_new: %s failed %lu\n", (unsigned long)err);
+  fprintf(stderr, "host_coro_new: %s failed %lu\n", (ocg_uint)err);
   *coro = 0;
   return err;
 }
 
 /* Never destroy the currently executing coroutine. */
-void host_coro_destroy(long *coro)
+void host_coro_destroy(ocg_int *coro)
 {
   coroutine *self = (coroutine *)(*coro);
   assert(self->fiber != GetCurrentFiber());
