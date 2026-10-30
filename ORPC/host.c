@@ -18,6 +18,11 @@ int host_putchar(uint8_t ch)
   return putchar(ch);
 }
 
+uint8_t host_getchar()
+{
+  return getchar();
+}
+
 static struct timeval T0;
 
 ocg_int host_time(void)
