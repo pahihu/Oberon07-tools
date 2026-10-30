@@ -1402,22 +1402,33 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE Shift*(fct: LONGINT; VAR x, y: Item);
     VAR op: LONGINT;
         xr: LONGINT;
-  BEGIN xr := loadXR(x);
-    IF fct = 0 THEN op := Lsl ELSIF fct = 1 THEN op := Asr ELSE op := Ror END ;
-    IF y.mode = ORB.Const THEN
-      Put1(op, xr, x.r, y.a MOD 20H);
-      IF fct = 14 THEN (*LSR*)
-        Put1(Lsl, xr, xr,  y.a MOD 20H);
-        Put1(op,  xr, xr,  y.a MOD 20H)
-      END ;
-      SetXR(x, xr)
-    ELSE load(y);
-      Put0(op, RH-2, x.r, y.r);
-      IF fct = 14 THEN (*LSR*)
-        Put0(Lsl, RH-2, RH-2, y.r);
-        Put0(op, RH-2, RH-2, y.r)
-      END ;
-      DEC(RH); x.r := RH-1
+  BEGIN
+    IF (x.mode = ORB.Const) & (y.mode = ORB.Const) THEN
+      IF fct = 0 THEN x.a := BIF07.LSL(x.a, y.a MOD 20H)
+      ELSIF fct = 1 THEN x.a := BIF07.ASR(x.a, y.a MOD 20H)
+      ELSE x.a := BIF07.ROR(x.a, y.a MOD 20H);
+        IF fct = 14 THEN
+          x.a := BIF07.LSL(x.a, y.a MOD 20H);
+          x.a := BIF07.ROR(x.a, y.a MOD 20H)
+        END
+      END
+    ELSE xr := loadXR(x);
+      IF fct = 0 THEN op := Lsl ELSIF fct = 1 THEN op := Asr ELSE op := Ror END ;
+      IF y.mode = ORB.Const THEN
+        Put1(op, xr, x.r, y.a MOD 20H);
+        IF fct = 14 THEN (*LSR*)
+          Put1(Lsl, xr, xr,  y.a MOD 20H);
+          Put1(op,  xr, xr,  y.a MOD 20H)
+        END ;
+        SetXR(x, xr)
+      ELSE load(y);
+        Put0(op, RH-2, x.r, y.r);
+        IF fct = 14 THEN (*LSR*)
+          Put0(Lsl, RH-2, RH-2, y.r);
+          Put0(op, RH-2, RH-2, y.r)
+        END ;
+        DEC(RH); x.r := RH-1
+      END
     END
   END Shift;
 
