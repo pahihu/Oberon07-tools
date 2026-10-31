@@ -1,2 +1,0 @@
-MODULE SomethingElse;
-END SomethingElse.

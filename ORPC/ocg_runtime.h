@@ -89,21 +89,21 @@ static inline void ocg_arraycopy_at(void *dst,ocg_int nd,const void *src,ocg_int
   if(ns) memmove(dst,src,(size_t)ns*element_size);
 }
 static inline ocg_int ocg_add(ocg_int a,ocg_int b) {
-#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_HWCC)
+#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_SWCC)
   return ocg_arm_add(a,b,0);
 #else
   return (ocg_int)((ocg_uint)a+(ocg_uint)b);
 #endif
 }
 static inline ocg_int ocg_sub(ocg_int a,ocg_int b) {
-#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_HWCC)
+#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_SWCC)
   return ocg_arm_sub(a,b,1);
 #else
   return (ocg_int)((ocg_uint)a-(ocg_uint)b);
 #endif
 }
 static inline ocg_int ocg_mul(ocg_int a,ocg_int b) {
-#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_HWCC)
+#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_SWCC)
   return ocg_arm_mul(a,b);
 #else
   return (ocg_int)((ocg_uint)a*(ocg_uint)b);
@@ -151,21 +151,21 @@ static inline uint32_t ocg_set_ror(uint32_t x,ocg_int n) {
   unsigned k=(ocg_uint)n&31; return (x>>k)|(x<<((32-k)&31));
 }
 static inline ocg_int ocg_lsl(ocg_uint x,ocg_int n) {
-#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_HWCC)
+#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_SWCC)
   return ocg_arm_shift((uint32_t)x,n,0);
 #else
   return (ocg_int)(x<<((ocg_uint)n&(OCG_WORD_BITS-1)));
 #endif
 }
 static inline ocg_int ocg_lsr(ocg_uint x,ocg_int n) {
-#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_HWCC)
+#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_SWCC)
   return ocg_arm_shift((uint32_t)x,n,14);
 #else
   return (ocg_int)(x>>((ocg_uint)n&(OCG_WORD_BITS-1)));
 #endif
 }
 static inline ocg_int ocg_asr(ocg_uint x,ocg_int n) {
-#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_HWCC)
+#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_SWCC)
   return ocg_arm_shift((uint32_t)x,n,1);
 #else
   unsigned k=(ocg_uint)n&(OCG_WORD_BITS-1); ocg_uint v=x>>k;
@@ -174,7 +174,7 @@ static inline ocg_int ocg_asr(ocg_uint x,ocg_int n) {
 #endif
 }
 static inline ocg_int ocg_ror(ocg_uint x,ocg_int n) {
-#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_HWCC)
+#if defined(OCG_CORTEX_M) && defined(OCG_CORTEX_M_SWCC)
   return ocg_arm_shift((uint32_t)x,n,2);
 #else
   unsigned k=(ocg_uint)n&(OCG_WORD_BITS-1);
