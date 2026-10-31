@@ -9,9 +9,10 @@ TGT=$1
 BIN=$TGT.bin
 
 ARMGNU=arm-none-eabi
+RTDIR=${OCG_RUNTIME_DIR}/cortexm
 
 ${ARMGNU}-objdump -D $TGT > $TGT.list
 ${ARMGNU}-objdump -t $TGT > $TGT.map
-awk -f ${O7DIR}/ORPC/cortexm/map2sym.awk $TGT.map > $TGT.sym
+awk -f ${RTDIR}/map2sym.awk $TGT.map > $TGT.sym
 ${ARMGNU}-objcopy $TGT $BIN -O binary
 ls -l $BIN

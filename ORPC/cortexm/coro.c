@@ -1,5 +1,6 @@
 /* coro.c -- Arm GNU Toolchain, Thumb mode */
 #include "coro.h"
+#include "ocg_runtime.h"
 #include <stddef.h>
 
 /*
@@ -16,6 +17,8 @@
 #define CORO_FP_RESTORE ""
 #endif
 
+static coroutine_t main_co;
+
 /*
  * r4 initially contains proc.
  * If proc returns, this coroutine stops here permanently.
@@ -27,6 +30,12 @@ static void coro_entry(void)
         "blx r4\n"
         "1: b 1b\n"
     );
+}
+
+int coro_current(ocg_int *coro)
+{
+    *coro = (ocg_int)&main_co;
+    return 0;
 }
 
 __attribute__((naked, noinline))

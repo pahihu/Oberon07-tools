@@ -11,7 +11,8 @@ else
 fi
 echo "MAIN=$MAIN"
 echo " TGT=$TGT"
-make -f $MAIN.mk EXTRA_OBJS=$OCG_RUNTIME_DIR/host/host.o $TGT
+RTDIR=${OCG_RUNTIME_DIR}/host
+make -f $MAIN.mk EXTRA_OBJS=$RTDIR/host.o $TGT
 if [ "$TGT" = "clobber" ];
 then
   rm -f *.log Oberon.Log

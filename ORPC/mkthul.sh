@@ -3,10 +3,10 @@ unset LDFLAGS
 unset CPPFLAGS
 ###
 MAIN=$1
-shift
-if [ -s $MAIN.mk ];
+if [ -s "$MAIN.mk" ];
 then
-  TGT=$1
+  shift
+  TGT=$2
 else
   TGT=$MAIN
   MK=$(ls *.mk | head -1)
@@ -14,8 +14,10 @@ else
 fi
 echo "MAIN=$MAIN"
 echo " TGT=$TGT"
+echo "$*"
 ###
-make -f $MAIN.mk LDSCRIPT=$OCG_RUNTIME_DIR/cortexm/memmap.gnu STARTUP_OBJS=$OCG_RUNTIME_DIR/cortexm/vectors.o $TGT
+RTDIR=${OCG_RUNTIME_DIR}/cortexm
+make -f $MAIN.mk LDSCRIPT=$RTDIR/memmap.gnu EXTRA_OBJS=$RTDIR/coro.o STARTUP_OBJS=$RTDIR/vectors.o "$*"
 if [ "X$TGT" = "X" ];
 then
   elf2bin.sh $MAIN

@@ -18,8 +18,11 @@
 .word   hang        /* 12 Debug Monitor */
 .word   hang        /* 13 RESERVED */
 .word   hang        /* 14 PendSV */
+.ifdef  OCG_IRQ_15_Handler
 .word   OCG_IRQ_15_Handler        /* 15 SysTick */
-/*.word   hang        15 SysTick */
+.else
+.word   hang        /* 15 SysTick */
+.endif
 .word   hang        /* 16 External Interrupt(0) */
 .word   hang        /* 17 External Interrupt(1) */
 .word   hang        /* 18 External Interrupt(2) */
