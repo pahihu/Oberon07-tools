@@ -18,7 +18,7 @@
 .word   hang        /* 12 Debug Monitor */
 .word   hang        /* 13 RESERVED */
 .word   hang        /* 14 PendSV */
-.ifdef  OCG_IRQ_15_Handler
+.if HAVE_OCG_IRQ_15_Handler
 .word   OCG_IRQ_15_Handler        /* 15 SysTick */
 .else
 .word   hang        /* 15 SysTick */

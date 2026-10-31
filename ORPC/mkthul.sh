@@ -1,4 +1,5 @@
 #!/bin/bash
+opsys=$(uname -o)
 unset LDFLAGS
 unset CPPFLAGS
 ###
@@ -13,18 +14,53 @@ else
   MAIN=$(basename $MK .mk)
 fi
 ARGS=$*
-echo "MAIN=$MAIN"
-echo " TGT=$TGT"
-echo "ARGS=$*"
+###
+SYSTICK=$(grep -q Timers *.Mod && echo 1 || echo 0)
+MAINDBG=$(grep -q MainDebug *.Mod && echo 1 || echo 0)
+###
+echo "----------------"
+echo "MAIN   =$MAIN"
+echo "TGT    =$TGT"
+echo "ARGS   =$*"
+echo "SYSTICK=$SYSTICK"
+echo "MAINDBG=$MAINDBG"
+echo "----------------"
 ###
 RTDIR=${OCG_RUNTIME_DIR}/cortexm
+CPPRTDIR=$RTIDR
+if [ "$opsys" = "Msys" ];
+then
+  CPPRTDIR=$(echo $RTDIR | cut -c 3-)
+fi
+###
+rm -f $RTDIR/vectors.o
+###
+if [ $MAINDBG -eq 1 ];
+then
+  CPPFLAGS="-include $CPPRTDIR/ocg_trap_decl.h"
+else
+  CPPFLAGS=""
+fi
+###
 if [ -z "$ARGS" ];
 then
-  make -f $MAIN.mk LDSCRIPT=$RTDIR/memmap.gnu EXTRA_OBJS=$RTDIR/coro.o STARTUP_OBJS=$RTDIR/vectors.o
+  make -f $MAIN.mk \
+	  LDSCRIPT=$RTDIR/memmap.gnu \
+	  EXTRA_OBJS=$RTDIR/coro.o \
+	  STARTUP_OBJS=$RTDIR/vectors.o \
+	  ASFLAGS="-Wa,--defsym,HAVE_OCG_IRQ_15_Handler=$SYSTICK" \
+	  CPPFLAGS="$CPPFLAGS"
 else
-  make -f $MAIN.mk LDSCRIPT=$RTDIR/memmap.gnu EXTRA_OBJS=$RTDIR/coro.o STARTUP_OBJS=$RTDIR/vectors.o "$ARGS"
+  make -f $MAIN.mk \
+	  LDSCRIPT=$RTDIR/memmap.gnu \
+	  EXTRA_OBJS=$RTDIR/coro.o \
+	  STARTUP_OBJS=$RTDIR/vectors.o \
+	  ASFLAGS="-Wa,--defsym,HAVE_OCG_IRQ_15_Handler=$SYSTICK" \
+	  CPPFLAGS="$CPPFLAGS" \
+	  "$ARGS"
 fi
-if [ "X$TGT" = "X" ];
+###
+if [ -s "$MAIN" ] && [ ! -s "$MAIN.bin" -o "$MAIN.bin" -ot "$MAIN" ];
 then
   elf2bin.sh $MAIN
 fi
