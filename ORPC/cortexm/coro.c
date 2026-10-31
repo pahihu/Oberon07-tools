@@ -32,9 +32,9 @@ static void coro_entry(void)
     );
 }
 
-int coro_current(ocg_int *coro)
+int coro_current(coroutine_t **coro)
 {
-    *coro = (ocg_int)&main_co;
+    *coro = &main_co;
     return 0;
 }
 

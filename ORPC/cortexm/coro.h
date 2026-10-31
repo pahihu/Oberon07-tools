@@ -8,6 +8,7 @@ typedef struct {
     uint32_t *sp;
 } coroutine_t;
 
+int coro_current(coroutine_t **coro);
 int coro_new(void (*proc)(void),
              uint8_t *stk, long stksize,
              coroutine_t **coro);
