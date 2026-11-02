@@ -18,6 +18,9 @@
 #endif
 #endif
 _Static_assert(sizeof(void *)==4 && sizeof(ocg_int)==4, "Cortex-M scalar ABI");
+#ifndef OCG_CORTEX_M_CC
+#define OCG_CORTEX_M_CC   1
+#endif
 #define OCG_INTERRUPT __attribute__((interrupt("IRQ"),used,externally_visible))
 typedef struct { uint32_t apsr, high; } ocg_arm_state;
 /* Identical weak definitions coalesce into one shared GNU ELF symbol. */

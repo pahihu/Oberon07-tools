@@ -54,7 +54,7 @@ Register allocated parameters, local variables are available in the numeric CASE
 * /b option builds the main module based hierarchy and generates a Makefile
 * supports cross-compiling with the Arm GNU Toolchain for Cortex-M0/M3/M4/M7 processors (/m{0347} option)
 * register access and interrupt handling procedures for Cortext-M series
-* Cortex-M series supports preserving CPU flags. This introduces a significant run-time penalty you can turn on with defining OCG_CORTEX_M_SWCC
+* Cortex-M series backend preserves/emulates CPU condition flags. This introduces a significant run-time penalty you can turn it off with defining OCG_CORTEX_M_CC=0
 
 Previous versions are in `ORPC/old` directory.  Runtime port in-progress.
 

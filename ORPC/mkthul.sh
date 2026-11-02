@@ -3,6 +3,21 @@ opsys=$(uname -o)
 unset LDFLAGS
 unset CPPFLAGS
 ###
+i=1
+CC=1
+while [ $i -le $# ];
+do
+    eval "value=\$$i"
+    case "$value" in
+    -nocc)
+        CPPFLAGS="-DOCG_CORTEX_M_CC=0"
+        CC=0
+        shift
+        ;;
+    esac
+    i=$(expr $i + 1)
+done
+###
 MAIN=$1
 if [ -s "$MAIN.mk" ];
 then
@@ -22,6 +37,7 @@ echo "----------------"
 echo "MAIN   =$MAIN"
 echo "TGT    =$TGT"
 echo "ARGS   =$*"
+echo "CC     =$CC"
 echo "SYSTICK=$SYSTICK"
 echo "MAINDBG=$MAINDBG"
 echo "----------------"
@@ -37,9 +53,9 @@ rm -f $RTDIR/vectors.o
 ###
 if [ $MAINDBG -eq 1 ];
 then
-  CPPFLAGS="-include $CPPRTDIR/ocg_trap_decl.h"
+  CPPFLAGS="-include $CPPRTDIR/ocg_trap_decl.h $CPPFLAGS"
 else
-  CPPFLAGS=""
+  CPPFLAGS="$CPPFLAGS"
 fi
 ###
 if [ -z "$ARGS" ];
