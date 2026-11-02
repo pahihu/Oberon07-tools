@@ -283,7 +283,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
   END ParamList;
 
   PROCEDURE StandFunc(VAR x: ORG.Item; fct: LONGINT; restyp: ORB.Type);
-    VAR y: ORG.Item; n, npar: LONGINT;
+    VAR y: ORG.Item; n, npar: LONGINT; typs: SET;
   BEGIN Check(ORS.lparen, "no (");
     npar := fct MOD 10; fct := fct DIV 10; expression(x); n := 1;
     WHILE sym = ORS.comma DO ORS.Get(sym); expression(y); INC(n) END ;
@@ -295,6 +295,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
       ELSIF fct = 2 THEN (*FLOOR*) CheckReal(x); ORG.Floor(x)
       ELSIF fct = 3 THEN (*FLT*) CheckInt(x); ORG.Float(x)
       ELSIF fct = 4 THEN (*ORD*)
+        IF astrobe THEN typs := {ORB.Byte, ORB.Bool, ORB.Char, ORB.Set} ELSE typs := {0..ORB.Proc} END ;
         IF x.type.form <= ORB.Proc THEN ORG.Ord(x)
         ELSIF (x.type.form = ORB.String) & (x.b = 2) THEN ORG.StrToChar(x)
         ELSE ORS.Mark("bad type")
