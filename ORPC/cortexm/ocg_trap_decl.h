@@ -7,4 +7,5 @@ void O_MainDebug_ReportError(int32_t O_MainDebug_2_why, int32_t O_MainDebug_2_mo
 
 #define OCG_TRAP_AT(why,module,position) \
 	O_MainDebug_ReportError((int32_t)why,(int32_t)module,position)
+
 #endif

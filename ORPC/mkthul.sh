@@ -43,7 +43,7 @@ echo "MAINDBG=$MAINDBG"
 echo "----------------"
 ###
 RTDIR=${OCG_RUNTIME_DIR}/cortexm
-CPPRTDIR=$RTIDR
+CPPRTDIR=$RTDIR
 if [ "$opsys" = "Msys" ];
 then
   CPPRTDIR=$(echo $RTDIR | cut -c 3-)
@@ -51,6 +51,7 @@ fi
 ###
 rm -f $RTDIR/vectors.o
 ###
+CPPFLAGS="-fno-delete-null-pointer-checks $CPPFLAGS"
 if [ $MAINDBG -eq 1 ];
 then
   CPPFLAGS="-include $CPPRTDIR/ocg_trap_decl.h $CPPFLAGS"
