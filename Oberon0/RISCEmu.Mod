@@ -6,7 +6,7 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     TAB = 09X;
     NN* = 8; ZZ* = 4; CC* = 2; VV* = 1;
     INTE* = 8; INTP* = 4; INTM* = 1;
-    NumCmds = 10; LF = 0AX;
+    NumCmds = 11; LF = 0AX;
     TraceLen = 32;
 
   TYPE
@@ -159,9 +159,10 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     Ln(W); String(W, "dump [from] [len]      - dump (from=PC,len=24)");
     Ln(W); String(W, "help                   - print help");
     Ln(W); String(W, "history                - show instruction history");
+    Ln(W); String(W, "next [n]               - step over instructions (n=1)");
     Ln(W); String(W, "quit                   - quit");
     Ln(W); String(W, "regs                   - show regs");
-    Ln(W); String(W, "step [n]               - step instructions (n=1)")
+    Ln(W); String(W, "step [n]               - step into instructions (n=1)")
   END CmdHelp;
 
   PROCEDURE CmdQuit(nofArgs: INTEGER; VAR args: ARRAY OF INTEGER);
@@ -175,6 +176,14 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
     rs.step := args[0];
     cmdEndLoop := TRUE
   END CmdStep;
+
+  PROCEDURE CmdNext(nofArgs: INTEGER; VAR args: ARRAY OF INTEGER);
+  BEGIN
+    (*Ln(W); String(W, "next="); Int(W, args[0], 0); Flush(W);*)
+    IF args[0] = -1 THEN args[0] := 1 END ;
+    rs.brkpt := rs.PC + args[0];
+    cmdEndLoop := TRUE
+  END CmdNext;
 
   PROCEDURE SamePrefix(d, s: ARRAY OF CHAR): BOOLEAN;
     VAR i, n, m: INTEGER;
@@ -367,6 +376,7 @@ BEGIN verbose := TRUE; hexDigits := "0123456789ABCDEF";
   AddCmd("quit", 0, CmdQuit);
   AddCmd("regs", 0, CmdRegs);
   AddCmd("step", 1, CmdStep);
+  AddCmd("next", 1, CmdNext);
   traceBufLen := 0
 END RISCEmu.
 
