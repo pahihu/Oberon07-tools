@@ -13,6 +13,6 @@ then
   SYM="-m $MOD.sym"
 fi
 ###
-thumbulator -f $FREQ $SYM $MOD.bin
+${OCG_RUNTIME_DIR}/thumbulator.exe -f $FREQ $SYM $MOD.bin
 
 # vim:set ts=2 sw=2 et:
