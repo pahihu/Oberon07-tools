@@ -260,6 +260,10 @@ MODULE ORL;  (*Oberon boot linker/loader for RISC / AP 1.5.23 / Phu 28.1.26, 28.
           Get4(adr, inst);
           mno := inst DIV C20 MOD C4;
           disp := inst MOD C12;
+          (*Texts.WriteHex(W,adr); Texts.WriteString(W,"  "); Texts.WriteHex(W,mod.code);
+          Texts.WriteString(W,"mno="); Texts.WriteInt(W,mno,2);
+          Texts.WriteString(W," disp="); Texts.WriteHex(W,disp);
+          Texts.WriteLn(W);*)
           IF mno = 0 THEN (*global*)
             Put4(adr, (inst DIV C24 * C4 + MT) * C20 + mod.num * 4)
           ELSE (*import*)

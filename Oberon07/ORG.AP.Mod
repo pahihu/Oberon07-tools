@@ -253,7 +253,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE GetSB(base: LONGINT);
   BEGIN
     IF version = 0 THEN Put1(Mov, RH, 0, VarOrg0)
-    ELSE Put2(Ldr, RH, -base, pc-fixorgD); fixorgD := pc-1
+    ELSE
+      IF pc = 0 THEN Put0(Mov, 0, 0, 0) END ; (*ORL fixorgD helper*)
+      Put2(Ldr, RH, -base, pc-fixorgD); fixorgD := pc-1
     END
   END GetSB;
 
@@ -267,6 +269,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF x.type.size = 1 THEN op := Ldr+1 ELSE op := Ldr END ;
     IF x.mode # Reg THEN
       IF x.mode = ORB.Const THEN
+        IF ORS.debug THEN ORS.Twain("load/Const", x.type.form) END ;
         IF x.type.form = ORB.Proc THEN
           IF x.r > 0 THEN ORS.Mark("not allowed")
           ELSIF x.r = 0 THEN Put3(BL, 7, 0); Put1a(Sub, RH, LNK, pc*4 - x.a)
@@ -278,12 +281,15 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         END ;
         x.r := RH; incR
       ELSIF x.mode = ORB.Var THEN
+        IF ORS.debug THEN ORS.Twain("load/Var", x.type.form) END ;
         IF x.r > 0 THEN
           (*local*)
           IF ~isRegVar(x) THEN
             Put2(op, RH, SP, x.a + frame);
             x.r := RH; incR
-          ELSE mergeOpStore := FALSE; x.r := regVar(x); incR
+          ELSE
+            mergeOpStore := FALSE; x.r := regVar(x); incR;
+            IF ORS.debug THEN ORS.Twain("load/RegVar", x.r) END ;
           END
         ELSE
           GetSB(x.r); Put2(op, RH, RH, x.a);
@@ -291,6 +297,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         END ;
         (* x.r := RH; incR *)
       ELSIF x.mode = ORB.Par THEN
+        IF ORS.debug THEN ORS.Twain("load/Par", x.type.form) END ;
         IF ~isRegVar(x) THEN
           Put2(Ldr, RH, SP, x.a + frame); Put2(op, RH, RH, x.b); x.r := RH; incR
         ELSE
@@ -852,6 +859,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     VAR op: LONGINT;
         instr: LONGINT;
   BEGIN load(y);
+    IF ORS.debug THEN ORS.Twain("Store/yr", y.r) END ;
     IF x.type.size = 1 THEN op := Str+1 ELSE op := Str END ;
     IF x.mode = ORB.Var THEN
       IF x.r > 0 THEN (*local*)
@@ -868,7 +876,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
             Put0(Mov, regVar(x), 0, y.r)
           END
         END
-      ELSE GetSB(x.r); Put2(op, y.r, RH, x.a)
+      ELSE
+        IF ORS.debug THEN ORS.Twain("Store/Var", x.r) END ;
+        GetSB(x.r); Put2(op, y.r, RH, x.a)
       END
     ELSIF x.mode = ORB.Par THEN
       IF ~isRegVar(x) THEN
