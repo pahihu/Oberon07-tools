@@ -36,6 +36,7 @@ VAR
   typeSerial, procSerial, tempSerial, sectionStart: LONGINT;
   declarationOwner: ORB.Object;
   R: Files.Rider;
+  oldchecks: ARRAY 5 OF BOOLEAN; (*CPTVX flags*)
 
 PROCEDURE S(s: ARRAY OF CHAR): Text;
   VAR t: Text;
@@ -549,9 +550,39 @@ BEGIN IF w.a > 0 THEN cond := Binary(x.e, " > ", z.e)
 END For1;
 PROCEDURE For2*(VAR x, y, w: Item);
 BEGIN Emit(C(Binary(x.e, " = ", Invoke("ocg_add", x.e, w.e)), ";")) END For2;
+  PROCEDURE SaveChecks;
+  BEGIN
+    oldchecks[0] := ORS.GetOption("C"); 
+    oldchecks[1] := ORS.GetOption("P");
+    oldchecks[2] := ORS.GetOption("T");
+    oldchecks[3] := ORS.GetOption("V");
+    oldchecks[4] := ORS.GetOption("X")
+  END SaveChecks;
+    
+  PROCEDURE RestoreChecks;
+  BEGIN
+    ORS.SetOption("C", oldchecks[0]);
+    ORS.SetOption("P", oldchecks[1]);
+    ORS.SetOption("T", oldchecks[2]);
+    ORS.SetOption("V", oldchecks[3]);
+    ORS.SetOption("X", oldchecks[4])
+  END RestoreChecks;
+  
+  PROCEDURE SetChecks(flag: BOOLEAN);
+  BEGIN
+    ORS.SetOption("P", flag);
+    ORS.SetOption("T", flag);
+    IF ~flag THEN ORS.SetOption("V", flag) END ;
+    ORS.SetOption("X", flag)
+  END SetChecks;
 PROCEDURE Enter*(parblksize, locblksize: LONGINT; int, leaf: BOOLEAN);
   VAR irq: INTEGER;
-BEGIN IF int THEN
+    check: BOOLEAN;
+BEGIN
+  SaveChecks;
+  IF int OR leaf THEN check := FALSE ELSE check := ORS.GetOption("C") END ;
+  SetChecks(check);
+  IF int THEN
   IF Target.Cortex = 0 THEN ORS.Mark("OCG: interrupt procedure needs Cortex-M target")
   ELSIF active.obj.lev # 0 THEN ORS.Mark("interrupt procedure must be global")
   ELSE irq := active.obj.irq;
@@ -570,6 +601,7 @@ BEGIN IF (form = ORB.Pointer) & (x.type.form = ORB.Pointer) THEN
     Emit(S("ocg_arm_cpu.apsr = ocg_irq_saved.apsr; ocg_arm_cpu.high = ocg_irq_saved.high;"))
   END;
   IF form # ORB.NoTyp THEN Emit(C(Cat(S("return "), x.e), ";")) ELSE Emit(S("return;")) END;
+  RestoreChecks;
   active.limit := pc; active := NIL
 END Return;
 PROCEDURE CaseHead*(VAR x: Item; VAR L0: LONGINT);
