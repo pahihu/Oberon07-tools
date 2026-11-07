@@ -41,6 +41,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     clockINT: BOOLEAN;
     profile: BOOLEAN;
     instrCounts: ARRAY MemCtrl.MaxMem OF LONGINT;
+    undefined: BOOLEAN;
 
   (*text output utilities*)
 
@@ -206,6 +207,11 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     RISCEmu.Status(W, rs)
   END Err;
 
+  PROCEDURE Warn(VAR W: Texts.Writer; msg: ARRAY OF CHAR; VAR rs: RISCEmu.MachineState; pc, adr: LONGINT);
+  BEGIN
+    Ln(W); String(W, "Warning: "); ShowHex(W, msg, adr); Ln(W);
+  END Warn;
+
   PROCEDURE PrintProfile;
     VAR i: LONGINT;
         res: Sys.Integer;
@@ -339,7 +345,10 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         IF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
             A := MemCtrl.Read(clk, adr); INC(clk, MemCtrl.elapsedClks);
-            IF A = Undef THEN Err(W, "read undefined", rs, PC - 1, badr) END ;
+            (*loading .rsc from SD Card reads 0DEADC0DE*)
+            IF undefined & ~MemCtrl.C[adr] & (A = Undef) THEN
+              Err(W, "read undefined", rs, PC - 1, badr)
+            END ;
             IF ODD(v) THEN (*v: byte access*)
               IF Debug THEN
                 Ln(W); Hex(W, A); String(W, " @"); Hex(W, badr); Ln(W);
@@ -362,12 +371,13 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                 ELSE R[a] := msecCounter
                 END
             ELSE (*memory address is unsigned*)
+              Warn(W, "read unmapped IO", rs, PC - 1, badr);
               adr := adr MOD MemCtrl.MemMask;
               IF adr >= MemCtrl.MaxMem THEN
                 Err(W, "address out of range", rs, PC - 1, badr)
               END ;
               R[a] := MemCtrl.Read(clk, adr); INC(clk, MemCtrl.elapsedClks)
-            END
+            END ;
           END
         ELSE
           IF adr >= 0 THEN (*store*)
@@ -554,13 +564,17 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     profile := TRUE
   END DoProfile;
 
+  PROCEDURE AllowUndef*;
+  BEGIN undefined := FALSE
+  END AllowUndef;
+
   PROCEDURE InitRNG;
     VAR d, t: Sys.LongInt;
   BEGIN Kernel.GetClock(t, d); RandomNumbers.InitSeed(t)
   END InitRNG;
 
 BEGIN In.Open; InitRNG;
-  absTime := FALSE; profile := FALSE;
+  absTime := FALSE; profile := FALSE; undefined := TRUE;
   clk := 0; SW := 0; clockINT := FALSE;
   delayTxCounter := 0; DelayTX := 1042;
   spiDeviceCS := 0; (*SPI bus*)

@@ -93,7 +93,7 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
 
   PROCEDURE OutAsm(VAR W: Texts.Writer; pc, ir: LONGINT);
   BEGIN
-    WriteHex(W, pc * 4, 5); Write(W, TAB); WriteHex(W, ir, 8); Write(W, TAB);
+    WriteHex(W, pc * 4, 6); Write(W, TAB); WriteHex(W, ir, 8); Write(W, TAB);
     Disasm.Opcode(W, ir); Ln(W)
   END OutAsm;
 

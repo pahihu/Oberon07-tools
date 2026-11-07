@@ -424,6 +424,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
           ELSIF ch = "i" THEN RISC.ClockINT(TRUE)
           ELSIF ch = "p" THEN RISC.DoProfile
           ELSIF ch = "s" THEN useSD := TRUE
+          ELSIF ch = "u" THEN RISC.AllowUndef
           ELSIF ch = "v" THEN verbose := TRUE
           ELSIF ch = "w" THEN
             Texts.Scan(S);
@@ -512,6 +513,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     String("  /i    - enable clock INT"); Ln;
     String("  /p    - enable profiling (profile.out)"); Ln;
     String("  /s    - enable SD/MMC card (risk.img)"); Ln;
+    String("  /u    - allow uninitialized memory read (0DEADC0DEH)"); Ln;
     String("  /v    - be verbose"); Ln;
     String("  /w sw - set SWITCH"); Ln
   END Help;

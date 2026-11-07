@@ -78,6 +78,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
   VAR cache: CacheMem;
       tags: TagMem;
       M*: ARRAY MaxMem OF LONGINT;
+      C*: ARRAY MaxMem OF BOOLEAN; (*memory changed*)
       cntMiss-, cntHit-: LONGINT; (*number of cache miss/hit count*)
       cntFetch-, cntMemRd-, cntMemWr-: LONGINT; (*number of memory fetch/read/write*)
       elapsedClks-: LONGINT; (*elapsed CLKs for the last operation*)
@@ -109,6 +110,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     VAR i: INTEGER;
   BEGIN
     enabled := FALSE;
+    FOR i := 0 TO LEN(C) - 1 DO C[i] := FALSE END ;
     FOR i := 0 TO LEN(TagMem) - 1 DO
       tags[i].flags := {}
     END ;
@@ -139,7 +141,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
 
     FOR i := 0 TO WordsPerLine - 1 DO
       DebugInt(i = 0, " wb", adr);
-      M[adr] := lines[idx][i]; INC(adr); INC(cntMemWr);
+      M[adr] := lines[idx][i]; C[adr] := TRUE; INC(adr); INC(cntMemWr);
     END ;
     EXCL(tags[idx].flags, Dirty);
 
@@ -216,7 +218,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
         IF cachePolicy = WriteBack THEN
           INCL(tags[idx].flags, Dirty)
         ELSE
-          M[adr] := data;
+          M[adr] := data; C[adr] := TRUE;
           IF lineWriteThru THEN
             busyClks := WriteBackLineClks
           ELSE
@@ -232,7 +234,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
           cache[idx][wsel] := data;
           INCL(tags[idx].flags, Dirty)
         ELSE
-          M[adr] := data;
+          M[adr] := data; C[adr] := TRUE;
           IF lineWriteThru THEN
             busyClks := FillLineClks + WriteBackLineClks
           ELSE
@@ -242,7 +244,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
         END
       END ;
     ELSE
-      M[adr] := data
+      M[adr] := data; C[adr] := TRUE
     END ;
     INC(cntMemWr)
   END Write;
