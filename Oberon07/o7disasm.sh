@@ -5,7 +5,7 @@ then
   exit 1
 fi
 MOD=$1
-MAP=$(ls *.map)
+MAP=$(ls *.map 2>/dev/null)
 if [ ! -z "$2" ];
 then
   MAP=$2
@@ -19,7 +19,13 @@ then
 fi
 
 omake $MOD.lst
-c0de=$(grep $MOD $MAP | head -1 | $AWK '{print $4;}')
+if [ -z "$MAP" ];
+then
+  c0de=0FFE000
+  echo "warning: no .map file, assume PROM" 1>&2
+else
+  c0de=$(grep $MOD $MAP | head -1 | $AWK '{print $4;}')
+fi
 
 ### DecObj file
 cat $MOD.lst >match.inp
