@@ -1,9 +1,5 @@
 MODULE Timers; (*Phu 8.11.26*)
-  IMPORT Timer, System;
-
-  TYPE
-    LONGINT = System.INT32;
-    INTEGER = System.INT32;
+  IMPORT Timer;
 
   VAR
     T: Timer.Timer;

@@ -1,6 +1,6 @@
 .SUFFIXES:
 .SUFFIXES: .Mod .OSym
-VPATH=lib
+VPATH=lib:lib/RISC5
 
 O2C=o2c
 O2EF=o2ef
