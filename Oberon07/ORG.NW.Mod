@@ -679,7 +679,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
           ELSIF s # 4 THEN Put1a(Mul, RH, RH, s DIV 4)
           END ;
           IF ORS.GetOption("X") THEN
-            Put1a(Mov, RH+1, 0, (x.type.size+3) DIV 4); Put0(Cmp, RH+1, RH, RH+1); Trap(GT, 3)
+            Put1a(Mov, RH+1, 0, (x.type.size+3) DIV 4); Put0(Cmp, RH+1, RH, RH+1);
+            IF s = 1 THEN Trap(GT, 3) ELSE Trap(NE, 3) END
           END ;
           fix(pc0, pc + 5 - pc0)
         END
