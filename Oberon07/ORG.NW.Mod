@@ -662,8 +662,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     DEC(RH)
   END Store;
 
-  PROCEDURE StoreStruct*(VAR x, y: Item); (* x := y, frame = 0 *)
+  PROCEDURE StoreStruct*(VAR x, y: Item; ischar: BOOLEAN); (* x := y, frame = 0 *)
     VAR s, pc0: LONGINT;
+      xts: LONGINT;
   BEGIN
     IF y.type.size # 0 THEN
       (*TypeTest for dereferenced pointer type leaves x in Reg*)
@@ -675,12 +676,22 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
           END
         ELSE (*y  open array*) Put2(Ldr, RH, SP, y.a+4); s := y.type.base.size;  (*element size*)
           pc0 := pc; Put3(BC, EQ, 0);
-          IF s = 1 THEN Put1(Add, RH, RH, 3); Put1(Asr, RH, RH, 2)
-          ELSIF s # 4 THEN Put1a(Mul, RH, RH, s DIV 4)
-          END ;
+          xts := x.type.size;
           IF ORS.GetOption("X") THEN
-            Put1a(Mov, RH+1, 0, (x.type.size+3) DIV 4); Put0(Cmp, RH+1, RH, RH+1);
-            IF s = 1 THEN Trap(GT, 3) ELSE Trap(NE, 3) END
+            IF ~(s IN {1,4}) THEN Put1a(Mul, RH, RH, s DIV 4) END ;
+            IF s # 1 THEN xts := (xts + 3) DIV 4 END ; (*round to INTEGER size if not CHAR/BOOLEAN*)
+            Put1a(Mov, RH+1, 0, xts);
+            Put0(Cmp, RH+1, RH, RH+1);
+            IF ischar THEN Trap(GT, 3) ELSE Trap(NE, 3) END ;
+            IF s = 1 THEN
+              Put1(Add, RH, RH, 3); Put1(Asr, RH, RH, 2);
+              Put1a(Mov, RH+1, 0, (xts + 3) DIV 4);
+            END ;
+          ELSE
+            IF s = 1 THEN Put1(Add, RH, RH, 3); Put1(Asr, RH, RH, 2)
+            ELSIF s # 4 THEN Put1a(Mul, RH, RH, s DIV 4)
+            END ;
+            Put1a(Mov, RH+1, 0, (xts + 3) DIV 4)
           END ;
           fix(pc0, pc + 5 - pc0)
         END

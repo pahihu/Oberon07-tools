@@ -575,10 +575,10 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
                     TypeTest(x, x.type, TRUE)
                   END
                 END ;
-                ORG.StoreStruct(x, y)
+                ORG.StoreStruct(x, y, TRUE)
               END
             ELSIF (x.type.form = ORB.Array) & (y.type.form = ORB.Array) & (x.type.base = y.type.base) & (y.type.len < 0) THEN
-              ORG.StoreStruct(x, y)
+              ORG.StoreStruct(x, y, x.type.base.form = ORB.Char)
             ELSIF (x.type.form = ORB.Array) & (x.type.base.form = ORB.Char) & (y.type.form = ORB.String) THEN
               ORG.CopyString(x, y)
             ELSIF (x.type.form = ORB.Int) & (y.type.form = ORB.Int) THEN ORG.Store(x, y)  (*BYTE*)

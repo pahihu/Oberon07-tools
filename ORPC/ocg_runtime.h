@@ -84,7 +84,7 @@ static inline void ocg_recordassign_at(void *dst,const void *src,size_t n,const 
   ocg_recordcopy_at(dst,src,n,module,position);
 }
 static inline void ocg_arraycopy_at(void *dst,ocg_int nd,const void *src,ocg_int ns,size_t element_size,const char *module,ocg_int position) {
-  if(nd<0 || ns<0 || ns>nd || (ns && element_size>SIZE_MAX/(size_t)ns))
+  if(nd<0 || ns<0 || ns>nd || (ns && element_size>SIZE_MAX/(size_t)ns) || (element_size>1 && ns!=nd))
     ocg_fail("array length",module,position);
   if(ns) memmove(dst,src,(size_t)ns*element_size);
 }
