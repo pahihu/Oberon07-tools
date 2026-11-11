@@ -83,8 +83,8 @@ static inline void ocg_recordassign_at(void *dst,const void *src,size_t n,const 
   if(actual!=want) ocg_fail("VAR record assignment type",module,position);
   ocg_recordcopy_at(dst,src,n,module,position);
 }
-static inline void ocg_arraycopy_at(void *dst,ocg_int nd,const void *src,ocg_int ns,size_t element_size,const char *module,ocg_int position) {
-  if(nd<0 || ns<0 || ns>nd || (ns && element_size>SIZE_MAX/(size_t)ns) || (element_size>1 && ns!=nd))
+static inline void ocg_arraycopy_at(void *dst,ocg_int nd,const void *src,ocg_int ns,size_t element_size,bool ischar,const char *module,ocg_int position) {
+  if(nd<0 || ns<0 || ns>nd || (ns && element_size>SIZE_MAX/(size_t)ns) || (!ischar && ns!=nd))
     ocg_fail("array length",module,position);
   if(ns) memmove(dst,src,(size_t)ns*element_size);
 }
@@ -212,7 +212,7 @@ static inline int ocg_strcmp(const uint8_t *a,ocg_int na,const uint8_t *b,ocg_in
 static inline void ocg_string_at(uint8_t *dst,ocg_int n,const uint8_t *src,ocg_int ns,const char *module,ocg_int position) {
   /* Literal lengths include a quoted string's terminator. Hex strings have
      no implicit terminator and may contain zero bytes anywhere. */
-  ocg_arraycopy_at(dst,n,src,ns,sizeof *src,module,position);
+  ocg_arraycopy_at(dst,n,src,ns,sizeof *src,true,module,position);
 }
 static inline size_t ocg_bytes_at(ocg_int words,const char *module,ocg_int position) {
   if(words<0 || (ocg_uint)words>SIZE_MAX/sizeof(ocg_int)) ocg_fail("COPY size",module,position);
@@ -228,7 +228,7 @@ static inline void * ocg_nonnull(void *p) { return ocg_nonnull_at(p,NULL,0); }
 static inline void * ocg_alloc(size_t n) { return ocg_alloc_at(n,NULL,0); }
 static inline void ocg_recordcopy(void *dst,const void *src,size_t n) { ocg_recordcopy_at(dst,src,n,NULL,0); }
 static inline void ocg_recordassign(void *dst,const void *src,size_t n,const ocg_type *want) { ocg_recordassign_at(dst,src,n,want,NULL,0); }
-static inline void ocg_arraycopy(void *dst,ocg_int nd,const void *src,ocg_int ns,size_t element_size) { ocg_arraycopy_at(dst,nd,src,ns,element_size,NULL,0); }
+static inline void ocg_arraycopy(void *dst,ocg_int nd,const void *src,ocg_int ns,size_t element_size) { ocg_arraycopy_at(dst,nd,src,ns,element_size,true,NULL,0); }
 static inline ocg_int ocg_addv(ocg_int a,ocg_int b) { return ocg_addv_at(a,b,NULL,0); }
 static inline ocg_int ocg_subv(ocg_int a,ocg_int b) { return ocg_subv_at(a,b,NULL,0); }
 static inline ocg_int ocg_mulv(ocg_int a,ocg_int b) { return ocg_mulv_at(a,b,NULL,0); }

@@ -41,6 +41,8 @@ VAR
 PROCEDURE S(s: ARRAY OF CHAR): Text;
   VAR t: Text;
 BEGIN NEW(t); COPY(s, t.s); RETURN t END S;
+PROCEDURE B(f: BOOLEAN): Text;
+BEGIN IF f THEN RETURN S("true") ELSE RETURN S("false") END END B;
 PROCEDURE Cat(a, b: Text): Text;
   VAR t: Text;
 BEGIN NEW(t); t.a := a; t.b := b; RETURN t END Cat;
@@ -468,13 +470,14 @@ BEGIN rhs := y.e;
   IF x.type.form = ORB.Pointer THEN rhs := C(Cat(Wrap("((", TypeName(x.type), ")"), rhs), ")") END;
   Emit(C(Binary(x.e, " = ", rhs), ";"))
 END Store;
-PROCEDURE StoreStruct*(VAR x, y: Item);
+PROCEDURE StoreStruct*(VAR x, y: Item; ischar: BOOLEAN);
   VAR args: Text;
 BEGIN
   IF x.type.form = ORB.Array THEN
     args := Cat(C(ArrayLen(x), ", "), y.e);
     args := Cat(C(args, ", "), ArrayLen(y));
     args := Cat(C(args, ", "), Wrap("sizeof(", TypeName(x.type.base), ")"));
+    args := Cat(C(args, ", "), B(ischar));
     Emit(C(Invoke("ocg_arraycopy", x.e, args), ";"))
   ELSE
     args := Cat(C(Wrap("&(", y.e, ")"), ", "), Wrap("sizeof(", TypeName(x.type), ")"));
