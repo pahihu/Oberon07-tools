@@ -332,7 +332,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
         ELSE ORS.Mark("casting not allowed")
         END
       ELSIF fct = 17 THEN (*ADR*)
-        Texts.WriteLn(W); Texts.WriteString(W, "ADR("); Texts.WriteInt(W, x.mode, 1); Texts.Write(W, ","); Texts.WriteInt(W, x.type.form, 1); Texts.Write(W, ")"); Texts.Append(Oberon.Log, W.buf);
+        (*Texts.WriteLn(W); Texts.WriteString(W, "ADR("); Texts.WriteInt(W, x.mode, 1); Texts.Write(W, ","); Texts.WriteInt(W, x.type.form, 1); Texts.Write(W, ")"); Texts.Append(Oberon.Log, W.buf);*)
         IF ~(x.mode IN {ORB.Par, ORB.Var, Indexed}) OR x.rdo THEN ORS.Warn("not writable") END ;
         ORG.Adr(x);
       ELSIF fct = 18 THEN (*SIZE*)
