@@ -29,7 +29,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
         type*: ORB.Type;
         a*, b*, r: LONGINT;
         rdo*: BOOLEAN;  (*read only*)
-        indexed*: BOOLEAN
+        derefd*: BOOLEAN
       END ;
 
   (* Item forms and meaning of fields:
@@ -284,7 +284,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   END MakeStringItem;
 
   PROCEDURE MakeItem*(VAR x: Item; y: ORB.Object; curlev: LONGINT);
-  BEGIN x.mode := y.class; x.type := y.type; x.a := y.val; x.rdo := y.rdo; x.indexed := FALSE;
+  BEGIN x.mode := y.class; x.type := y.type; x.a := y.val; x.rdo := y.rdo; x.derefd := FALSE;
     IF y.class = ORB.Par THEN x.b := 0
     ELSIF (y.class = ORB.Const) & (y.type.form = ORB.String) THEN x.b := y.lev  (*len*) ;
     ELSE x.r := y.lev
@@ -331,10 +331,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
           ELSE Put1a(Add, RH, RH, x.a); Put0(Add, y.r, RH, y.r); x.a := 0
           END
         END ;
-        x.r := y.r; x.mode := RegI; x.indexed := TRUE
+        x.r := y.r; x.mode := RegI
       ELSIF x.mode = ORB.Par THEN
         Put2(Ldr, RH, SP, x.a + frame);
-        Put0(Add, y.r, RH, y.r); x.mode := RegI; x.r := y.r; x.a := x.b; x.indexed := TRUE
+        Put0(Add, y.r, RH, y.r); x.mode := RegI; x.r := y.r; x.a := x.b
       ELSIF x.mode = RegI THEN Put0(Add, x.r, x.r, y.r); DEC(RH)
       END
     END
@@ -350,7 +350,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     ELSIF x.mode = RegI THEN Put2(Ldr, x.r, x.r, x.a); NilCheck
     ELSIF x.mode # Reg THEN ORS.Mark("bad mode in DeRef")
     END ;
-    x.mode := RegI; x.a := 0; x.b := 0
+    x.derefd := TRUE; x.mode := RegI; x.a := 0; x.b := 0
   END DeRef;
 
   PROCEDURE Q(T: ORB.Type; VAR dcw: LONGINT);
@@ -735,7 +735,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       IF x.type.len >= 0 THEN Put1a(Mov, RH, 0, x.type.len) ELSE  Put2(Ldr, RH, SP, x.a+4+frame) END ;
       incR
     ELSIF ftype.form = ORB.Record THEN
-      IF (xmd = RegI) & ~x.indexed THEN Put2(Ldr, RH, x.r, -8); incR  (*pass dynamic instead of static type*)
+      IF (xmd = RegI) & x.derefd THEN Put2(Ldr, RH, x.r, -8); incR  (*pass dynamic instead of static type*)
       ELSIF xmd = ORB.Par THEN Put2(Ldr, RH, SP, x.a+4+frame); incR
       ELSE loadTypTagAdr(x.type) END
     END
