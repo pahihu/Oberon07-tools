@@ -103,7 +103,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   PROCEDURE patchMergeOpStore(r: LONGINT);
     VAR instr: LONGINT;
   BEGIN
-    IF ORS.debug THEN ORS.Twain("mergeOpStore", pc - 1) END ;                       instr := code[pc - 1];
+    IF ORS.debug THEN ORS.Twain("mergeOpStore", pc - 1) END ;
+    instr := code[pc - 1];
     code[pc - 1] := (instr DIV C28) * C28 + r * C24 + instr MOD C24;
   END patchMergeOpStore;
 
@@ -351,7 +352,11 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     IF x.type.form = ORB.Bool THEN
       IF x.mode = ORB.Const THEN x.r := 15 - x.a*8
       ELSE xr := loadXR(x);
-        IF code[pc-1] DIV 40000000H # -2 THEN Put1(Cmp, xr, x.r, 0); SetXR(x, xr) END ;
+        IF isRegVar(x) THEN
+          Put1(Cmp, xr, regVar(x), 0); SetXR(x, xr)
+        ELSIF code[pc-1] DIV 40000000H # -2 THEN
+          Put1(Cmp, xr, x.r, 0); SetXR(x, xr)
+        END ;
         x.r := NE; DEC(RH)
       END ;
       x.mode := Cond; x.a := 0; x.b := 0
@@ -811,6 +816,10 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
     VAR inst: INTEGER;
   BEGIN IF pc = 0 THEN RETURN TRUE END ;
     inst := code[pc-1];
+    IF ORS.debug THEN
+      ORS.Twain("IsPrevF3/inst", inst);
+      ORS.Twain("IsPrevF3/r", r)
+    END ;
     RETURN (inst DIV 40000000H = -1) OR (inst DIV 1000000H MOD 16 # r)
   END IsPrevF3;
 
@@ -819,7 +828,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
   BEGIN
     IF (y.mode = ORB.Const) & (y.type.form # ORB.Proc) THEN
       xr := loadXR(x);
-      IF (y.a # 0) OR ~(op IN {ORS.eql, ORS.neq}) OR (isRegVar(x) & IsPrevF3(x.r)) OR (~isRegVar(x) & (code[pc-1] DIV 40000000H # -2)) THEN Put1a(Cmp, xr, x.r, y.a); SetXR(x, xr) END ;
+      IF (y.a # 0) OR ~(op IN {ORS.eql, ORS.neq}) OR (isRegVar(x) & IsPrevF3(regVar(x))) OR (~isRegVar(x) & (code[pc-1] DIV 40000000H # -2)) THEN Put1a(Cmp, xr, x.r, y.a); SetXR(x, xr) END ;
       DEC(RH)
     ELSE
       IF (x.mode = Cond) OR (y.mode = Cond) THEN ORS.Mark("not implemented") END ;
