@@ -1,6 +1,6 @@
 MODULE RISCEmu; (* Phu 13i2.2026 *)
   IMPORT Texts, Oberon, Disasm, Sys := System,
-         In, Strings, MemCtrl;
+         In, Strings, MemCtrl, ConsoleIO;
 
   CONST
     TAB = 09X;
@@ -355,11 +355,14 @@ MODULE RISCEmu; (* Phu 13i2.2026 *)
 
   PROCEDURE Status*(VAR XW: Texts.Writer; VAR s: MachineState);
     VAR dummy: ARRAY 1 OF INTEGER;
+        consoleResult: INTEGER;
   BEGIN
     IF verbose THEN
+      ConsoleIO.Close;
       rs := s; W := XW;
       CmdRegs(0, dummy);
-      CmdLoop; s := rs
+      CmdLoop; s := rs;
+      consoleResult := ConsoleIO.Open()
     END
   END Status;
 

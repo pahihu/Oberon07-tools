@@ -5,7 +5,7 @@ VPATH=lib:lib/RISC5
 O2C=o2c
 O2EF=o2ef
 
-MODS=System.Mod DynLoad.Mod Kernal.Mod Kernel.Mod Args.Mod Modules.Mod Complex.Mod ComplexL.Mod ComplexConv.Mod InOut.Mod Logger.Mod RandomNumbers.Mod Timer.Mod Texts.Mod Oberon.Mod Files07.Mod RedirFiles.Mod UART.Mod Timers.Mod Porto.Mod
+MODS=System.Mod DynLoad.Mod Kernal.Mod Kernel.Mod Args.Mod Modules.Mod Complex.Mod ComplexL.Mod ComplexConv.Mod InOut.Mod Logger.Mod RandomNumbers.Mod Timer.Mod Texts.Mod Oberon.Mod Files07.Mod RedirFiles.Mod UART.Mod Timers.Mod Porto.Mod ConsoleIO.Mod
 SYMS=$(MODS:.Mod=.OSym)
 
 %.OSym: %.Mod

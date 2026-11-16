@@ -1,7 +1,7 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
     RISCEmu, WA := WAddress, Timer, MemCtrl, Kernel, Files, SPI, RTC, SDCard,
-    RandomNumbers;
+    RandomNumbers, ConsoleIO;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -240,7 +240,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       flags: SET;
       p,q,u,v: Sys.Address;
       TIM0: Timer.Timer;
-      ch: CHAR;
+      uartStatus, uartResult: INTEGER;
       prevClk: LONGINT;
       done: BOOLEAN;
       hitRate: LONGREAL;
@@ -257,6 +257,11 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     usecCounter := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
     (*msecCounter := 2147453647; usecCounter := 2147453647;*)
     cnt0 := 0; cnt1 := 0;
+    delayTxCounter := 0;
+    Texts.Append(Oberon.Log, W.buf);
+    IF ConsoleIO.Open() = 0 THEN
+      String(W, "Cannot open console UART"); Ln(W); RETURN
+    END;
     (*init machine state*)
     rs.step := -1;
     rs.quit := FALSE;
@@ -357,14 +362,20 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             END;
             R[a] := A; N := A < 0; Z := A = 0
           ELSE (*input*)
-            IF adr =  -1 THEN (* ReadInt *) Sys.InInt(R[a]); (*Texts.Scan(S); R[a] := S.i; *)
+            IF adr =  -1 THEN (* ReadInt *)
+              ConsoleIO.Close; Sys.InInt(R[a]); uartResult := ConsoleIO.Open(); (*Texts.Scan(S); R[a] := S.i; *)
             ELSIF adr =  -2 THEN (* eot *) IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
             ELSIF adr =  -3 THEN (* usec counter *) R[a] := usecCounter
             ELSIF adr = -11 THEN (* SPI status *) R[a] := SYSTEM.VAL(LONGINT, spiBus[spiDeviceCS].status)
             ELSIF adr = -12 THEN (* SPI data *) R[a] := spiBus[spiDeviceCS].ReadData()
-            ELSIF adr = -13 THEN (* RS-232 status, always rdyRx *)
-              IF delayTxCounter = 0 THEN R[a] := 3 ELSE R[a] := 1 END
-            ELSIF adr = -14 THEN (* RS-232 RX *) In.Char(ch); IF In.Done THEN R[a] := ORD(ch) END
+            ELSIF adr = -13 THEN (* RS-232 status: bit0 rxRdy, bit1 txRdy *)
+              uartStatus := ConsoleIO.Status(); R[a] := 0;
+              IF ODD(uartStatus) THEN INC(R[a]) END;
+              IF (delayTxCounter = 0) & ODD(uartStatus DIV 2) THEN INC(R[a], 2) END
+            ELSIF adr = -14 THEN (* RS-232 RX: empty reads return zero *)
+              R[a] := 0;
+              uartResult := ConsoleIO.Read();
+              IF uartResult >= 0 THEN R[a] := uartResult END
             ELSIF adr = -15 THEN (* switch *) R[a] := SW
             ELSIF adr = -16 THEN (* msec counter *)
                 IF absTime THEN R[a] := SHORT(Timer.Elapsed(TIM0))
@@ -404,9 +415,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
               IF ~ODD(R[a] DIV 2) THEN delayTxCounter := 0 END
             ELSIF adr = -14 THEN (* RS-232 TX *)
               IF delayTxCounter = 0 THEN
-                delayTxCounter := DelayTX;
-                Texts.Write(W, CHR(R[a] MOD 80H));
-                Texts.Append(Oberon.Log, W.buf)
+                uartResult := ConsoleIO.Write(R[a] MOD 100H);
+                IF uartResult = 1 THEN delayTxCounter := DelayTX END
               ELSE
                 Texts.WriteString(W, "RS-232 TX busy");
                 Texts.Append(Oberon.Log, W.buf)
@@ -483,6 +493,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       END ;
       IF R[SP] < stackMin THEN stackMin := R[SP] END
     UNTIL done;
+    ConsoleIO.Close;
     MemCtrl.Flush; INC(clk, MemCtrl.elapsedClks);
     IF sdCard # NIL THEN sdCard.Close END ;
 
