@@ -1,7 +1,7 @@
 MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
   IMPORT SYSTEM, Texts, Oberon, Sys := System, In,
     RISCEmu, WA := WAddress, Timer, MemCtrl, Kernel, Files, SPI, RTC, SDCard,
-    RandomNumbers, ConsoleIO;
+    RandomNumbers, ConsoleIO, TCPNet;
 
   TYPE
     LONGINT = Sys.INT32;
@@ -246,7 +246,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       hitRate: LONGREAL;
       rdOnlyCode: BOOLEAN;
       msecCounter, usecCounter: LONGINT;
-      dclk, cnt0, cnt1: LONGINT;
+      dclk, cnt0, cnt1, tcpClks: LONGINT;
       rs: RISCEmu.MachineState;
   BEGIN
     PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
@@ -256,7 +256,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     msecCounter := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
     usecCounter := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
     (*msecCounter := 2147453647; usecCounter := 2147453647;*)
-    cnt0 := 0; cnt1 := 0;
+    cnt0 := 0; cnt1 := 0; tcpClks := 0;
     delayTxCounter := 0;
     Texts.Append(Oberon.Log, W.buf);
     IF ConsoleIO.Open() = 0 THEN
@@ -366,6 +366,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
               ConsoleIO.Close; Sys.InInt(R[a]); uartResult := ConsoleIO.Open(); (*Texts.Scan(S); R[a] := S.i; *)
             ELSIF adr =  -2 THEN (* eot *) IF In.Done = TRUE THEN R[a] := Texts.Int ELSE R[a] := Texts.Inval END (*Z := S.class # Texts.Int*)
             ELSIF adr =  -3 THEN (* usec counter *) R[a] := usecCounter
+            ELSIF adr = -5 THEN (* TCP UART status, byte address -20 *) R[a] := TCPNet.Status()
+            ELSIF adr = -6 THEN (* TCP UART RX, byte address -24 *) R[a] := TCPNet.Read()
             ELSIF adr = -11 THEN (* SPI status *) R[a] := SYSTEM.VAL(LONGINT, spiBus[spiDeviceCS].status)
             ELSIF adr = -12 THEN (* SPI data *) R[a] := spiBus[spiDeviceCS].ReadData()
             ELSIF adr = -13 THEN (* RS-232 status: bit0 rxRdy, bit1 txRdy *)
@@ -407,6 +409,9 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
                IF adr =  -1 THEN (* WriteInt *) Texts.WriteInt(W, R[a], 4)
             ELSIF adr =  -2 THEN (* WriteChar *) Texts.Write(W, CHR(R[a] MOD 80H))
             ELSIF adr =  -3 THEN (* WriteLn *) Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf)
+            ELSIF adr = -5 THEN (* TCP UART status is read-only *)
+            ELSIF adr = -6 THEN (* TCP UART TX *)
+              cond := TCPNet.Write(R[a] MOD 100H)
             ELSIF adr = -11 THEN (* SPI ctrl *)
               spiDeviceCS := R[a] MOD 4;
               spiBus[spiDeviceCS].WriteControl(SYSTEM.VAL(SET, R[a]))
@@ -469,6 +474,8 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       tmp := msecCounter;
       dclk := clk - prevClk; (*update counters*)
       IF (clk < 0) & (prevClk > 0) THEN INC(dclk) END ;
+      INC(tcpClks, dclk);
+      IF tcpClks >= 12000 THEN tcpClks := tcpClks MOD 12000; TCPNet.Cycle END;
       INC(cnt0, dclk);
       INC(cnt1, dclk);
       IF cnt0 >=    12 THEN

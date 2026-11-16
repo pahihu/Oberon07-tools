@@ -1,0 +1,9 @@
+Validated on Linux x86-64 with o2c feature-64bit-port.
+4 POSIX ConsoleIO tests: PASS
+RISC5 console MMIO echo: PASS (ASCII, NUL, 0x80, 0xFF)
+5 AT emulator/live TCP test cases: PASS
+DNS failure and AT parser recovery: PASS
+Original guest TCPNet+TCPUART, real scheduler, real RISC5/MMIO, delayed TCP server: PASS
+Strict C compilation: Linux x86-64, macOS ARM64/x86-64, Windows x86/x86-64: PASS
+Windows x86-64 socket wrapper executable cross-link with ws2_32: PASS
+macOS/Windows native runtime execution: unavailable

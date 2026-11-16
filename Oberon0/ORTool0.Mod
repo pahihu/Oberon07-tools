@@ -1,5 +1,5 @@
 MODULE ORTool0;  (*NW 18.2.2013*)
-  IMPORT Files := Files07, Texts, Oberon, Sys := System, Disasm, RISC, RISCEmu, WA := WAddress, MemCtrl;
+  IMPORT Files := Files07, Texts, Oberon, Sys := System, Disasm, RISC, RISCEmu, WA := WAddress, MemCtrl, TCPNet;
 
   CONST TAB = 9X;
     MaxModules = 8;
@@ -492,7 +492,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     IF errno = 0 THEN
       RISCEmu.verbose := debug;
       RISC.InitSPI(useSD);
-      RISC.Execute(wentry, wcode, S, W)
+      TCPNet.Reset;
+      RISC.Execute(wentry, wcode, S, W);
+      TCPNet.Close
     END
   END ExecObj;
 
@@ -507,6 +509,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   PROCEDURE Help*;
   BEGIN
     String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acipsv][/w sw]..."); Ln;
+    String("TCP UART: data=-24, status=-20; ESP-AT over host TCP sockets"); Ln;
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;

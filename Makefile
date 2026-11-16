@@ -5,7 +5,11 @@ VPATH=lib:lib/RISC5
 O2C=o2c
 O2EF=o2ef
 
-MODS=System.Mod DynLoad.Mod Kernal.Mod Kernel.Mod Args.Mod Modules.Mod Complex.Mod ComplexL.Mod ComplexConv.Mod InOut.Mod Logger.Mod RandomNumbers.Mod Timer.Mod Texts.Mod Oberon.Mod Files07.Mod RedirFiles.Mod UART.Mod Timers.Mod Porto.Mod ConsoleIO.Mod
+MODS=System.Mod DynLoad.Mod Kernal.Mod Kernel.Mod Args.Mod Modules.Mod \
+	 Complex.Mod ComplexL.Mod ComplexConv.Mod InOut.Mod Logger.Mod \
+	 RandomNumbers.Mod Timer.Mod Texts.Mod Oberon.Mod Files07.Mod \
+	 RedirFiles.Mod UART.Mod Timers.Mod Porto.Mod \
+	 ConsoleIO.Mod TCPSockets.Mod
 SYMS=$(MODS:.Mod=.OSym)
 
 %.OSym: %.Mod
@@ -23,10 +27,10 @@ m64: force
 	make O2CARCH=64 DYNEXPORT="" build
 
 w32: force
-	make O2CARCH=32 DYNEXPORT="--ldflags -Wl,--export-all-symbols" EXE=".exe" build
+	make O2CARCH=32 DYNEXPORT="--ldflags '-lws2_32 -Wl,--export-all-symbols'" EXE=".exe" build
 
 w64: force
-	make O2CARCH=64 DYNEXPORT="--ldflags -Wl,--export-all-symbols" EXE=".exe" build
+	make O2CARCH=64 DYNEXPORT="--ldflags '-lws2_32 -Wl,--export-all-symbols'" EXE=".exe" build
 
 help:
 	@-echo "usage: m64|l32|l64|w32|w64"
