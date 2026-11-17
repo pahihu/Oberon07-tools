@@ -3,6 +3,7 @@ MODULE SDCard;
   IMPORT SPI, Files, Sys := System, Kernel;
 
   CONST
+    CardMode = 0; (*0: SDHC, 1: SD v1/SDSC, 2: MMC; test fixtures*)
     (*FSoffset = 10000000H; (*256MBytes*)*)
     BlockSize = 512; SectorSize = 1024;
     CMDoffset = 40H;
@@ -97,25 +98,31 @@ MODULE SDCard;
         | CMDSendIfCond:
             ASSERT(arg = 01AAH, 10);
             s.Log("CMDSendIfCond", -1);
-            s.Recv(3, SPI.Undef);
-            s.Respond(NoError)
+            (*SPI R7: R1 followed by the complete voltage/echo response.*)
+            IF CardMode = 0 THEN
+              s.Send(InIdleState); s.Send(0X); s.Send(0X); s.Send(1X); s.Send(0AAX);
+              s.CmdFinish := SPI.DoNothing
+            ELSE s.Respond(5X) END
         | CMDAppCmd:
             ASSERT(arg = 0, 10);
             s.Log("CMDAppCmd", -1);
-            s.Respond(NoError)
+            IF CardMode = 2 THEN s.Respond(5X) ELSE s.Respond(NoError) END
         | CMDSendOpCond:
-            ASSERT(arg = 40000000H, 30); (*HCS bit set*)
+            IF CardMode = 0 THEN ASSERT(arg = 40000000H, 30)
+            ELSE ASSERT(arg = 0, 30) END;
             s.Log("CMDSendOpCond", -1);
             (*Recv(1000, Undef);*)
             s.Respond(NoError)
+        | 1X: (*MMC SEND_OP_COND*)
+            ASSERT(CardMode = 2, 30); ASSERT(arg = 0, 30); s.Respond(NoError)
         | CMDWriteSingleBlock:
             s.Log("CMDWriteSingleBlock", arg);
-            s.blkNo := arg;
+            s.blkNo := arg; IF CardMode # 0 THEN s.blkNo := arg DIV BlockSize END;
             s.Respond(NoError);
             s.SetDetector(detWriteStart)
         | CMDReadSingleBlock:
             s.Log("CMDReadSingleBlock", arg);
-            s.blkNo := arg;
+            s.blkNo := arg; IF CardMode # 0 THEN s.blkNo := arg DIV BlockSize END;
             s.ReadBlock(tmp);
             s.Send(NoError);
             s.Send(CHR(0FEH));
@@ -128,7 +135,11 @@ MODULE SDCard;
             s.Respond(NoError)
         | CMDGetCardCapacity:
             s.Log("CMDGetCardCapacity", arg);
-            s.Respond(NoError) (*SDHC card: blkNo is not byte offset*)
+            (*SPI R3: R1 plus OCR, powered up and block-addressed SDHC.*)
+            s.Send(NoError);
+            IF CardMode = 0 THEN s.Send(0C0X) ELSE s.Send(080X) END;
+            s.Send(0FFX); s.Send(080X); s.Send(0X);
+            s.CmdFinish := SPI.DoNothing
       ELSE
             s.Log("Unknown CMD", ORD(cmd));
             s.Log("arg", arg);
