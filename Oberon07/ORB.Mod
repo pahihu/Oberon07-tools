@@ -374,7 +374,7 @@ MODULE ORB;   (*NW 25.6.2014  / AP 4.3.2020 / 8.3.2019  in Oberon-07*)
       END ;
       obj := obj.next
     END ;
-    REPEAT Write(R, 0) UNTIL Files.Length(F) MOD 4 = 0;
+    REPEAT Write(R, 0) UNTIL Files.Pos(R) MOD 4 = 0;
     FOR Ref := Record+1 TO maxTypTab-1 DO typtab[Ref] := NIL END ;
     Files.Set(R, F, 0); sum := 0; Files.ReadInt(R, x);  (* compute key (checksum) *)
     WHILE ~R.eof DO sum := sum + x; Files.ReadInt(R, x) END ;
