@@ -1,7 +1,7 @@
 MODULE TCPNet;
   (*Host-side ESP-AT emulator, distinct from the guest TCPNet module.
     All protocol buffers are static. Only TCPSockets touches the host network.*)
-  IMPORT TCPSockets, C := CType;
+  IMPORT TCPSockets, Sys := System;
   CONST Links = 5; QueueSize = 8192; Reserve = 1024; SendSize = 1460;
   VAR
     rx: ARRAY QueueSize OF CHAR;
@@ -11,7 +11,7 @@ MODULE TCPNet;
     echo, joined, discard: BOOLEAN;
     connected: ARRAY Links OF BOOLEAN;
     (*C arguments use CType's platform mapping; results stay native LONGINT.*)
-    opening, sending, wanted, collected, sent: C.int;
+    opening, sending, wanted, collected, sent: Sys.INT32;
     payload: ARRAY SendSize OF CHAR;
     received: ARRAY 512 OF CHAR;
 
@@ -62,7 +62,7 @@ MODULE TCPNet;
     RETURN ok
   END Match;
 
-  PROCEDURE Decimal(VAR n: C.int): BOOLEAN;
+  PROCEDURE Decimal(VAR n: Sys.INT32): BOOLEAN;
     VAR start: INTEGER; ok: BOOLEAN;
   BEGIN Skip; start := pos; n := 0; ok := TRUE;
     WHILE (pos < length) & (command[pos] >= "0") & (command[pos] <= "9") & ok DO
@@ -114,7 +114,7 @@ MODULE TCPNet;
   END Reset;
 
   PROCEDURE Execute;
-    VAR id, port, n: C.int; result, i: LONGINT;
+    VAR id, port, n: Sys.INT32; result, i: LONGINT;
         host, mode: ARRAY 256 OF CHAR;
         password: ARRAY 256 OF CHAR;
         ok: BOOLEAN;
@@ -178,7 +178,7 @@ MODULE TCPNet;
   END Execute;
 
   PROCEDURE Cycle*;
-    VAR id: C.int; n, i: LONGINT;
+    VAR id, n, i: Sys.INT32;
   BEGIN
     IF QueueSize - count >= Reserve THEN
       IF opening >= 0 THEN
