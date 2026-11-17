@@ -651,7 +651,9 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 
                 IF (x.type.form = ORB.Record) & (x.mode IN {ORB.Par, ORG.RegI}) THEN
                   IF ORB.IsExtensible(x.type.typobj) THEN
                     ORS.Warn("cannot assign entire extensible record");
-                    TypeTest(x, x.type, TRUE);
+                    IF (x.mode = ORB.Par) OR x.derefd & (x.mode = ORG.RegI) THEN
+                      TypeTest(x, x.type, TRUE);
+                    END ;
                   END
                 END ;
                 ORG.StoreStruct(x, y, TRUE);
