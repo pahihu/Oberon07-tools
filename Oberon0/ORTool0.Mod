@@ -39,7 +39,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     nexports: LONGINT;
     printOut: BOOLEAN;
     errno: INTEGER;
-    useSD: BOOLEAN;
+    useSD, maxMemory: BOOLEAN;
     StartAdr: LONGINT;
 
   PROCEDURE Read(VAR R: Files.Rider; VAR n: INTEGER);
@@ -247,6 +247,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END LoadMem;
 
 
+  PROCEDURE StackTop(): LONGINT;
+  BEGIN
+    IF maxMemory THEN RETURN 4 * MemCtrl.MaxMem ELSE RETURN 4 * (MemCtrl.MaxMem - MaxHeap) END
+  END StackTop;
+
   PROCEDURE LoadBin(F: Files.File; verbose: BOOLEAN);
   VAR i, len: LONGINT;
       base: WA.ADDR;
@@ -260,7 +265,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       Files.Set(R, F, 0);
       IF verbose THEN Ln; PrInt("len=", len, 1) END;
       base := wcode;
-      FOR i := 0 TO len DO
+      FOR i := 0 TO len - 1 DO
         Files.ReadInt(R, data);
         IF verbose THEN
           Ln; Int(base.ToWords() + i, 4); Tab; Hex(data);
@@ -268,7 +273,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         MemCtrl.M[wcode.ToWords()] := data; wcode.Next
       END;
       MemCtrl.M[MemAdr DIV 4] := MemCtrl.MaxMem * 4;
-      MemCtrl.M[StackAdr DIV 4] := 4 * (MemCtrl.MaxMem - MaxHeap); (*heap*)
+      MemCtrl.M[StackAdr DIV 4] := StackTop();
     END;
     IF verbose THEN Ln; String("done") END
   END LoadBin;
@@ -422,6 +427,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
              IF ch = "a" THEN RISC.UseAbsTime
           ELSIF ch = "c" THEN MemCtrl.Enable
           ELSIF ch = "i" THEN RISC.ClockINT(TRUE)
+          ELSIF ch = "m" THEN maxMemory := TRUE
           ELSIF ch = "p" THEN RISC.DoProfile
           ELSIF ch = "s" THEN useSD := TRUE
           ELSIF ch = "u" THEN RISC.AllowUndef
@@ -446,7 +452,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       bin: BOOLEAN;
       ext: ARRAY 32 OF CHAR;
       verbose: BOOLEAN;
-  BEGIN bin := FALSE; verbose := FALSE;
+  BEGIN bin := FALSE; verbose := FALSE; maxMemory := FALSE;
     Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     WHILE (S.class = Texts.Name) & ~bin DO
       String("load "); String(S.s); F := Files.Old(S.s);
@@ -475,7 +481,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     IF bin THEN
       wentry.FromWords(StartAdr); (*wcode points to the end of the loaded binary*)
       RISC.SetReg(MT, 20H);
-      RISC.SetReg(SP, 4 * (MemCtrl.MaxMem - MaxHeap));
+      RISC.SetReg(SP, StackTop());
       RISC.SetReg(LNK, 0)
     ELSE
       prev := Verbose(TRUE);
@@ -508,12 +514,13 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   PROCEDURE Help*;
   BEGIN
-    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acipsv][/w sw]..."); Ln;
+    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acimpsuv][/w sw]..."); Ln;
     String("TCP UART: data=-24, status=-20; ESP-AT over host TCP sockets"); Ln;
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;
     String("  /i    - enable clock INT"); Ln;
+    String("  /m    - use all RAM without reserving a heap"); Ln;
     String("  /p    - enable profiling (profile.out)"); Ln;
     String("  /s    - enable SD/MMC card (risk.img)"); Ln;
     String("  /u    - allow uninitialized memory read (0DEADC0DEH)"); Ln;
