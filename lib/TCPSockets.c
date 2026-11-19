@@ -61,6 +61,10 @@ static int nonblocking(socket_t s) {
 }
 #endif
 
+#ifndef INADDR_LOOPBACK
+#define INADDR_LOOPBACK (0x7f000001u)
+#endif
+
 #define LINKS 5
 #define CONNECT_TIMEOUT 10000u
 #define UDP_MAX 1460
@@ -74,10 +78,12 @@ typedef struct {
     int phase; /* 0 idle/failed, 1 resolving, 2 connecting, 3 TCP, 4 UDP */
     uint32_t started;
     struct sockaddr_in peer;
+    int accepted;
     int udp_mode; /* ESP-AT peer update policy */
 } Link;
 static Link links[LINKS];
 static int initialized, available;
+static socket_t listener = BAD_SOCKET;
 
 static void resolve(Link *p)
 {
@@ -113,6 +119,7 @@ void TCPSockets_Close(int id)
     if (p->socket != BAD_SOCKET) close_socket(p->socket);
     p->socket = BAD_SOCKET;
     p->phase = 0;
+    p->accepted = 0;
     LOCK();
     if (p->resolver_state == 1) p->resolver_state = 3;
     else if (p->resolver_state != 3) {
@@ -123,9 +130,66 @@ void TCPSockets_Close(int id)
     UNLOCK();
 }
 
+void TCPSockets_StopListener(void)
+{
+    int i;
+    if (listener != BAD_SOCKET) close_socket(listener);
+    listener = BAD_SOCKET;
+    for (i = 0; i < LINKS; ++i) {
+        if (links[i].accepted) TCPSockets_Close(i);
+    }
+}
+
+int TCPSockets_Listen(int port)
+{
+    struct sockaddr_in address;
+    socket_t s;
+    if (!available || port < 1 || port > 65535 || listener != BAD_SOCKET) return -1;
+    s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == BAD_SOCKET) return -1;
+#ifndef _WIN32
+    { int one = 1; (void)setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof one); }
+#endif
+    memset(&address, 0, sizeof address);
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = htons((uint16_t)port);
+    if (nonblocking(s) != 0 ||
+        bind(s, (const struct sockaddr *)&address, sizeof address) != 0 ||
+        listen(s, 1) != 0) {
+        close_socket(s);
+        return -1;
+    }
+    listener = s;
+    return 0;
+}
+
+int TCPSockets_Accept(void)
+{
+    int i, id = -1;
+    socket_t s;
+    if (listener == BAD_SOCKET) return -1;
+    for (i = 0; i < LINKS; ++i) {
+        if (links[i].accepted) return -1;
+        if (id < 0 && links[i].phase == 0) id = i;
+    }
+    if (id < 0) return -1;
+    s = accept(listener, NULL, NULL);
+    if (s == BAD_SOCKET) return -1;
+    if (nonblocking(s) != 0) { close_socket(s); return -1; }
+#ifdef SO_NOSIGPIPE
+    { int one = 1; (void)setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &one, sizeof one); }
+#endif
+    links[id].socket = s;
+    links[id].phase = 3;
+    links[id].accepted = 1;
+    return id;
+}
+
 void TCPSockets_CloseAll(void)
 {
     int i;
+    TCPSockets_StopListener();
     for (i = 0; i < LINKS; ++i) TCPSockets_Close(i);
 }
 

@@ -9,7 +9,7 @@ MODULE TCPNet;
     command: ARRAY 512 OF CHAR;
     length, pos: INTEGER;
     echo, joined, discard, ipInfo: BOOLEAN;
-    connected, udp: ARRAY Links OF BOOLEAN;
+    connected, udp, accepted: ARRAY Links OF BOOLEAN;
     (*C arguments use CType's platform mapping; results stay native LONGINT.*)
     opening, sending, wanted, collected, sent: Sys.INT32;
     payload: ARRAY SendSize OF CHAR;
@@ -65,6 +65,10 @@ MODULE TCPNet;
     RETURN ok
   END Match;
 
+  PROCEDURE Begin(s: ARRAY OF CHAR): BOOLEAN;
+  BEGIN pos := 0; RETURN Match(s)
+  END Begin;
+
   PROCEDURE Decimal(VAR n: Sys.INT32): BOOLEAN;
     VAR start: INTEGER; ok: BOOLEAN;
   BEGIN Skip; start := pos; n := 0; ok := TRUE;
@@ -106,7 +110,7 @@ MODULE TCPNet;
     VAR i: INTEGER;
   BEGIN
     TCPSockets.CloseAll;
-    FOR i := 0 TO Links - 1 DO connected[i] := FALSE; udp[i] := FALSE END;
+    FOR i := 0 TO Links - 1 DO connected[i] := FALSE; udp[i] := FALSE; accepted[i] := FALSE END;
     opening := -1; sending := -1; wanted := 0; collected := 0; sent := 0
   END Close;
 
@@ -134,6 +138,12 @@ MODULE TCPNet;
     ELSIF (command = "AT+CWMODE=1") OR (command = "AT+CIPMODE=0") OR
           (command = "AT+CIPMUX=1") OR
           (command = "AT+CIPRECVMODE=0") THEN Reply(TRUE)
+    ELSIF command = "AT+CIPSERVERMAXCONN=1" THEN Reply(TRUE)
+    ELSIF command = "AT+CIPSERVER=0,1" THEN
+      FOR i := 0 TO Links - 1 DO
+        IF accepted[i] THEN connected[i] := FALSE; accepted[i] := FALSE; Event(i, "CLOSED") END
+      END;
+      TCPSockets.StopListener; Reply(TRUE)
     ELSIF command = "AT+RST" THEN Reset; Reply(TRUE); Line("ready")
     ELSIF command = "AT+CWQAP" THEN
       FOR i := 0 TO Links - 1 DO
@@ -143,6 +153,10 @@ MODULE TCPNet;
     ELSIF Match("AT+CWJAP=") THEN
       ok := Quoted(host) & Comma() & Quoted(password) & End();
       IF ok THEN joined := TRUE; Line("WIFI CONNECTED"); Line("WIFI GOT IP") END;
+      Reply(ok)
+    ELSIF Begin("AT+CIPSERVER=1,") THEN
+      ok := Decimal(port) & End() & joined;
+      IF ok THEN ok := TCPSockets.Listen(port) = 0 END;
       Reply(ok)
     ELSE
       pos := 0;
@@ -186,7 +200,7 @@ MODULE TCPNet;
             ok := Decimal(id) & End() & (id >= 0) & (id < Links);
             IF ok THEN ok := connected[id] END;
             IF ok THEN
-              TCPSockets.Close(id); connected[id] := FALSE;
+              TCPSockets.Close(id); connected[id] := FALSE; accepted[id] := FALSE;
               Event(id, "CLOSED")
             END;
             Reply(ok)
@@ -201,6 +215,10 @@ MODULE TCPNet;
     VAR id, n, i: Sys.INT32; senderPort: LONGINT;
   BEGIN
     IF QueueSize - count >= Reserve THEN
+      id := TCPSockets.Accept();
+      IF id >= 0 THEN
+        connected[id] := TRUE; accepted[id] := TRUE; udp[id] := FALSE; Event(id, "CONNECT")
+      END;
       IF opening >= 0 THEN
         n := TCPSockets.Poll(opening);
         IF n # 0 THEN
@@ -224,7 +242,7 @@ MODULE TCPNet;
               INC(sent, n);
               IF sent = wanted THEN Line("SEND OK"); sending := -1 END
             ELSE
-              TCPSockets.Close(sending); connected[sending] := FALSE;
+              TCPSockets.Close(sending); connected[sending] := FALSE; accepted[sending] := FALSE;
               Event(sending, "CLOSED"); Line("SEND FAIL"); sending := -1
             END
           END
@@ -258,7 +276,7 @@ MODULE TCPNet;
           Put(":");
           FOR i := 0 TO n - 1 DO Put(received[i]) END
         ELSIF n = -1 THEN
-          TCPSockets.Close(id); connected[id] := FALSE; Event(id, "CLOSED")
+          TCPSockets.Close(id); connected[id] := FALSE; accepted[id] := FALSE; Event(id, "CLOSED")
         END
       END
     END

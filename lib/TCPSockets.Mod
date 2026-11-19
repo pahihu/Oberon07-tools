@@ -14,6 +14,9 @@ MODULE TCPSockets ["C"] EXTERNAL ["TCPSockets.c"];
                        count: C.int; host: ARRAY OF C.char; port: C.int): C.int;
   (* 0 no packet, -1 error, otherwise datagram size plus one. Peer is IPv4 + network-order port. *)
   PROCEDURE UDPReceive* ["TCPSockets_UDPReceive"] (id: C.int; VAR data, peer: ARRAY OF C.char): C.int;
+  PROCEDURE Listen* ["TCPSockets_Listen"] (port: C.int): C.int;
+  PROCEDURE Accept* ["TCPSockets_Accept"] (): C.int;
+  PROCEDURE StopListener* ["TCPSockets_StopListener"];
   PROCEDURE Close* ["TCPSockets_Close"] (id: C.int);
   PROCEDURE CloseAll* ["TCPSockets_CloseAll"];
 END TCPSockets.
