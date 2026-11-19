@@ -1,4 +1,4 @@
-/* Portable, single-simulator-thread TCP sockets; background DNS only.
+/* Portable, single-simulator-thread TCP and IPv4 UDP sockets; background DNS only.
    Resolver storage is static and protected by one process-local lock. */
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
@@ -32,6 +32,7 @@ static int nonblocking(socket_t s) { u_long one = 1; return ioctlsocket(s, FIONB
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -62,6 +63,7 @@ static int nonblocking(socket_t s) {
 
 #define LINKS 5
 #define CONNECT_TIMEOUT 10000u
+#define UDP_MAX 1460
 /* resolver state: 0 idle, 1 running, 2 finished, 3 abandoned.
    A canceled running resolver retains its slot until getaddrinfo returns. */
 typedef struct {
@@ -69,8 +71,10 @@ typedef struct {
     char host[256], service[8];
     struct addrinfo *addresses, *next;
     socket_t socket;
-    int phase; /* 0 idle/failed, 1 resolving, 2 connecting, 3 connected */
+    int phase; /* 0 idle/failed, 1 resolving, 2 connecting, 3 TCP, 4 UDP */
     uint32_t started;
+    struct sockaddr_in peer;
+    int udp_mode; /* ESP-AT peer update policy */
 } Link;
 static Link links[LINKS];
 static int initialized, available;
@@ -266,6 +270,91 @@ int TCPSockets_Receive(int id, unsigned char *data, int count)
     n = (int)recv(links[id].socket, (char *)data, count, 0);
     if (n < 0) return busy(socket_error()) ? 0 : -1;
     return n == 0 ? -1 : n;
+}
+
+static int ipv4(struct sockaddr_in *address, const unsigned char *host, int port)
+{
+    memset(address, 0, sizeof *address);
+    address->sin_family = AF_INET;
+    address->sin_port = htons((uint16_t)port);
+    return inet_pton(AF_INET, (const char *)host, &address->sin_addr) == 1;
+}
+
+int TCPSockets_UDPStart(int id, const unsigned char *host, int port, int local, int mode)
+{
+    Link *p;
+    socket_t s;
+    struct sockaddr_in address, peer;
+    int one = 1;
+    if (!available || id < 0 || id >= LINKS || port < 1 || port > 65535 ||
+        local < 0 || local > 65535 || mode < 0 || mode > 2 || !ipv4(&peer, host, port)) return -1;
+    p = &links[id];
+    if (p->phase) return -1;
+    s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (s == BAD_SOCKET) return -1;
+    memset(&address, 0, sizeof address);
+    address.sin_family = AF_INET;
+    address.sin_port = htons((uint16_t)local);
+    if (nonblocking(s) != 0 ||
+        setsockopt(s, SOL_SOCKET, SO_BROADCAST, (const char *)&one, sizeof one) != 0 ||
+        bind(s, (const struct sockaddr *)&address, sizeof address) != 0) {
+        close_socket(s);
+        return -1;
+    }
+    p->socket = s;
+    p->peer = peer;
+    p->udp_mode = mode;
+    p->phase = 4;
+    return 0;
+}
+
+int TCPSockets_UDPSend(int id, unsigned char *data, int count, const unsigned char *host, int port)
+{
+    struct sockaddr_in peer;
+    int n;
+    if (id < 0 || id >= LINKS || links[id].phase != 4 || count < 1 || count > UDP_MAX) return -1;
+    peer = links[id].peer;
+    if (host[0] && (port < 1 || port > 65535 || !ipv4(&peer, host, port))) return -1;
+    n = (int)sendto(links[id].socket, (const char *)data, count, 0,
+                    (const struct sockaddr *)&peer, sizeof peer);
+    if (n < 0) return busy(socket_error()) ? 0 : -1;
+    return n == count ? 1 : -1;
+}
+
+int TCPSockets_UDPReceive(int id, unsigned char *data, unsigned char *peer)
+{
+    struct sockaddr_in source;
+    unsigned char packet[UDP_MAX + 1];
+    int n, error;
+    Link *p;
+#ifdef _WIN32
+    int length = sizeof source;
+#else
+    socklen_t length = sizeof source;
+#endif
+    if (id < 0 || id >= LINKS || links[id].phase != 4) return -1;
+    p = &links[id];
+    n = (int)recvfrom(p->socket, (char *)packet, sizeof packet, 0,
+                      (struct sockaddr *)&source, &length);
+    if (n < 0) {
+        error = socket_error();
+#ifdef _WIN32
+        if (error == WSAEMSGSIZE || error == WSAECONNRESET) return 0;
+#else
+        if (error == ECONNREFUSED) return 0;
+#endif
+        return busy(error) ? 0 : -1;
+    }
+    if (n > UDP_MAX) return 0;
+    if (p->udp_mode > 0) {
+        if (p->udp_mode == 1 && (source.sin_addr.s_addr != p->peer.sin_addr.s_addr ||
+                                source.sin_port != p->peer.sin_port)) p->udp_mode = 0;
+        p->peer = source;
+    }
+    memcpy(data, packet, (size_t)n);
+    memcpy(peer, &source.sin_addr.s_addr, 4);
+    memcpy(peer + 4, &source.sin_port, 2);
+    return n + 1;
 }
 
 void _init_TCPSockets(void)
