@@ -27,6 +27,9 @@ static int socket_error(void) { return WSAGetLastError(); }
 static int busy(int e) { return e == WSAEWOULDBLOCK || e == WSAEINPROGRESS || e == WSAEALREADY || e == WSAEINTR; }
 static uint32_t milliseconds(void) { return (uint32_t)GetTickCount(); }
 static int nonblocking(socket_t s) { u_long one = 1; return ioctlsocket(s, FIONBIO, &one); }
+#ifndef inet_pton
+WSAAPI int inet_pton(int Family, const char *pszAddrString, void* pAddrBuf);
+#endif
 #else
 #include <sys/types.h>
 #include <sys/socket.h>
