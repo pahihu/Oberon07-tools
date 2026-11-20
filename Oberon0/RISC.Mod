@@ -244,13 +244,14 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
       prevClk: LONGINT;
       done: BOOLEAN;
       hitRate: LONGREAL;
-      rdOnlyCode: BOOLEAN;
+      rdOnlyCode, bramBoot: BOOLEAN;
       msecCounter, usecCounter: LONGINT;
       dclk, cnt0, cnt1, tcpClks: LONGINT;
       rs: RISCEmu.MachineState;
   BEGIN
     PC := entry.ToWords() (*0*); R[SB] := sb.ToBytes(); stackOrg := R[SP]; stackMin := stackOrg;
-    rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.MaxMem);
+    rdOnlyCode := (entry.ToWords() # 0) & (entry.ToWords() < MemCtrl.ramWords);
+    bramBoot := (entry.ToWords() = MemCtrl.PromStart) & (MemCtrl.ramWords < MemCtrl.MaxMem);
     Timer.Start(TIM0);
     intEnb := FALSE; intMd := FALSE; intPnd := FALSE;
     msecCounter := Sys.Short(RandomNumbers.RND(MAX(LONGINT)));
@@ -273,7 +274,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     REPEAT (*interpretation cycle*)
       prevClk := clk;
       (*ShowInt(W, "PC=", PC);*)
-      IF profile & (PC < MemCtrl.MaxMem) THEN INC(instrCounts[PC]) END ;
+      IF profile & (0 <= PC) & (PC < MemCtrl.ramWords) THEN INC(instrCounts[PC]) END ;
       IR := MemCtrl.Fetch(clk, PC); INC(clk, MemCtrl.elapsedClks);
       IF spiDeviceCS # 3 THEN
         spiBus[spiDeviceCS].Cycle
@@ -342,12 +343,18 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
         tmp := IR MOD 100000H;
         IF tmp >= 80000H THEN tmp := tmp - 100000H END ;
         badr := R[b] + tmp; adr := badr DIV 4;
-        IF adr >= MemCtrl.MaxMem THEN
-          Err(W, "address out of range", rs, PC - 1, badr)
+        IF bramBoot & (0 <= adr) & (adr < MemCtrl.MaxMem) THEN
+          adr := adr MOD MemCtrl.BRAMWindow
         END ;
         INC(clk); (*stallL1*)
         IF Debug THEN ShowHex(W, "badr=", badr); ShowHex(W, " adr=", adr) END ;
-        IF ~ODD(u) THEN
+        IF adr >= MemCtrl.ramWords THEN
+          IF bramBoot & (badr DIV 4 < MemCtrl.MaxMem) THEN
+            (*The eighth BRAM bank is unpopulated.*)
+            IF ~ODD(u) THEN R[a] := 0; N := FALSE; Z := TRUE END
+          ELSE Err(W, "address out of range", rs, PC - 1, badr)
+          END
+        ELSIF ~ODD(u) THEN
           IF adr >= 0 THEN (*load*)
             A := MemCtrl.Read(clk, adr); INC(clk, MemCtrl.elapsedClks);
             (*loading .rsc from SD Card reads 0DEADC0DE*)
@@ -386,7 +393,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSE (*memory address is unsigned*)
               Warn(W, "read unmapped IO", rs, PC - 1, badr);
               adr := adr MOD MemCtrl.MemMask;
-              IF adr >= MemCtrl.MaxMem THEN
+              IF adr >= MemCtrl.ramWords THEN
                 Err(W, "address out of range", rs, PC - 1, badr)
               END ;
               R[a] := MemCtrl.Read(clk, adr); INC(clk, MemCtrl.elapsedClks)
@@ -429,7 +436,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
             ELSIF adr = -15 THEN (* LEDs*) ShowLEDs(W, R[a] MOD 100H)
             ELSE
               adr := adr MOD MemCtrl.MemMask;
-              IF adr >= MemCtrl.MaxMem THEN
+              IF adr >= MemCtrl.ramWords THEN
                 Err(W, "address out of range", rs, PC - 1, badr)
               END ;
               MemCtrl.Write(clk, adr, R[a]); INC(clk, MemCtrl.elapsedClks)

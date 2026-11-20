@@ -249,7 +249,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   PROCEDURE StackTop(): LONGINT;
   BEGIN
-    IF maxMemory THEN RETURN 4 * MemCtrl.MaxMem ELSE RETURN 4 * (MemCtrl.MaxMem - MaxHeap) END
+    IF maxMemory THEN RETURN 4 * MemCtrl.ramWords ELSE RETURN 4 * (MemCtrl.ramWords - MaxHeap) END
   END StackTop;
 
   PROCEDURE LoadBin(F: Files.File; verbose: BOOLEAN);
@@ -260,7 +260,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   BEGIN
     IF verbose THEN Ln; String("LoadBin...") END;
     len := Sys.Short(Files.Length(F)); len := len DIV 4;
-    IF len > MemCtrl.MaxMem THEN Err(" binary too large ")
+    IF len > MemCtrl.ramWords THEN Err(" binary too large ")
     ELSE
       Files.Set(R, F, 0);
       IF verbose THEN Ln; PrInt("len=", len, 1) END;
@@ -272,7 +272,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         END;
         MemCtrl.M[wcode.ToWords()] := data; wcode.Next
       END;
-      MemCtrl.M[MemAdr DIV 4] := MemCtrl.MaxMem * 4;
+      MemCtrl.M[MemAdr DIV 4] := MemCtrl.ramWords * 4;
       MemCtrl.M[StackAdr DIV 4] := StackTop();
     END;
     IF verbose THEN Ln; String("done") END
@@ -321,7 +321,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     Files.ReadInt(R, n); i := 0;
     WHILE i < n DO
       Files.ReadInt(R, data); Int(base.ToWords() + i, 4); Tab; Hex(data);
-      IF wcode.ToWords() < MemCtrl.MaxMem THEN MemCtrl.M[wcode.ToWords()] := data; wcode.Next
+      IF wcode.ToWords() < MemCtrl.ramWords THEN MemCtrl.M[wcode.ToWords()] := data; wcode.Next
       ELSE Err(" code space full ");
       END;
       Tab; Disasm.Opcode(W, data); Ln; INC(i)
@@ -427,6 +427,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
              IF ch = "a" THEN RISC.UseAbsTime
           ELSIF ch = "c" THEN MemCtrl.Enable
           ELSIF ch = "i" THEN RISC.ClockINT(TRUE)
+          ELSIF ch = "l" THEN MemCtrl.SetLargeRAM(TRUE)
           ELSIF ch = "m" THEN maxMemory := TRUE
           ELSIF ch = "p" THEN RISC.DoProfile
           ELSIF ch = "s" THEN useSD := TRUE
@@ -453,6 +454,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       ext: ARRAY 32 OF CHAR;
       verbose: BOOLEAN;
   BEGIN bin := FALSE; verbose := FALSE; maxMemory := FALSE;
+    MemCtrl.SetLargeRAM(FALSE);
     Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     WHILE (S.class = Texts.Name) & ~bin DO
       String("load "); String(S.s); F := Files.Old(S.s);
@@ -487,12 +489,12 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       prev := Verbose(TRUE);
       PrInt(" code=", wcode.ToWords(), 4);
       PrInt(" data=", wdata.ToWords(), 4);
-      IF wcode.ToWords() + wdata.ToWords() > MemCtrl.MaxMem THEN Err(" space full ")
+      IF wcode.ToWords() + wdata.ToWords() > MemCtrl.ramWords THEN Err(" space full ")
       ELSIF (m # NIL) & (errno = 0) THEN (*call last module entry*)
         GF.FromWords(wcode.ToWords()); Link(modules);
         wentry.FromBytes(m.entry); wentry.IncBy(m.base);
       END ;
-      RISC.SetReg(SP, 4 * MemCtrl.MaxMem);
+      RISC.SetReg(SP, 4 * MemCtrl.ramWords);
       RISC.SetReg(LNK, 0)
     END;
     IF errno = 0 THEN
@@ -514,12 +516,13 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   PROCEDURE Help*;
   BEGIN
-    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acimpsuv][/w sw]..."); Ln;
+    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acilmpsuv][/w sw]..."); Ln;
     String("TCP UART: data=-24, status=-20; ESP-AT over host TCP sockets"); Ln;
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;
     String("  /i    - enable clock INT"); Ln;
+    String("  /l    - emulate 8 MiB of RAM (default 112 KiB)"); Ln;
     String("  /m    - use all RAM without reserving a heap"); Ln;
     String("  /p    - enable profiling (profile.out)"); Ln;
     String("  /s    - enable SD/MMC card (risk.img)"); Ln;

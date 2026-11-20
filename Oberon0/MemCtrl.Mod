@@ -45,13 +45,15 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     (* 64KB Lines = 4096; (* 12bit *) Tags = 2; (* 1bit *) *)
     (* 32KB Lines = 2048; (* 11bit *) Tags = 4; (* 2bit *) *)
     (* 16KB Lines = 1024; (* 10bit *) Tags = 8; (* 3bit *) *)
-    Lines = 512; (* 9bit *) Tags = 16; (* 4bit *)
+    Lines = 512; (* 9bit *)
     (* 4K Lines = 256; Tags = 32; *)
     (* 2K Lines = 128; Tags = 64; *)
     (* 1K Lines =  64; Tags = 128; *)
     (* 512B Lines = 32; Tags = 256; *)
-    (* 128KB MaxMem* = 32768; *)
-    MaxMem* = 112 * 1024 DIV 4; (*1C000H*)
+    BRAMWords = 112 * 1024 DIV 4;
+    BRAMWindow* = 128 * 1024 DIV 4;
+    MaxMem* = 8 * 1024 * 1024 DIV 4;
+    Tags = MaxMem DIV (Lines * WordsPerLine);
     MemMask* = 20000H; (*17 bit*)
     WriteBackWordClks = 2 + 6 +  8 + 1;
     WriteBackLineClks = 2 + 6 +  WordsPerLine * 8 + 1; FillLineClks = WriteBackLineClks + 6;
@@ -77,6 +79,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
 
   VAR cache: CacheMem;
       tags: TagMem;
+      ramWords-: LONGINT;
       M*: ARRAY MaxMem OF LONGINT;
       C*: ARRAY MaxMem OF BOOLEAN; (*memory changed*)
       cntMiss-, cntHit-: LONGINT; (*number of cache miss/hit count*)
@@ -152,7 +155,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
   BEGIN
     wsel := adr MOD WordsPerLine; adr := adr DIV WordsPerLine;
     idx := adr MOD Lines; adr := adr DIV Lines;
-    tag := adr MOD Tags;
+    tag := adr;
     DebugInt(TRUE, " tag", tag);
     DebugInt(FALSE, "idx", idx);
     DebugInt(FALSE, "wsel", wsel);
@@ -195,7 +198,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
   PROCEDURE Read*(clk: LONGINT; adr: Address): Word;
     VAR ret: Word;
   BEGIN
-    ASSERT((0 <= adr) & (adr < MaxMem), 10);
+    ASSERT((0 <= adr) & (adr < ramWords), 10);
     ret := ReadInt("READ", clk, adr); INC(cntMemRd);
     RETURN ret
   END Read;
@@ -205,7 +208,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
       valid, hit: BOOLEAN;
       busyClks: LONGINT;
   BEGIN
-    ASSERT((0 <= adr) & (adr < MaxMem), 10);
+    ASSERT((0 <= adr) & (adr < ramWords), 10);
     DebugInt(TRUE, "WRITE", adr);
     elapsedClks := 0;
     IF enabled THEN
@@ -262,7 +265,7 @@ MODULE MemCtrl; (*Phu 18.9.26*)
   END Flush;
 
   PROCEDURE IsRamAdr(adr: Address): BOOLEAN;
-  BEGIN RETURN (0 <= adr) & (adr < MaxMem)
+  BEGIN RETURN (0 <= adr) & (adr < ramWords)
   END IsRamAdr;
 
   PROCEDURE IsPromAdr(adr: Address): BOOLEAN;
@@ -314,6 +317,11 @@ MODULE MemCtrl; (*Phu 18.9.26*)
     RETURN x;
   END Efficiency;
 
-BEGIN Init; Texts.OpenWriter(W);
+  PROCEDURE SetLargeRAM*(large: BOOLEAN);
+  BEGIN
+    IF large THEN ramWords := MaxMem ELSE ramWords := BRAMWords END
+  END SetLargeRAM;
+
+BEGIN SetLargeRAM(FALSE); Init; Texts.OpenWriter(W);
 END MemCtrl.
 (* vim:set ts=2 sw=2 et: *)
