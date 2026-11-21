@@ -5,7 +5,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     MaxModules = 8;
     MaxExports = 64;
     MaxImports = 16;
-    MaxHeap = 16 * 1024 DIV 4; (*words*)
+    (*Direct linked binary layout, in bytes.*)
+    SmallHeap = 16 * 1024;
+    StaticLimit = 128 * 1024; LargeStack = 64 * 1024;
     MemAdr = 12; StackAdr = 24; MT = 12; SP = 14; LNK = 15;
     LF = 0AX;
 
@@ -39,7 +41,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     nexports: LONGINT;
     printOut: BOOLEAN;
     errno: INTEGER;
-    useSD, maxMemory: BOOLEAN;
+    useSD, noHeap, noRTC: BOOLEAN;
     StartAdr: LONGINT;
 
   PROCEDURE Read(VAR R: Files.Rider; VAR n: INTEGER);
@@ -247,9 +249,13 @@ MODULE ORTool0;  (*NW 18.2.2013*)
   END LoadMem;
 
 
-  PROCEDURE StackTop(): LONGINT;
+  PROCEDURE StackTop(linked: BOOLEAN): LONGINT;
   BEGIN
-    IF maxMemory THEN RETURN 4 * MemCtrl.ramWords ELSE RETURN 4 * (MemCtrl.ramWords - MaxHeap) END
+    IF noHeap THEN RETURN 4 * MemCtrl.ramWords
+    ELSIF linked & (MemCtrl.ramWords = MemCtrl.MaxMem) THEN
+      RETURN StaticLimit + LargeStack
+    ELSE RETURN 4 * MemCtrl.ramWords - SmallHeap
+    END
   END StackTop;
 
   PROCEDURE LoadBin(F: Files.File; verbose: BOOLEAN);
@@ -259,12 +265,16 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       R: Files.Rider;
   BEGIN
     IF verbose THEN Ln; String("LoadBin...") END;
-    len := Sys.Short(Files.Length(F)); len := len DIV 4;
-    IF len > MemCtrl.ramWords THEN Err(" binary too large ")
+    base := wcode;
+    IF Files.Length(F) > 4 * (MemCtrl.ramWords - base.ToWords()) THEN
+      Err(" binary too large ")
+    ELSIF ~noHeap & (MemCtrl.ramWords = MemCtrl.MaxMem) &
+        (Files.Length(F) > StaticLimit - 4 * base.ToWords()) THEN
+      Err(" binary exceeds the 128 KiB static-image limit ")
     ELSE
+      len := Sys.Short(Files.Length(F)) DIV 4;
       Files.Set(R, F, 0);
       IF verbose THEN Ln; PrInt("len=", len, 1) END;
-      base := wcode;
       FOR i := 0 TO len - 1 DO
         Files.ReadInt(R, data);
         IF verbose THEN
@@ -273,11 +283,11 @@ MODULE ORTool0;  (*NW 18.2.2013*)
         MemCtrl.M[wcode.ToWords()] := data; wcode.Next
       END;
       MemCtrl.M[MemAdr DIV 4] := MemCtrl.ramWords * 4;
-      MemCtrl.M[StackAdr DIV 4] := StackTop();
+      MemCtrl.M[StackAdr DIV 4] := StackTop(TRUE)
     END;
     IF verbose THEN Ln; String("done") END
   END LoadBin;
-  
+
   PROCEDURE LoadObj(F: Files.File; verbose: BOOLEAN): Module;  (*decode object file*)
     VAR class, i, n, key, size, fix, adr, data, len: INTEGER;
       ch: CHAR;
@@ -428,8 +438,9 @@ MODULE ORTool0;  (*NW 18.2.2013*)
           ELSIF ch = "c" THEN MemCtrl.Enable
           ELSIF ch = "i" THEN RISC.ClockINT(TRUE)
           ELSIF ch = "l" THEN MemCtrl.SetLargeRAM(TRUE)
-          ELSIF ch = "m" THEN maxMemory := TRUE
+          ELSIF (ch = "n") OR (ch = "m") THEN noHeap := TRUE
           ELSIF ch = "p" THEN RISC.DoProfile
+          ELSIF ch = "r" THEN noRTC := TRUE
           ELSIF ch = "s" THEN useSD := TRUE
           ELSIF ch = "u" THEN RISC.AllowUndef
           ELSIF ch = "v" THEN verbose := TRUE
@@ -453,7 +464,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
       bin: BOOLEAN;
       ext: ARRAY 32 OF CHAR;
       verbose: BOOLEAN;
-  BEGIN bin := FALSE; verbose := FALSE; maxMemory := FALSE;
+  BEGIN bin := FALSE; verbose := FALSE; noHeap := FALSE; noRTC := FALSE;
     MemCtrl.SetLargeRAM(FALSE);
     Texts.OpenScanner(S, Oberon.Par.text, Oberon.Par.pos); Texts.Scan(S);
     WHILE (S.class = Texts.Name) & ~bin DO
@@ -483,7 +494,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     IF bin THEN
       wentry.FromWords(StartAdr); (*wcode points to the end of the loaded binary*)
       RISC.SetReg(MT, 20H);
-      RISC.SetReg(SP, StackTop());
+      RISC.SetReg(SP, StackTop(StartAdr # MemCtrl.PromStart));
       RISC.SetReg(LNK, 0)
     ELSE
       prev := Verbose(TRUE);
@@ -499,7 +510,7 @@ MODULE ORTool0;  (*NW 18.2.2013*)
     END;
     IF errno = 0 THEN
       RISCEmu.verbose := debug;
-      RISC.InitSPI(useSD);
+      RISC.InitSPI(useSD, ~noRTC);
       TCPNet.Reset;
       RISC.Execute(wentry, wcode, S, W);
       TCPNet.Close
@@ -516,15 +527,17 @@ MODULE ORTool0;  (*NW 18.2.2013*)
 
   PROCEDURE Help*;
   BEGIN
-    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acilmpsuv][/w sw]..."); Ln;
+    String("usage: ORTool0 DecObj <file.rsc>... | Debug mod.rsc... | Execute mod.rsc|mod.bin|prom.mem[/acilnpsuv][/w sw]..."); Ln;
     String("TCP UART: data=-24, status=-20; ESP-AT over host TCP sockets"); Ln;
     String("options:"); Ln;
     String("  /a    - use absolute time"); Ln;
     String("  /c    - enable cache in memory controller"); Ln;
     String("  /i    - enable clock INT"); Ln;
     String("  /l    - emulate 8 MiB of RAM (default 112 KiB)"); Ln;
-    String("  /m    - use all RAM without reserving a heap"); Ln;
+    String("         direct .bin layout: 128 KiB static, 64 KiB stack, 8000 KiB heap"); Ln;
+    String("  /n    - no heap reservation for direct .bin loads (/m is an alias)"); Ln;
     String("  /p    - enable profiling (profile.out)"); Ln;
+    String("  /r    - disable RTC"); Ln;
     String("  /s    - enable SD/MMC card (risk.img)"); Ln;
     String("  /u    - allow uninitialized memory read (0DEADC0DEH)"); Ln;
     String("  /v    - be verbose"); Ln;

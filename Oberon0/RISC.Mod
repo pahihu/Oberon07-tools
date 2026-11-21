@@ -562,7 +562,7 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     END ;
   END InitSDImage;
 
-  PROCEDURE InitSPI*(useSD: BOOLEAN);
+  PROCEDURE InitSPI*(useSD, useRTC: BOOLEAN);
     VAR s: SPI.Slave;
         sdHolder: SPI.Slave;
   BEGIN
@@ -574,11 +574,11 @@ MODULE RISC;     (*NW 22.9.07 / 15.12.2013*)
     ELSE
       sdHolder := s
     END ;
-    rtc := RTC.New(); rtc.Reset;
+    IF useRTC THEN rtc := RTC.New(); rtc.Reset ELSE rtc := NIL END;
 
     spiBus[0] := s;
     spiBus[1] := sdHolder;
-    spiBus[2] := rtc;
+    IF useRTC THEN spiBus[2] := rtc ELSE spiBus[2] := s END;
     spiBus[3] := s;
   END InitSPI;
 

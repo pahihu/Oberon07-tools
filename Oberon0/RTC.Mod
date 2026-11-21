@@ -58,6 +58,7 @@ MODULE RTC; (*Phu 22.9.26 / DS3234*)
         r.Send(IntToBCD(mo));
         r.Send(IntToBCD(yr))
       END ;
+      IF adr = 0FX THEN r.Send(0X) END; (*oscillator running*)
       r.CmdFinish := SPI.DoNothing
     END
   END SendAndIncrement;
