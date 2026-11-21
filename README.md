@@ -36,6 +36,7 @@ Register allocated parameters, local variables are available in the numeric CASE
 | 6           |                 |         | DIV by zero           |
 | 7           | $A              | on      | ASSERT                |
 | 9           | $V              | off     | overflow              |
+| 10          | $K              | off     | stack overflow        |
 
 
 ## Astrobe compatibility (/a option):

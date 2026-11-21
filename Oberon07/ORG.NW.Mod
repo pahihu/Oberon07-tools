@@ -7,7 +7,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   CONST WordSize* = 4;
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
-    MT = 12; SP = 14; LNK = 15;   (*dedicated registers*)
+    StackAdr = 24; StackSize = 8000H; (*stack overflow check*)
+    MT = 12; SB = 13; SP = 14; LNK = 15;   (*dedicated registers*)
     maxCode = 8800; maxStrx = 3200; maxTD = 160; C24 = 1000000H; (*AP 13.12.24*)
     Reg = 10; RegI* = 11; Cond = 12;  (*internal item modes*)
     NoSection = -1;
@@ -883,6 +884,13 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       IF locblksize >= 10000H THEN ORS.Mark("too many locals") END ;
       a := 4; r := 0;
       Put1(Sub, SP, SP, locblksize);
+      IF ORS.GetOption("K") THEN
+        Put1(Mov, SB, 0, StackAdr);
+        Put2(Ldr, SB, SB, 0);
+        Put1(Sub, SB, SB, StackSize);
+        Put0(Cmp, SB, SB, SP);
+        Trap(GT, 10)
+      END ;
       IF leaf THEN a := 0 ELSE Put2(Str, LNK, SP, 0) END ;
       WHILE a < parblksize DO Put2(Str, r, SP, a); INC(r); INC(a, 4) END
     ELSE (*interrupt procedure*)
