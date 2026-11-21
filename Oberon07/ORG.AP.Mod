@@ -6,7 +6,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
 
   CONST WordSize* = 4;
     StkOrg0 = -64; VarOrg0 = 0;  (*for RISC-0 only*)
-    StackAdr = 24; StackSize = 8000H; (*stack overflow check*)
+    StackBottomAdr = 8; (*stack overflow check*)
     MT = 12; SB = 13; SP = 14; LNK = 15;   (*dedicated registers*)
     maxCode = 8800; maxStrx = 3200; maxTD = 160; C16 = 10000H; C24 = 1000000H; C28 = 10000000H; C30 = 40000000H;
     Reg = 10; RegI* = 11; Cond = 12;  (*internal item modes*)
@@ -1137,9 +1137,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       IF locblksize # 0 THEN
         Put1(Sub, SP, SP, locblksize);
         IF ORS.GetOption("K") THEN
-          Put1(Mov, SB, 0, StackAdr);
+          Put1(Mov, SB, 0, StackBottomAdr);
           Put2(Ldr, SB, SB, 0);
-          Put1(Sub, SB, SB, StackSize);
           Put0(Cmp, SB, SB, SP);
           Trap(GT, 10)
         END
