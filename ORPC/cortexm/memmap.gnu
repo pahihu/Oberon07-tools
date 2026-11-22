@@ -8,6 +8,7 @@ MEMORY
 SECTIONS
 {
     .text : {
+         KEEP(*(.vectors))
          *(.text)
          *(.text*)
          KEEP(*(.text))

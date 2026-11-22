@@ -800,7 +800,13 @@ END Shift;
 PROCEDURE Bit*(VAR x, y: Item);
 BEGIN x.e := Invoke("ocg_bit", x.e, y.e); x.mode := Reg END Bit;
 PROCEDURE Adr*(VAR x: Item);
-BEGIN x.e := Invoke("ocg_address", Wrap("&(", x.e, ")"), NIL); x.mode := Reg END Adr;
+BEGIN
+  IF x.type.form = ORB.Array THEN
+    (* Open arrays are already C pointers. Fixed arrays decay to pointers. *)
+    x.e := Invoke("ocg_address", x.e, NIL)
+  ELSE x.e := Invoke("ocg_address", Wrap("&(", x.e, ")"), NIL) END;
+  x.mode := Reg
+END Adr;
 PROCEDURE Alignment(t: ORB.Type): LONGINT;
   VAR align, a: LONGINT; o: ORB.Object;
 BEGIN align := 1;
@@ -983,7 +989,12 @@ BEGIN IF t # NIL THEN
           Line(S("};")) |
         ORB.Proc:
           Definition(t.base); o := t.dsc; i := 0;
-          WHILE (o # NIL) & (i < t.nofpar) DO Definition(o.type); o := o.next; INC(i) END;
+          WHILE (o # NIL) & (i < t.nofpar) DO
+            (* VAR and read-only records are passed by pointer. Their
+               forward typedef is sufficient, even for a self callback. *)
+            IF o.type.form # ORB.Record THEN Definition(o.type) END;
+            o := o.next; INC(i)
+          END;
           part := Cat(C(Cat(S("typedef "), TypeName(t.base)), " (*"), p.name);
           Line(C(Cat(C(part, ")("), Params(t, FALSE)), ");"))
       END;
@@ -1131,6 +1142,7 @@ BEGIN active.limit := pc; Emit(S(";"));
     ct := types;
     WHILE ct # NIL DO IF (ct.typ.form = ORB.Record) & (ct.typ.mno <= 0) THEN
       IF ct.typ.base # NIL THEN t := Wrap("&", C(TypeName(ct.typ.base), "_tag"), "") ELSE t := S("NULL") END;
+      t := Cat(t, C(Cat(S(", sizeof("), ct.name), ")"));
       Line(C(Cat(C(Cat(S("const ocg_type "), ct.name), "_tag = {"), t), "};"))
     END; ct := ct.next END;
     Variables(moduleScope, NIL, FALSE);

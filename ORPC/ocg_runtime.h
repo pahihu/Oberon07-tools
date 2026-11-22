@@ -49,7 +49,7 @@ _Static_assert(sizeof(ocg_real_t)==sizeof(void *) && sizeof(ocg_int)==sizeof(voi
 #ifdef OCG_CORTEX_M
 #include "ocg_cortex.h"
 #endif
-typedef struct ocg_type { const struct ocg_type *base; } ocg_type;
+typedef struct ocg_type { const struct ocg_type *base; size_t size; } ocg_type;
 static inline _Noreturn void ocg_fail(const char *why,const char *module,ocg_int position) {
 #ifdef OCG_TRAP_AT
   OCG_TRAP_AT(why,module,position);

@@ -2,6 +2,7 @@
 /* vectors.s */
 .cpu cortex-m0
 .thumb
+.section .vectors, "a", %progbits
 
 .word   0x40080000  /* stack top address */
 .word   _start      /* 1 Reset */
@@ -19,7 +20,7 @@
 .word   hang        /* 13 RESERVED */
 .word   hang        /* 14 PendSV */
 .if HAVE_OCG_IRQ_15_Handler
-.word   OCG_IRQ_15_Handler        /* 15 SysTick */
+.word   OCG_Exception_15_Handler        /* 15 SysTick */
 .else
 .word   hang        /* 15 SysTick */
 .endif
