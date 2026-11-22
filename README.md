@@ -18,7 +18,7 @@ Register allocated parameters, local variables are available in the numeric CASE
 ## Embedded compiler options
 * $A - ASSERT generation
 * $C - run-time checks (toggles $P $T $X)
-* $K - stack overflow check (default disabled, expects stack bottom at 00008H)
+* $K - stack overflow check (default disabled, reads stack bottom from address 00008H)
 * $L - leaf PROCEDURE generation (implies $A- $C- $V-)
 * $P - NIL pointer, procedure call check
 * $S - allow new symbol file
