@@ -104,6 +104,31 @@ Dependencies retain library behavior. Without `/b`, no C `main` is emitted.
 main module name. The graph limit is 1,024 modules per root. Output files are
 written in the compiler's current working directory, as with ordinary translation.
 
+### Static module and command tables
+
+When the `/b` graph includes a `ModuleInfo` module declaring both of the
+following external bindings, ORPC emits the tables and bindings in the main
+module's C file. This also works for Cortex-M builds and indirect imports.
+
+```oberon
+PROCEDURE StaticRoot ["comstime_module_root"](): Module;
+PROCEDURE StaticCommand ["comstime_module_command"]
+  (number: INTEGER; VAR name: ModuleName): Command;
+```
+
+The interface uses exported types `Module = POINTER TO ModDesc`,
+`ModuleName = ARRAY 32 OF CHAR` and `Command = PROCEDURE`. `ModDesc` is a base
+record with exported fields `name: ModuleName`, `next: Module` and
+`cmd, ent: INTEGER`. The root links all modules in build order, including
+modules with no commands. `cmd` and `ent` are the inclusive start and exclusive
+end indices in the command table. Lookup writes the name and returns the
+procedure, or returns `NIL` for an out-of-range index.
+
+Commands are exported module-level procedures with no parameters or result.
+Private procedures, interrupt handlers, and external C bindings are excluded.
+The generated makefile builds the tables with the main object, and a dependency
+edit that changes the command list regenerates the tables during compilation.
+
 ## Generated Makefile and incremental builds
 
 `Main.Mod/b` produces `Main.mk` alongside the C sources. Its default target is

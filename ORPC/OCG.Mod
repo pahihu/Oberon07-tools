@@ -2,7 +2,7 @@ MODULE OCG;
 (* C11 backend for the supplied ORP; OCB is the C symbol-table variant. See README.md for the parser hooks.
    Items contain immutable C expression trees. Statements and branch fixups
    are retained until Close; procedure scopes survive ORB.CloseScope. *)
-IMPORT SYSTEM, Files := Files07, ORS, ORB := OCB, Sys := System, OCGFiles, Target := OCGTarget;
+IMPORT SYSTEM, Files := Files07, ORS, ORB := OCB, Sys := System, OCGBuild, OCGFiles, Target := OCGTarget;
 CONST RegI* = 11; Reg = 10; maxCode = 65536;
 TYPE
   LONGINT = Sys.INT32; INTEGER = Sys.INT32; Native = Target.Int; REAL = Target.Real;
@@ -1065,10 +1065,73 @@ BEGIN i := p.first;
   END;
   IF code[p.limit].used THEN Line(C(Cat(S("ocg_L"), N(p.limit)), ":;")) END
 END Body;
-PROCEDURE Close*(VAR modid: ORS.Ident; key, nofent: LONGINT);
+PROCEDURE CollectCommands(node: OCGBuild.Node);
+  VAR p: Proc; o: ORB.Object; cmd, tail: OCGBuild.Command; hasRoot, hasLookup: BOOLEAN;
+BEGIN
+  p := procs; tail := NIL; hasRoot := FALSE; hasLookup := FALSE;
+  WHILE p # NIL DO o := p.obj;
+    IF (o # NIL) & (o.lev = 0) THEN
+      IF p.external THEN
+        IF o.externalName = "comstime_module_root" THEN hasRoot := TRUE
+        ELSIF o.externalName = "comstime_module_command" THEN hasLookup := TRUE END
+      ELSIF o.expo & ~o.interrupt & (o.type.nofpar = 0) & (o.type.base = ORB.noType) THEN
+        NEW(cmd); cmd.name := o.name;
+        IF tail = NIL THEN node.commands := cmd ELSE tail.next := cmd END; tail := cmd
+      END
+    END; p := p.next
+  END;
+  node.moduleInfo := (node.name = "ModuleInfo") & hasRoot & hasLookup
+END CollectCommands;
+
+PROCEDURE CommandTables(graph: OCGBuild.Node);
+  VAR m: OCGBuild.Node; cmd: OCGBuild.Command; entry, count, start: INTEGER;
+BEGIN
+  m := graph;
+  WHILE (m # NIL) & ~m.moduleInfo DO m := m.next END;
+  IF m # NIL THEN
+    Line(S('#include "ModuleInfo.h"'));
+    m := graph;
+    WHILE m # NIL DO
+      IF (m.commands # NIL) & (m.name # moduleName) & (m.name # "ModuleInfo") THEN
+        Line(Wrap('#include "', S(m.name), '.h"'))
+      END; m := m.next
+    END;
+    Line(S("static O_ModuleInfo_ModDesc ocg_modules[] = {"));
+    m := graph; entry := 0; count := 0;
+    WHILE m # NIL DO
+      start := count; cmd := m.commands;
+      WHILE cmd # NIL DO INC(count); cmd := cmd.next END;
+      Out(Wrap('  {.ocg_tag = &O_ModuleInfo_ModDesc_tag, .f_name = "', S(m.name), '", .f_next = '));
+      INC(entry);
+      IF m.next # NIL THEN Out(Wrap("&ocg_modules[", N(entry), "]")) ELSE Out(S("NULL")) END;
+      Out(Wrap(", .f_cmd = ", N(start), "")); Line(Wrap(", .f_ent = ", N(count), "},"));
+      m := m.next
+    END;
+    Line(S("};"));
+    Line(S("static const struct { const char *name; O_ModuleInfo_Command proc; } ocg_commands[] = {"));
+    m := graph;
+    WHILE m # NIL DO cmd := m.commands;
+      WHILE cmd # NIL DO
+        Out(Wrap('  {"', S(cmd.name), '", O_'));
+        Out(C(S(m.name), "_")); Line(C(S(cmd.name), "},"));
+        cmd := cmd.next
+      END; m := m.next
+    END;
+    Line(S("  {NULL, NULL}")); Line(S("};"));
+    Line(S("O_ModuleInfo_Module comstime_module_root(void) { return ocg_modules; }"));
+    Line(S("O_ModuleInfo_Command comstime_module_command(ocg_int number, O_ModuleInfo_ModuleName *name) {"));
+    Line(Wrap("  if (number < 0 || number >= ", N(count), ") return NULL;"));
+    Line(S("  size_t length = strlen(ocg_commands[number].name) + 1;"));
+    Line(S("  memcpy(*name, ocg_commands[number].name, length);"));
+    Line(S("  return ocg_commands[number].proc;")); Line(S("}"))
+  END
+END CommandTables;
+
+PROCEDURE Close*(VAR modid: ORS.Ident; key, nofent: LONGINT; graph, node: OCGBuild.Node);
   VAR file: Files.File; name: ARRAY 80 OF CHAR; i: INTEGER;
     p: Proc; ct: CType; o: ORB.Object; s: Symbol; t: Text;
 BEGIN active.limit := pc; Emit(S(";"));
+  IF node # NIL THEN CollectCommands(node) END;
   (* Derive branch labels after all fixups, including targets emitted later. *)
   FOR i := 1 TO pc-1 DO IF code[i].branch & (code[i].target > 0) THEN code[code[i].target].used := TRUE END END;
   COPY(modid, name); i := 0; WHILE name[i] # 0X DO INC(i) END;
@@ -1192,6 +1255,7 @@ BEGIN active.limit := pc; Emit(S(";"));
       p := p.next
     END;
     IF mainProgram THEN
+      CommandTables(graph);
       Line(S("int main(void) {"));
       Line(C(C(ModulePrefix(0), "_init"), "();"));
       Line(S("return 0;")); Line(S("}"))

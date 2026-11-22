@@ -35,6 +35,7 @@ echo 'PASS: 11 modules, C11 -O2 -Wall -Wextra -Werror, 7 runtime traps, unsuppor
 "$root/tests/externals.sh" "$compiler"
 
 python3 "$root/tests/makefile.py" "$compiler"
+python3 "$root/tests/commands.py" "$compiler"
 
 "$root/tests/references.sh" "$compiler"
 

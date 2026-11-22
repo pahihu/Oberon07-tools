@@ -1225,7 +1225,7 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
     END
   END Import;
 
-  PROCEDURE Module;
+  PROCEDURE Module(graph, node: OCGBuild.Node);
     VAR key: LONGINT;
         dummy: LONGINT;
   BEGIN Texts.WriteString(W, "  compiling "); ORS.Get(sym);
@@ -1264,7 +1264,7 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
         IF newSF THEN Texts.WriteLn(W); Texts.WriteString(W, "  new symbol file") END
       END ;
       IF ORS.errcnt = 0 THEN
-        ORG.Close(modid, key, exno);
+        ORG.Close(modid, key, exno, graph, node);
         Texts.WriteInt(W, ORG.pc, 6); Texts.WriteInt(W, dc, 6); Texts.WriteHex(W, key)
       ELSE Texts.WriteLn(W); Texts.WriteString(W, "compilation FAILED")
       END ;
@@ -1311,7 +1311,7 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
       FOR i := 0 TO 25 DO ORS.options[i] := options[i] END; newSF := TRUE;
       (* Postorder places the requested root last; only it owns C main(). *)
       ORG.mainProgram := p.next = NIL;
-      ORS.Init(p.text, 0); Module; p := p.next
+      ORS.Init(p.text, 0); Module(first, p); p := p.next
     END;
     FOR i := 0 TO 25 DO ORS.options[i] := options[i] END; ORG.mainProgram := FALSE;
     IF ORS.errcnt = 0 THEN OCGMake.WriteMakefile(first, rootArg, optionString) END
@@ -1327,7 +1327,7 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
     WHILE (S.class = Texts.Name) OR (S.class = Texts.String) DO
       NEW(T); COPY(S.s, rootArg); COPY(S.s, path); ORS.ResolvePath(path); Texts.Open(T, path);
       IF T.len > 0 THEN Option(S);
-        IF build THEN Build(T, path, rootArg) ELSE ORS.Init(T, 0); Module END
+        IF build THEN Build(T, path, rootArg) ELSE ORS.Init(T, 0); Module(NIL, NIL) END
       ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
         Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf); INC(ORS.errcnt)
       END ;

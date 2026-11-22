@@ -8,10 +8,13 @@ TYPE
   LONGINT = Sys.INT32;
   Edge* = POINTER TO EdgeDesc;
   EdgeDesc* = RECORD name*: ORS.Ident; next*: Edge END;
+  Command* = POINTER TO CommandDesc;
+  CommandDesc* = RECORD name*: ORS.Ident; next*: Command END;
   Node* = POINTER TO NodeDesc;
   NodeDesc = RECORD
     name*: ORS.Ident; path*: ORS.Path; text*: Texts.Text;
-    next*: Node; allNext: Node; imports*: Edge; listed*: BOOLEAN; state: INTEGER
+    next*: Node; allNext: Node; imports*: Edge; listed*: BOOLEAN; state: INTEGER;
+    commands*: Command; moduleInfo*: BOOLEAN
   END;
 VAR all, first, last: Node; count: INTEGER; W: Texts.Writer;
 
