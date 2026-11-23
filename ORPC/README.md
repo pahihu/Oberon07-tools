@@ -111,8 +111,8 @@ following external bindings, ORPC emits the tables and bindings in the main
 module's C file. This also works for Cortex-M builds and indirect imports.
 
 ```oberon
-PROCEDURE StaticRoot ["comstime_module_root"](): Module;
-PROCEDURE StaticCommand ["comstime_module_command"]
+PROCEDURE StaticRoot ["pocc_module_root"](): Module;
+PROCEDURE StaticCommand ["pocc_module_command"]
   (number: INTEGER; VAR name: ModuleName): Command;
 ```
 

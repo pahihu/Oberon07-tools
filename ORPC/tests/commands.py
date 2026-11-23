@@ -48,8 +48,8 @@ TYPE
   END;
 VAR root*: Module;
 
-PROCEDURE Root ["comstime_module_root"](): Module;
-PROCEDURE Lookup ["comstime_module_command"](index: INTEGER; VAR name: ModuleName): Command;
+PROCEDURE Root ["pocc_module_root"](): Module;
+PROCEDURE Lookup ["pocc_module_command"](index: INTEGER; VAR name: ModuleName): Command;
 
 PROCEDURE At*(index: INTEGER; VAR name: ModuleName): Command;
 BEGIN RETURN Lookup(index, name)
@@ -140,7 +140,7 @@ with tempfile.TemporaryDirectory() as directory:
     run(compiler, "Compile", "CommandApp.Mod/bm0")
     assert 'O_CommandLeaf_Run_New' in root.read_text()
     assert 'O_CommandLeaf_Tick' not in root.read_text()
-    assert 'comstime_module_command(ocg_int number, O_ModuleInfo_ModuleName *name)' in root.read_text()
+    assert 'pocc_module_command(ocg_int number, O_ModuleInfo_ModuleName *name)' in root.read_text()
     assert '#define OCG_CORTEX_M 1' in (work / "CommandApp.h").read_text()
 
     # A provider with no commands still links and initializes its module list.

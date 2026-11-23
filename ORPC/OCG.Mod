@@ -1072,8 +1072,8 @@ BEGIN
   WHILE p # NIL DO o := p.obj;
     IF (o # NIL) & (o.lev = 0) THEN
       IF p.external THEN
-        IF o.externalName = "comstime_module_root" THEN hasRoot := TRUE
-        ELSIF o.externalName = "comstime_module_command" THEN hasLookup := TRUE END
+        IF o.externalName = "pocc_module_root" THEN hasRoot := TRUE
+        ELSIF o.externalName = "pocc_module_command" THEN hasLookup := TRUE END
       ELSIF o.expo & ~o.interrupt & (o.type.nofpar = 0) & (o.type.base = ORB.noType) THEN
         NEW(cmd); cmd.name := o.name;
         IF tail = NIL THEN node.commands := cmd ELSE tail.next := cmd END; tail := cmd
@@ -1118,8 +1118,8 @@ BEGIN
       END; m := m.next
     END;
     Line(S("  {NULL, NULL}")); Line(S("};"));
-    Line(S("O_ModuleInfo_Module comstime_module_root(void) { return ocg_modules; }"));
-    Line(S("O_ModuleInfo_Command comstime_module_command(ocg_int number, O_ModuleInfo_ModuleName *name) {"));
+    Line(S("O_ModuleInfo_Module pocc_module_root(void) { return ocg_modules; }"));
+    Line(S("O_ModuleInfo_Command pocc_module_command(ocg_int number, O_ModuleInfo_ModuleName *name) {"));
     Line(Wrap("  if (number < 0 || number >= ", N(count), ") return NULL;"));
     Line(S("  size_t length = strlen(ocg_commands[number].name) + 1;"));
     Line(S("  memcpy(*name, ocg_commands[number].name, length);"));
