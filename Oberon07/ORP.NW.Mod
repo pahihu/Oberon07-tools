@@ -1112,6 +1112,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
           ELSIF S.s[i] = "s" THEN newSF := TRUE
           ELSIF S.s[i] = "A" THEN ORS.SetOption("A", FALSE)
           ELSIF S.s[i] = "C" THEN
+            ORS.SetOption("C", FALSE);
             ORS.SetOption("P", FALSE);
             ORS.SetOption("T", FALSE);
             ORS.SetOption("X", FALSE)

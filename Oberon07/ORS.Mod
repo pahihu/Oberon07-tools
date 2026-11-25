@@ -261,6 +261,16 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
     SetOption("C", TRUE)  (*run-time checks: P T X*)
   END InitOptions;
 
+  PROCEDURE ShowOptions*;
+    VAR i: INTEGER;
+  BEGIN Texts.WriteString(W, " options: ");
+    FOR i := 0 TO LEN(options) - 1 DO
+      IF options[i] THEN
+        Texts.Write(W, CHR(ORD("A") + i))
+      END
+    END
+  END ShowOptions;
+
   PROCEDURE SetDollarOption;
     VAR opt: CHAR;
   BEGIN
