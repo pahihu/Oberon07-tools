@@ -58,6 +58,16 @@ ocg_int host_utime(void)
 #include <errno.h>
 
 ucontext_t main_ctx;
+static _Thread_local const ucontext_t *active_context;
+
+bool ocg_host_coro_bounds(ocg_stack_range *range)
+{
+  if (!active_context || active_context == &main_ctx)
+    return false;
+  range->low = (uintptr_t)active_context->uc_stack.ss_sp;
+  range->high = range->low + active_context->uc_stack.ss_size;
+  return true;
+}
 
 ocg_int host_coro_current(ocg_int *coro)
 {
@@ -118,7 +128,10 @@ void host_coro_transfer(ocg_int *p_from, ocg_int p_to)
   assert(from != NULL && to != NULL);
   assert(from != to);
 
+  const ucontext_t *previous = active_context;
+  active_context = to;
   swapcontext(from, to);
+  active_context = previous;
 }
 #endif
 

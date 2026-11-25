@@ -589,4 +589,52 @@ scanner supplied with the underscore change, extended for native numeric literal
 supplied repository. Original author/provenance comments are
 retained in the adapted source files.
 
+### Command-line run-time checks
+
+Append uppercase flags to the regular option suffix, for example
+`ORPC Compile Main.Mod/bCKV`. Each source argument starts from the
+standard defaults. With `/b`, every module starts from the same
+command-line settings. Source directives such as `(*$P+*)` can change
+those settings within their module.
+
+| Flag | Effect |
+| --- | --- |
+| `A` | Disable ASSERT generation |
+| `C` | Disable the checks controlled by `P`, `T` and `X` |
+| `K` | Enable stack bounds checks |
+| `P` | Disable NIL pointer and procedure call checks |
+| `T` | Disable type guard and exact-type VAR record assignment checks |
+| `V` | Enable INTEGER arithmetic overflow checks for operations such as addition, subtraction, multiplication, negation, INC and DEC |
+| `X` | Disable array index, array/string copy length and unmatched numeric CASE checks |
+
+`K` and `V` are independent of `C`. The uppercase flags can also be
+combined with a Cortex-M option, for example `Main.Mod/bm0CKV`.
+
+### Stack bounds checks
+
+`(*$K+*)` emits a stack bounds check at the entry to subsequent procedure
+and module bodies. Put `(*$K-*)` before a body to disable it again.
+The compiler samples the directive before `BEGIN` or `RETURN`, and it
+applies independently of `$C`. External C procedures have no generated
+body. A module is checked when initialization starts.
+
+Checked bodies are kept out of line so each entry samples its own C
+frame. The check reads the live stack pointer after the C prologue and
+before Oberon local initialization. It traps with the module and source offset
+if the pointer is outside the active stack or within the reporting reserve
+at its lower end. This can catch cumulative stack growth. A single large
+machine frame can fault during its prologue before the check runs.
+
+On Linux and macOS it uses the current thread's stack bounds, or the
+active coroutine's range when the runtime provides `ocg_host_coro_bounds`.
+On Windows it reads the active thread or fiber's stack reservation.
+The generated native makefile links `host/stack.c` when any module uses
+`$K`. For separate translation without `/b`, link that file explicitly.
+A board with its own Cortex-M linker script must provide
+`__ocg_stack_bottom` and `__ocg_stack_top` for the startup stack. The
+supplied Cortex-M coroutine runtime supplies the bounds for private
+stacks and uses the startup MSP bounds for interrupt handlers when
+thread mode uses PSP. `OCG_STACK_RESERVE` defaults to 256 bytes on
+Cortex-M and 8 KiB on native targets.
+
 Runtime traps report the module name and scanner file position (`ORS.Pos()`, a character offset, not a line number). Generated checks pass this metadata explicitly to the runtime, including nested expressions and checks in imported modules. For example: `Oberon trap: index in module Main at position 123`. Rebuild ORPC and regenerate C files when updating the runtime. Cortex board code can define `OCG_TRAP_AT(reason,module,position)` to receive the same metadata; the existing `OCG_TRAP(reason)` hook remains supported.

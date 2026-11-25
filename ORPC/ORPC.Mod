@@ -1277,7 +1277,8 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
 
   PROCEDURE Option(VAR S: Texts.Scanner);
     VAR i: INTEGER;   
-  BEGIN optionString[0] := 0X; newSF := FALSE; build := FALSE; ORG.mainProgram := FALSE; ORG.astrobe := FALSE; ORG.SetTarget(0);
+  BEGIN ORS.InitCheckOptions;
+    optionString[0] := 0X; newSF := FALSE; build := FALSE; ORG.mainProgram := FALSE; ORG.astrobe := FALSE; ORG.SetTarget(0);
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
       IF S.class = Texts.Name THEN
@@ -1293,6 +1294,9 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
             ELSIF S.s[i+1] = "7" THEN ORG.SetTarget(7)
             ELSE ORS.Mark("expected m0, m3, m4 or m7 target") END;
             ORG.astrobe := TRUE
+          ELSIF (S.s[i] = "K") OR (S.s[i] = "V") THEN ORS.SetOption(S.s[i], TRUE)
+          ELSIF (S.s[i] = "A") OR (S.s[i] = "C") OR (S.s[i] = "P") OR
+                (S.s[i] = "T") OR (S.s[i] = "X") THEN ORS.SetOption(S.s[i], FALSE)
           ELSIF S.s[i] = "e" THEN ORS.WarningIsError
           ELSIF S.s[i] = "g" THEN ORS.warning := TRUE; ORS.debug := TRUE
           ELSIF S.s[i] = "h" THEN ORS.SetOption("H", FALSE)
@@ -1346,7 +1350,7 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
 
   PROCEDURE Help*;
   BEGIN
-    Ln; String("usage: ORPC Compile name[/abls]...");
+    Ln; String("usage: ORPC Compile name[/options]...");
     Ln; String("options:");
     Ln; String("  /b    - translate imports; emit root main() and Module.mk");
     Ln; String("  /a    - enable Astrobe-compatibility");
@@ -1355,9 +1359,17 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
     Ln; String("  /h    - don't convert type descriptor size for heap allocation");
     Ln; String("  /l    - report position as line:char");
     Ln; String("  /s    - enable new C symbol file (.csmb)");
+    Ln; String("  /A    - disable ASSERT generation");
+    Ln; String("  /C    - disable P, T and X checks");
+    Ln; String("  /K    - enable stack bounds checks");
+    Ln; String("  /P    - disable NIL pointer and procedure call checks");
+    Ln; String("  /T    - disable type guard checks");
+    Ln; String("  /V    - enable INTEGER arithmetic overflow checks");
+    Ln; String("  /X    - disable index, unmatched CASE and array/string length checks");
     Ln; String("comment embedded options: opt=+|-");
     Ln; String("  $Aopt - ASSERT generation");
     Ln; String("  $Copt - run-time checks (toggles $P $T $X)");
+    Ln; String("  $Kopt - stack bounds check at body entry (default disabled)");
     Ln; String("  $Lopt - accept leaf procedures (ordinary C calling convention)");
     Ln; String("  $Popt - NIL pointer, procedure call check");
     Ln; String("  $Sopt - allow new symbol file");

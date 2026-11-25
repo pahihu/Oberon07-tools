@@ -2,10 +2,11 @@
 #ifndef CORO_H
 #define CORO_H
 
-#include <stdint.h>
+#include "ocg_runtime.h"
 
 typedef struct {
     uint32_t *sp;
+    ocg_stack_range stack;
 } coroutine_t;
 
 int coro_current(coroutine_t **coro);

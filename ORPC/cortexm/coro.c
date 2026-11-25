@@ -18,6 +18,9 @@
 #endif
 
 static coroutine_t main_co;
+const ocg_stack_range *volatile ocg_coro_stack;
+volatile uint32_t ocg_coro_uses_psp;
+_Static_assert(offsetof(coroutine_t, stack) == 4, "coro_transfer descriptor layout");
 
 /*
  * r4 initially contains proc.
@@ -42,6 +45,7 @@ __attribute__((naked, noinline))
 void coro_transfer(coroutine_t *from, coroutine_t *to)
 {
     __asm__(
+        ".syntax unified\n"
         CORO_FP_SAVE
 
         /* Save the original low registers before using them. */
@@ -55,8 +59,21 @@ void coro_transfer(coroutine_t *from, coroutine_t *to)
         /* from->sp = sp; sp = to->sp; */
         "mov r2, sp\n"
         "str r2, [r0]\n"
+        /* Update the checked bounds and SP together with IRQs masked. */
+        "mrs r3, primask\n"
+        "cpsid i\n"
         "ldr r2, [r1]\n"
-        "mov sp, r2\n"
+        "mov r12, r2\n"
+        "mrs r2, control\n"
+        "movs r0, #2\n"
+        "ands r2, r0\n"
+        "ldr r0, =ocg_coro_uses_psp\n"
+        "str r2, [r0]\n"
+        "adds r1, #4\n"
+        "ldr r0, =ocg_coro_stack\n"
+        "str r1, [r0]\n"
+        "mov sp, r12\n"
+        "msr primask, r3\n"
 
         /* Restore high registers, then original low registers. */
         "pop {r4-r7}\n"
@@ -115,6 +132,8 @@ int coro_new(void (*proc)(void),
     frame[8] = (uint32_t)(uintptr_t)coro_entry;
 
     c->sp = frame;
+    c->stack.low = bottom + sizeof *c;
+    c->stack.high = end;
     *coro = c;
     return 0;
 }

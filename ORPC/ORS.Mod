@@ -236,16 +236,26 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   PROCEDURE SetOption*(ch: CHAR; flag: BOOLEAN);
   BEGIN
     ASSERT(("A" <= ch) & (ch <= "Z"));
-    options[ORD(ch) - ORD("A")] := flag
+    options[ORD(ch) - ORD("A")] := flag;
+    IF ch = "C" THEN
+      options[ORD("P") - ORD("A")] := flag;
+      options[ORD("T") - ORD("A")] := flag;
+      options[ORD("X") - ORD("A")] := flag
+    END
   END SetOption;
+
+  PROCEDURE InitCheckOptions*;
+  BEGIN
+    SetOption("A", TRUE); SetOption("C", TRUE);
+    SetOption("K", FALSE); SetOption("V", FALSE)
+  END InitCheckOptions;
 
   (*compiler options: $<opt>+ $<opt>-*)
   PROCEDURE InitOptions;
     VAR i: INTEGER;
   BEGIN
     FOR i := 0 TO LEN(options) - 1 DO options[i] := FALSE END ;
-    SetOption("A", TRUE); (*ASSERTs*)
-    SetOption("C", TRUE)  (*run-time checks*)
+    InitCheckOptions
   END InitOptions;
 
   PROCEDURE SetDollarOption;

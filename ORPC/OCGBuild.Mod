@@ -14,7 +14,7 @@ TYPE
   NodeDesc = RECORD
     name*: ORS.Ident; path*: ORS.Path; text*: Texts.Text;
     next*: Node; allNext: Node; imports*: Edge; listed*: BOOLEAN; state: INTEGER;
-    commands*: Command; moduleInfo*: BOOLEAN
+    commands*: Command; moduleInfo*, stackCheck*: BOOLEAN
   END;
 VAR all, first, last: Node; count: INTEGER; W: Texts.Writer;
 

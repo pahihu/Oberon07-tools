@@ -40,5 +40,8 @@ SECTIONS
     PROVIDE(_data_load_start = LOADADDR(.data));
 
     PROVIDE(end = .);
+    PROVIDE(__ocg_stack_top = ORIGIN(ram) + 512K);
+    PROVIDE(__ocg_stack_bottom = __ocg_stack_top - 64K);
+    ASSERT(end <= __ocg_stack_bottom, "static data overlaps the startup stack")
 }
 

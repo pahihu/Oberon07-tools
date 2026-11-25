@@ -50,5 +50,6 @@ python3 "$root/tests/recordassignment.py" "$compiler"
 python3 "$root/tests/native.py" "$compiler"
 
 python3 "$root/tests/positions.py" "$compiler"
+python3 "$root/tests/options.py" "$compiler"
 
 python3 "$root/tests/cortex.py" "$compiler"

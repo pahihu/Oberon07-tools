@@ -258,7 +258,7 @@ MODULE ORS; (* NW 19.9.93 / 15.3.2017  Scanner in Oberon-07*)
   BEGIN
     FOR i := 0 TO LEN(options) - 1 DO options[i] := FALSE END ;
     SetOption("A", TRUE); (*ASSERTs*)
-    SetOption("C", TRUE)  (*run-time checks*)
+    SetOption("C", TRUE)  (*run-time checks: P T X*)
   END InitOptions;
 
   PROCEDURE SetDollarOption;

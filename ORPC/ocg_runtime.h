@@ -63,6 +63,62 @@ static inline _Noreturn void ocg_fail(const char *why,const char *module,ocg_int
 #endif
   for(;;) {}
 }
+/* A sampled stack pointer belongs to the current C frame, after its prologue. */
+#define OCG_HAS_STACK_CHECK 1
+typedef struct { uintptr_t low, high; } ocg_stack_range;
+
+#if defined(__i386__) || defined(__x86_64__)
+#if defined(__x86_64__)
+#define OCG_READ_SP(sp) __asm__ volatile("mov %%rsp, %0" : "=r"(sp) : : "memory")
+#else
+#define OCG_READ_SP(sp) __asm__ volatile("mov %%esp, %0" : "=r"(sp) : : "memory")
+#endif
+#elif defined(__arm__) || defined(__aarch64__)
+#define OCG_READ_SP(sp) __asm__ volatile("mov %0, sp" : "=r"(sp) : : "memory")
+#elif defined(__riscv)
+#define OCG_READ_SP(sp) __asm__ volatile("mv %0, sp" : "=r"(sp) : : "memory")
+#endif
+
+#ifdef OCG_CORTEX_M
+extern const char __ocg_stack_bottom[], __ocg_stack_top[];
+/* Optional when the image links without coro.c. */
+extern const ocg_stack_range *volatile ocg_coro_stack __attribute__((weak));
+extern volatile uint32_t ocg_coro_uses_psp __attribute__((weak));
+#ifndef OCG_STACK_RESERVE
+#define OCG_STACK_RESERVE 256u
+#endif
+static inline __attribute__((always_inline))
+void ocg_stack_check_at(const char *module, ocg_int position) {
+  uintptr_t sp, low = (uintptr_t)__ocg_stack_bottom, high = (uintptr_t)__ocg_stack_top;
+  OCG_READ_SP(sp);
+  if (&ocg_coro_stack && ocg_coro_stack) {
+    const ocg_stack_range *range = ocg_coro_stack;
+    uint32_t exception;
+    __asm__ volatile("mrs %0, ipsr" : "=r"(exception));
+    if (range->low && (!exception || !ocg_coro_uses_psp)) {
+      low = range->low;
+      high = range->high;
+    }
+  }
+  if (sp < low || sp > high || sp - low < OCG_STACK_RESERVE)
+    ocg_fail("stack overflow", module, position);
+}
+#else
+void ocg_stack_check_sp_at(uintptr_t sp, const char *module, ocg_int position);
+static inline __attribute__((always_inline))
+void ocg_stack_check_at(const char *module, ocg_int position) {
+  uintptr_t sp;
+#ifdef OCG_READ_SP
+  OCG_READ_SP(sp);
+#else
+  volatile unsigned char marker;
+  sp = (uintptr_t)&marker;
+#endif
+  ocg_stack_check_sp_at(sp, module, position);
+}
+#endif
+#undef OCG_READ_SP
+
 static inline void ocg_assert_at(bool b,const char *module,ocg_int position) { if(!b) ocg_fail("ASSERT/type guard",module,position); }
 static inline void *ocg_nonnull_at(void *p,const char *module,ocg_int position) { if(!p) ocg_fail("NIL",module,position); return p; }
 static inline void *ocg_alloc_at(size_t n,const char *module,ocg_int position) { return ocg_nonnull_at(OCG_ALLOC(n),module,position); }

@@ -47,9 +47,11 @@ END END DependencyHeaders;
 PROCEDURE WriteMakefile*(first: OCGBuild.Node; rootArg, flags: ARRAY OF CHAR);
   VAR p, q, root: OCGBuild.Node; name: ARRAY 80 OF CHAR;
     exe: ARRAY 256 OF CHAR; arg: ARRAY 320 OF CHAR;
-    file: Files.File; i, j: INTEGER;
+    file: Files.File; i, j: INTEGER; stack: BOOLEAN;
 BEGIN IF first # NIL THEN
-  root := first; WHILE root.next # NIL DO root := root.next END;
+  root := first; stack := root.stackCheck;
+  WHILE root.next # NIL DO root := root.next; stack := stack OR root.stackCheck END;
+  stack := stack & (Target.Cortex = 0);
   COPY(root.name, name); i := 0; WHILE name[i] # 0X DO INC(i) END;
   name[i] := "."; name[i+1] := "m"; name[i+2] := "k"; name[i+3] := 0X;
   file := Files.New(name);
@@ -95,6 +97,12 @@ BEGIN IF first # NIL THEN
     Write("MODULES :="); p := first;
     WHILE p # NIL DO Write(" "); Write(p.name); p := p.next END; Ln;
     Line("OBJECTS := $(addsuffix .o,$(MODULES))");
+    IF stack THEN
+      Line("OBJECTS += ocg_stack_runtime.o");
+      Line("OCG_STACK_LIBS ?= $(if $(findstring linux,$(shell $(CC) -dumpmachine)),-pthread)");
+      Line("ocg_stack_runtime.o: $(subst $(ocg_space),\$(ocg_space),$(OCG_RUNTIME_PATH))/host/stack.c $(OCG_RUNTIME_DEP)");
+      Tab; Line("$(CC) $(CPPFLAGS) $(OCG_RUNTIME_CPPFLAGS) -I$(call ocg_shell_quote,$(OCG_RUNTIME_PATH)) $(CFLAGS) -MMD -MP -c $(call ocg_shell_quote,$(OCG_RUNTIME_PATH)/host/stack.c) -o $@")
+    END;
     Line("DEPS := $(OBJECTS:.o=.d) $(patsubst %.o,%.d,$(filter %.o,$(EXTRA_OBJS) $(STARTUP_OBJS)))");
     Write("SOURCES :="); p := first;
     WHILE p # NIL DO Write(" "); Path(p.path); p := p.next END; Ln; Ln;
@@ -104,7 +112,10 @@ BEGIN IF first # NIL THEN
     IF Target.Cortex # 0 THEN
       Tab; Line('@test -n "$(LDSCRIPT)" || { echo "Set LDSCRIPT to your MCU linker script and STARTUP_OBJS to startup/vector objects"; exit 1; }');
       Tab; Line("$(CC) $(OCG_TARGET_FLAGS) $(LDFLAGS) -T$(call ocg_shell_quote,$(LDSCRIPT)) -o $@ $(OBJECTS) $(STARTUP_OBJS) $(EXTRA_OBJS) $(LDLIBS)")
-    ELSE Tab; Line("$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTRA_OBJS) $(LDLIBS)") END; Ln;
+    ELSE
+      Tab; Write("$(CC) $(LDFLAGS) -o $@ $(OBJECTS) $(EXTRA_OBJS) $(LDLIBS)");
+      IF stack THEN Write(" $(OCG_STACK_LIBS)") END; Ln
+    END; Ln;
     Line("%.o: %.c");
     Tab; Line("$(CC) $(CPPFLAGS) $(OCG_RUNTIME_CPPFLAGS) $(OCG_TARGET_FLAGS) -I$(call ocg_shell_quote,$(OCG_RUNTIME_PATH)) $(CFLAGS) -MMD -MP -MF $(@:.o=.d) -MT $@ -c $< -o $@"); Ln;
     IF Target.Cortex # 0 THEN

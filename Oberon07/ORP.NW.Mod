@@ -1110,6 +1110,16 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
           ELSIF S.s[i] = "e" THEN ORS.WarningIsError
           ELSIF S.s[i] = "l" THEN ORS.reportLine := TRUE
           ELSIF S.s[i] = "s" THEN newSF := TRUE
+          ELSIF S.s[i] = "A" THEN ORS.SetOption("A", FALSE)
+          ELSIF S.s[i] = "C" THEN
+            ORS.SetOption("P", FALSE);
+            ORS.SetOption("T", FALSE);
+            ORS.SetOption("X", FALSE)
+          ELSIF S.s[i] = "K" THEN ORS.SetOption("K", TRUE)
+          ELSIF S.s[i] = "P" THEN ORS.SetOption("P", FALSE)
+          ELSIF S.s[i] = "T" THEN ORS.SetOption("T", FALSE)
+          ELSIF S.s[i] = "V" THEN ORS.SetOption("V", TRUE)
+          ELSIF S.s[i] = "X" THEN ORS.SetOption("X", FALSE)
           END
         END
       END
@@ -1149,6 +1159,13 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
     Ln; String("  /e    - warning is error");
     Ln; String("  /l    - report position as line:char");
     Ln; String("  /s    - enable new symbol file");
+    Ln; String("  /A    - disable ASSERT generation");
+    Ln; String("  /C    - disable P, T and X checks");
+    Ln; String("  /K    - enable stack bounds checks");
+    Ln; String("  /P    - disable NIL pointer and procedure call checks");
+    Ln; String("  /T    - disable type guard checks");
+    Ln; String("  /V    - enable INTEGER arithmetic overflow checks");
+    Ln; String("  /X    - disable index, unmatched CASE and array/string length checks");
     Ln; String("comment embedded options: opt=+|-");
     Ln; String("  $Aopt - ASSERT generation");
     Ln; String("  $Copt - run-time checks (toggles $P $T $X)");

@@ -50,7 +50,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
     frame: LONGINT;  (*frame offset changed in SaveRegs and RestoreRegs*)
     fixorgP, fixorgD, fixorgT: LONGINT;   (*origins of lists of locations to be fixed up by loader*)
     check: BOOLEAN;  (*emit run-time checks*)
-    oldchecks: ARRAY 5 OF BOOLEAN;
+    oldchecks: ARRAY 6 OF BOOLEAN; (*CKPTVX flags*)
     version: INTEGER;  (* 0 = RISC-0, 1 = RISC-5 *)
     
     relmap: ARRAY 6 OF INTEGER;  (*condition codes for relations*)
@@ -851,23 +851,26 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
   PROCEDURE SaveChecks;
   BEGIN
     oldchecks[0] := ORS.GetOption("C");
-    oldchecks[1] := ORS.GetOption("P");
-    oldchecks[2] := ORS.GetOption("T");
-    oldchecks[3] := ORS.GetOption("V");
-    oldchecks[4] := ORS.GetOption("X")
+    oldchecks[1] := ORS.GetOption("K");
+    oldchecks[2] := ORS.GetOption("P");
+    oldchecks[3] := ORS.GetOption("T");
+    oldchecks[4] := ORS.GetOption("V");
+    oldchecks[5] := ORS.GetOption("X")
   END SaveChecks;
 
   PROCEDURE RestoreChecks;
   BEGIN
     ORS.SetOption("C", oldchecks[0]);
-    ORS.SetOption("P", oldchecks[1]);
-    ORS.SetOption("T", oldchecks[2]);
-    ORS.SetOption("V", oldchecks[3]);
-    ORS.SetOption("X", oldchecks[4])
+    ORS.SetOption("K", oldchecks[1]);
+    ORS.SetOption("P", oldchecks[2]);
+    ORS.SetOption("T", oldchecks[3]);
+    ORS.SetOption("V", oldchecks[4]);
+    ORS.SetOption("X", oldchecks[5])
   END RestoreChecks;
 
   PROCEDURE SetChecks(flag: BOOLEAN);
   BEGIN
+    IF ~flag THEN ORS.SetOption("K", flag) END ;
     ORS.SetOption("P", flag);
     ORS.SetOption("T", flag);
     IF ~flag THEN ORS.SetOption("V", flag) END ;
@@ -1146,7 +1149,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
   PROCEDURE Open*(v: INTEGER);
   BEGIN pc := 0; tdx := 0; strx := 0; RH := 0; fixorgP := 0; fixorgD := 0; fixorgT := 0; check := v # 0; version := v;
-    ORS.SetOption("C", check); SetChecks(check);
+    IF check THEN SetChecks(ORS.GetOption("C")) (*use Compile option*)
+    ELSE ORS.SetOption("C", check); SetChecks(check) (*turn off*)
+    END ;
     IF v = 0 THEN pc := 1;
       REPEAT code[pc] := 0; INC(pc) UNTIL pc = 8
     END

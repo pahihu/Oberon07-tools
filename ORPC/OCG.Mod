@@ -21,8 +21,8 @@ TYPE
   CTypeDesc = RECORD typ: ORB.Type; name: Text; state: INTEGER; layout: BOOLEAN;
     next: CType END;
   Proc = POINTER TO ProcDesc;
-  ProcDesc = RECORD obj, scope: ORB.Object; first, limit: LONGINT; external: BOOLEAN;
-    next: Proc END;
+  ProcDesc = RECORD obj, scope: ORB.Object; first, limit: LONGINT; external, stackCheck: BOOLEAN;
+    stackPosition: LONGINT; next: Proc END;
   Instruction = RECORD text: Text; target, chain: LONGINT;
     branch, used: BOOLEAN END;
   CallFrame = POINTER TO CallDesc;
@@ -470,15 +470,26 @@ BEGIN rhs := y.e;
   IF x.type.form = ORB.Pointer THEN rhs := C(Cat(Wrap("((", TypeName(x.type), ")"), rhs), ")") END;
   Emit(C(Binary(x.e, " = ", rhs), ";"))
 END Store;
+PROCEDURE CopyArrayBytes(VAR x, y: Item; elementSize: Text);
+  VAR size: Text;
+BEGIN
+  size := Binary(Wrap("(size_t)(", ArrayLen(y), ")"), " * ", elementSize);
+  Emit(C(Wrap("(void)(", ArrayLen(x), ")"), ";"));
+  Emit(C(Cat(Wrap("if (", Binary(ArrayLen(y), " != ", S("0")), ") "),
+             Invoke("memmove", x.e, Cat(C(y.e, ", "), size))), ";"))
+END CopyArrayBytes;
 PROCEDURE StoreStruct*(VAR x, y: Item; ischar: BOOLEAN);
   VAR args: Text;
 BEGIN
   IF x.type.form = ORB.Array THEN
-    args := Cat(C(ArrayLen(x), ", "), y.e);
-    args := Cat(C(args, ", "), ArrayLen(y));
-    args := Cat(C(args, ", "), Wrap("sizeof(", TypeName(x.type.base), ")"));
-    args := Cat(C(args, ", "), B(ischar));
-    Emit(C(Invoke("ocg_arraycopy", x.e, args), ";"))
+    IF ORS.GetOption("X") THEN
+      args := Cat(C(ArrayLen(x), ", "), y.e);
+      args := Cat(C(args, ", "), ArrayLen(y));
+      args := Cat(C(args, ", "), Wrap("sizeof(", TypeName(x.type.base), ")"));
+      args := Cat(C(args, ", "), B(ischar));
+      Emit(C(Invoke("ocg_arraycopy", x.e, args), ";"))
+    ELSE CopyArrayBytes(x, y, Wrap("sizeof(", TypeName(x.type.base), ")"))
+    END
   ELSE
     args := Cat(C(Wrap("&(", y.e, ")"), ", "), Wrap("sizeof(", TypeName(x.type), ")"));
     IF x.varRecord & ORS.GetOption("T") THEN
@@ -488,7 +499,12 @@ BEGIN
   END
 END StoreStruct;
 PROCEDURE CopyString*(VAR x, y: Item);
-BEGIN Emit(C(Invoke("ocg_string", x.e, Cat(C(Cat(C(ArrayLen(x), ", "), y.e), ", "), ArrayLen(y))), ";")) END CopyString;
+BEGIN
+  IF ORS.GetOption("X") THEN
+    Emit(C(Invoke("ocg_string", x.e, Cat(C(Cat(C(ArrayLen(x), ", "), y.e), ", "), ArrayLen(y))), ";"))
+  ELSE CopyArrayBytes(x, y, S("sizeof(uint8_t)"))
+  END
+END CopyString;
 PROCEDURE PrepCall*(VAR x: Item; VAR r: LONGINT);
   VAR f: CallFrame;
 BEGIN Freeze(x);
@@ -571,20 +587,26 @@ BEGIN Emit(C(Binary(x.e, " = ", Invoke("ocg_add", x.e, w.e)), ";")) END For2;
     ORS.SetOption("X", oldchecks[4])
   END RestoreChecks;
   
-  PROCEDURE SetChecks(flag: BOOLEAN);
-  BEGIN
-    ORS.SetOption("P", flag);
-    ORS.SetOption("T", flag);
-    IF ~flag THEN ORS.SetOption("V", flag) END ;
-    ORS.SetOption("X", flag)
-  END SetChecks;
+PROCEDURE StackEntry;
+BEGIN
+  active.stackCheck := ORS.GetOption("K");
+  active.stackPosition := ORS.Pos()
+END StackEntry;
+PROCEDURE StackPrologue(p: Proc);
+BEGIN
+  IF p.stackCheck THEN
+    Line(C(Cat(C(Cat(S('ocg_stack_check_at("'), S(moduleName)), '", '),
+              N(p.stackPosition)), ");"))
+  END
+END StackPrologue;
 PROCEDURE Enter*(parblksize, locblksize: LONGINT; int, leaf: BOOLEAN);
   VAR irq: INTEGER;
-    check: BOOLEAN;
 BEGIN
+  StackEntry;
   SaveChecks;
-  IF int OR leaf THEN check := FALSE ELSE check := ORS.GetOption("C") END ;
-  SetChecks(check);
+  IF int OR leaf THEN
+    ORS.SetOption("P", FALSE); ORS.SetOption("T", FALSE); ORS.SetOption("X", FALSE)
+  END;
   IF int THEN
   IF Target.Cortex = 0 THEN ORS.Mark("OCG: interrupt procedure needs Cortex-M target")
   ELSIF active.obj.lev # 0 THEN ORS.Mark("interrupt procedure must be global")
@@ -610,15 +632,19 @@ END Return;
 PROCEDURE CaseHead*(VAR x: Item; VAR L0: LONGINT);
 BEGIN Freeze(x); L0 := pc; Emit(x.e) END CaseHead;
 PROCEDURE CaseTail*(L0, L1: LONGINT; n: INTEGER; VAR tab: ARRAY OF LabelRange);
-  VAR t, cond: Text; i: INTEGER;
+  VAR t, cond: Text; i: INTEGER; otherwise: LONGINT;
 BEGIN t := S("");
   FOR i := 0 TO n-1 DO
     cond := Binary(Binary(code[L0].text, " >= ", N(tab[i].low)), " && ", Binary(code[L0].text, " <= ", N(tab[i].high)));
     t := Cat(t, C(Cat(Wrap("if (", cond, ") goto ocg_L"), N(tab[i].label)), ";")); t := Cat(t, S(0AX));
     code[tab[i].label].used := TRUE
   END;
-  IF L1 = 0 THEN t := Cat(t, C(Invoke("ocg_fail", S('"CASE"'), NIL), ";"))
-  ELSE t := C(Cat(C(t, "goto ocg_L"), N(L1)), ";"); code[L1].used := TRUE END;
+  IF (L1 = 0) & ORS.GetOption("X") THEN
+    t := Cat(t, C(Invoke("ocg_fail", S('"CASE"'), NIL), ";"))
+  ELSE
+    otherwise := L1; IF otherwise = 0 THEN otherwise := pc END;
+    t := C(Cat(C(t, "goto ocg_L"), N(otherwise)), ";"); code[otherwise].used := TRUE
+  END;
   code[L0].text := t
 END CaseTail;
 PROCEDURE Increment*(upordown: LONGINT; VAR x, y: Item);
@@ -912,8 +938,7 @@ BEGIN IF drop THEN pc := sectionStart END END EndSection;
 PROCEDURE CheckRegs*; BEGIN END CheckRegs;
 PROCEDURE Open*(v: INTEGER);
   VAR i: INTEGER;
-BEGIN FOR i := 0 TO maxCode-1 DO code[i].used := FALSE END; ORS.SetOption("P", ORS.GetOption("C")); ORS.SetOption("T", ORS.GetOption("C"));
-  ORS.SetOption("X", ORS.GetOption("C"));
+BEGIN FOR i := 0 TO maxCode-1 DO code[i].used := FALSE END;
   pc := 1; symbols := NIL; types := NIL; lastType := NIL;
   procs := NIL; lastProc := NIL; active := NIL; calls := NIL;
   typeSerial := 0; procSerial := 0; tempSerial := 0; declarationOwner := NIL;
@@ -925,7 +950,7 @@ PROCEDURE Header*;
   VAR p: Proc;
 BEGIN NEW(p); p.first := pc; p.scope := moduleScope; p.obj := NIL;
   IF procs = NIL THEN procs := p ELSE lastProc.next := p END;
-  lastProc := p; active := p
+  lastProc := p; active := p; StackEntry
 END Header;
 
 PROCEDURE Params(t: ORB.Type; names: BOOLEAN): Text;
@@ -1070,6 +1095,7 @@ PROCEDURE CollectCommands(node: OCGBuild.Node);
 BEGIN
   p := procs; tail := NIL; hasRoot := FALSE; hasLookup := FALSE;
   WHILE p # NIL DO o := p.obj;
+    IF p.stackCheck THEN node.stackCheck := TRUE END;
     IF (o # NIL) & (o.lev = 0) THEN
       IF p.external THEN
         IF o.externalName = "pocc_module_root" THEN hasRoot := TRUE
@@ -1221,7 +1247,8 @@ BEGIN active.limit := pc; Emit(S(";"));
       IF p.obj # NIL THEN
         IF ~p.external THEN
           t := Signature(p.obj); IF ~p.obj.interrupt & (~p.obj.expo OR (p.obj.lev > 0)) THEN t := Cat(S("static "), t) END;
-          Line(C(t, " {"));
+          IF p.stackCheck THEN t := Cat(S("__attribute__((noinline)) "), t) END;
+          Line(C(t, " {")); StackPrologue(p);
           IF p.obj.interrupt THEN Line(S("ocg_arm_state ocg_irq_saved = {ocg_arm_cpu.apsr, ocg_arm_cpu.high};")) END;
           Variables(p.scope, p.obj, FALSE);
           o := p.scope.next;
@@ -1237,8 +1264,10 @@ BEGIN active.limit := pc; Emit(S(";"));
           END
         END
       ELSE
-        Line(C(Cat(S("void "), C(ModulePrefix(0), "_init")), "(void) {"));
-        Line(S("static unsigned char state;")); Line(S("if (state) return;")); Line(S("state = 1;"));
+        t := C(Cat(S("void "), C(ModulePrefix(0), "_init")), "(void) {");
+        IF p.stackCheck THEN t := Cat(S("__attribute__((noinline)) "), t) END;
+        Line(t); Line(S("static unsigned char state;")); Line(S("if (state) return;"));
+        StackPrologue(p); Line(S("state = 1;"));
         o := moduleScope.next;
         WHILE o # NIL DO
           IF (o.class = ORB.Mod) & (o.dsc # ORB.system) THEN
