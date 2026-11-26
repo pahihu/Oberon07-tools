@@ -1154,7 +1154,7 @@ MODULE ORP; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07*
 
   PROCEDURE Help*;
   BEGIN
-    Ln; String("usage: ORP Compile name[/als]...");
+    Ln; String("usage: ORP Compile name[/aelsACKPTVX]...");
     Ln; String("options:");
     Ln; String("  /a    - enabled Astrobe-compatibility");
     Ln; String("  /e    - warning is error");
