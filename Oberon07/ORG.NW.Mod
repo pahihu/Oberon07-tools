@@ -62,6 +62,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
     sectionStart: LONGINT;  (*pc at BeginSection*)
     sectionFixorgD: LONGINT;  (*fixorgD at BeginSection*)
+    genLeaf: BOOLEAN; (*generate leaf procedure*)
 
   PROCEDURE BeginSection*;
   BEGIN ASSERT(sectionStart = NoSection);
@@ -201,7 +202,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       IF x.mode = ORB.Const THEN
         IF x.type.form = ORB.Proc THEN
           IF x.r > 0 THEN ORS.Mark("not allowed")
-          ELSIF x.r = 0 THEN Put3(BL, 7, 0); Put1a(Sub, RH, LNK, pc*4 - x.a)
+          ELSIF x.r = 0 THEN
+            IF genLeaf THEN ORS.Mark("leaf procedure") END ;
+            Put3(BL, 7, 0); Put1a(Sub, RH, LNK, pc*4 - x.a)
           ELSE GetSB(x.r); Put1(Add, RH, RH, x.a + 100H) (*mark as progbase-relative*)
           END
         ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN Put1(Mov, RH, 0, x.a)
@@ -893,7 +896,8 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
         Put0(Cmp, SB, SB, SP);
         Trap(GT, 10)
       END ;
-      IF leaf THEN a := 0 ELSE Put2(Str, LNK, SP, 0) END ;
+      genLeaf := leaf;
+      IF genLeaf THEN a := 0 ELSE Put2(Str, LNK, SP, 0) END ;
       WHILE a < parblksize DO Put2(Str, r, SP, a); INC(r); INC(a, 4) END
     ELSE (*interrupt procedure*)
       Put1(Sub, SP, SP, locblksize); Put2(Str, 0, SP, 0); Put2(Str, 1, SP, 4); Put2(Str, 2, SP, 8)
@@ -912,7 +916,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
       Put3(BR, 7, 10H) (*RTI*)
     END ;
     RestoreChecks; check := ORS.GetOption("C");
-    RH := 0
+    genLeaf := FALSE; RH := 0
   END Return;
 
   (* In-line code procedures*)
@@ -1275,6 +1279,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 31.5.2019  Oberon compiler; code 
 
 BEGIN relmap[0] := 1; relmap[1] := 9; relmap[2] := 5; relmap[3] := 6; relmap[4] := 14; relmap[5] := 13;
   Texts.OpenWriter(W);
-  sectionStart := NoSection
+  sectionStart := NoSection; genLeaf := FALSE
 END ORG.
 (* vim:set ts=2 sw=2 et:*)

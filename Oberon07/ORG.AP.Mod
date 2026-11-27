@@ -275,7 +275,9 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
         IF ORS.debug THEN ORS.Twain("load/Const", x.type.form) END ;
         IF x.type.form = ORB.Proc THEN
           IF x.r > 0 THEN ORS.Mark("not allowed")
-          ELSIF x.r = 0 THEN Put3(BL, 7, 0); Put1a(Sub, RH, LNK, pc*4 - x.a)
+          ELSIF x.r = 0 THEN
+            IF genLeaf THEN ORS.Mark("leaf procedure") END ;
+            Put3(BL, 7, 0); Put1a(Sub, RH, LNK, pc*4 - x.a)
           ELSE GetSB(x.r); Put1(Add, RH, RH, x.a + 100H) (*mark as progbase-relative*)
           END
         ELSIF (x.a <= 0FFFFH) & (x.a >= -10000H) THEN Put1(Mov, RH, 0, x.a)
@@ -1181,7 +1183,6 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       IF size # 0 THEN Put1(Add, SP, SP, size) END ;
       IF ORS.debug THEN ORS.Twain("B LNK", pc) END ;
       Put3(BR, 7, LNK);
-      genLeaf := FALSE;
     ELSE (*interrupt return, restore R2, R1, R0*)
       Put2(Ldr, 2, SP, 8); Put2(Ldr, 1, SP, 4); Put2(Ldr, 0, SP, 0); Put1(Add, SP, SP, size);
       Put3(BR, 7, 10H) (*RTI*)
@@ -1209,6 +1210,7 @@ MODULE ORG; (* N.Wirth, 16.4.2016 / 4.4.2017 / 17.9.2018  Oberon compiler; code 
       Put3(BR, 7, 80H + xr);
     ELSE
       Put1(Lsl, xr, xr, 2);
+      IF genLeaf THEN ORS.Mark("leaf procedure") END ;
       (*L0+4*) Put3(BL, 7, 0);  (*LNK := PC+1*)
       Put0(Add, LNK, LNK, xr); Put3(BR, 7, LNK);
     END ;
