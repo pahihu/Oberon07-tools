@@ -107,4 +107,31 @@ END UncheckedCase.
     run("make", "-f", "UncheckedCase.mk", f"OCG_RUNTIME_DIR={runtime}")
     run(work / "UncheckedCase")
 
-print("PASS: ORPC uppercase options, per-input defaults, graph and source directives")
+    (work / "ArmProbe.Mod").write_text("""MODULE ArmProbe;
+IMPORT SYSTEM;
+VAR number*: INTEGER; real*: REAL;
+BEGIN
+  number := 1; real := 0.5;
+  ASSERT(SYSTEM.SIZE(INTEGER) = 4)
+END ArmProbe.
+""")
+    run(compiler, "Compile", "ArmProbe.Mod/bv5K")
+    header = (work / "ArmProbe.h").read_text()
+    assert "sizeof(void *) == 4" in header and "OCG_CORTEX_M" not in header, header
+    assert "int32_t" in header and "float" in header, header
+    makefile = (work / "ArmProbe.mk").read_text()
+    assert "/bv5K" in makefile and "arm-linux-gnueabi-" in makefile, makefile
+    assert "LDSCRIPT" not in makefile and "ocg_stack_runtime.o" in makefile, makefile
+    (work / "ocg_stack_runtime.o").unlink()
+    commands = run("make", "-n", "-f", "ArmProbe.mk", "CC=arm-cc",
+                   f"OCG_RUNTIME_DIR={runtime}").splitlines()
+    cc_commands = [line for line in commands if line.startswith("arm-cc ")]
+    assert len(cc_commands) == 3, commands
+    assert all("-march=armv5te -marm -mfloat-abi=soft" in line for line in cc_commands), commands
+    for flags, diagnostic in (("bv7", "expected v5"), ("bv5m0", "cannot combine"),
+                              ("bm0v5", "cannot combine")):
+        result = subprocess.run([compiler, "Compile", "ArmProbe.Mod/" + flags],
+                                cwd=work, capture_output=True, text=True)
+        assert result.returncode != 0 and diagnostic in result.stdout, result.stdout
+
+print("PASS: ORPC uppercase options, per-input defaults, graph, source directives and ARMv5TE")

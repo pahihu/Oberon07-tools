@@ -1,10 +1,12 @@
 MODULE OCGTarget;
 IMPORT SYSTEM, Sys := System, RealStr, Conv := ConvTypes;
-CONST HostWordSize* = SIZE(Sys.Address);
+CONST HostWordSize* = SIZE(Sys.Address); ArmV5* = 5;
 TYPE Int* = Sys.Address; Real* = LONGREAL;
-VAR WordSize*, Bits*, Cortex*: Sys.INT32;
+VAR WordSize*, Bits*, Cortex*: Sys.INT32; ArmLinux*: BOOLEAN;
 PROCEDURE Configure*(core: Sys.INT32);
-BEGIN Cortex := core;
+BEGIN
+  ArmLinux := core = ArmV5;
+  IF ArmLinux THEN Cortex := 0 ELSE Cortex := core END;
   IF core = 0 THEN WordSize := HostWordSize ELSE WordSize := 4 END;
   Bits := 8*WordSize
 END Configure;

@@ -1,5 +1,5 @@
 MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07 / AP 13.12.24 / Phu 30.8.26*)
-  IMPORT Texts, Oberon, ORS, ORB := OCB, ORG := OCG, BIF07, Sys := System, Kernel, ORPos := OCGPos, OCGBuild, OCGMake;
+  IMPORT Texts, Oberon, ORS, ORB := OCB, ORG := OCG, BIF07, Sys := System, Kernel, ORPos := OCGPos, OCGBuild, OCGMake, Target := OCGTarget;
   (*Author: Niklaus Wirth, 2014.
     Parser of Oberon-RISC compiler. Uses Scanner ORS to obtain symbols (tokens),
     ORB for definition of data structures and for handling import and export, and
@@ -1276,9 +1276,11 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
   END Module;
 
   PROCEDURE Option(VAR S: Texts.Scanner);
-    VAR i: INTEGER;   
-  BEGIN ORS.InitCheckOptions;
-    optionString[0] := 0X; newSF := FALSE; build := FALSE; ORG.mainProgram := FALSE; ORG.astrobe := FALSE; ORG.SetTarget(0);
+    VAR i, core: INTEGER; armLinux: BOOLEAN; error: ARRAY 64 OF CHAR;
+  BEGIN
+    ORS.InitCheckOptions; ORS.errcnt := 0;
+    optionString[0] := 0X; newSF := FALSE; build := FALSE; ORG.mainProgram := FALSE; ORG.astrobe := FALSE;
+    core := 0; armLinux := FALSE; error := "";
     IF S.nextCh = "/" THEN
       Texts.Scan(S); Texts.Scan(S); 
       IF S.class = Texts.Name THEN
@@ -1288,12 +1290,15 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
           ELSIF S.s[i] = "s" THEN newSF := TRUE
           ELSIF S.s[i] = "a" THEN ORG.astrobe := TRUE
           ELSIF S.s[i] = "m" THEN
-            IF S.s[i+1] = "0" THEN ORG.SetTarget(1)
-            ELSIF S.s[i+1] = "3" THEN ORG.SetTarget(3)
-            ELSIF S.s[i+1] = "4" THEN ORG.SetTarget(4)
-            ELSIF S.s[i+1] = "7" THEN ORG.SetTarget(7)
-            ELSE ORS.Mark("expected m0, m3, m4 or m7 target") END;
+            IF S.s[i+1] = "0" THEN core := 1
+            ELSIF S.s[i+1] = "3" THEN core := 3
+            ELSIF S.s[i+1] = "4" THEN core := 4
+            ELSIF S.s[i+1] = "7" THEN core := 7
+            ELSE error := "expected m0, m3, m4 or m7 target" END;
             ORG.astrobe := TRUE
+          ELSIF S.s[i] = "v" THEN
+            IF S.s[i+1] = "5" THEN armLinux := TRUE
+            ELSE error := "expected v5 for ARMv5TE Linux" END
           ELSIF (S.s[i] = "K") OR (S.s[i] = "V") THEN ORS.SetOption(S.s[i], TRUE)
           ELSIF (S.s[i] = "A") OR (S.s[i] = "C") OR (S.s[i] = "P") OR
                 (S.s[i] = "T") OR (S.s[i] = "X") THEN ORS.SetOption(S.s[i], FALSE)
@@ -1305,6 +1310,15 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
           END
         END
       END
+    END;
+    IF armLinux THEN
+      IF core # 0 THEN error := "cannot combine v5 and Cortex-M targets" END;
+      core := Target.ArmV5
+    END;
+    IF error # "" THEN
+      Texts.WriteString(W, error); Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf);
+      INC(ORS.errcnt)
+    ELSE ORG.SetTarget(core)
     END
   END Option;
 
@@ -1331,7 +1345,9 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
     WHILE (S.class = Texts.Name) OR (S.class = Texts.String) DO
       NEW(T); COPY(S.s, rootArg); COPY(S.s, path); ORS.ResolvePath(path); Texts.Open(T, path);
       IF T.len > 0 THEN Option(S);
-        IF build THEN Build(T, path, rootArg) ELSE ORS.Init(T, 0); Module(NIL, NIL) END
+        IF ORS.errcnt = 0 THEN
+          IF build THEN Build(T, path, rootArg) ELSE ORS.Init(T, 0); Module(NIL, NIL) END
+        END
       ELSE Texts.WriteString(W, S.s); Texts.WriteString(W, " not found");
         Texts.WriteLn(W); Texts.Append(Oberon.Log, W.buf); INC(ORS.errcnt)
       END ;
@@ -1355,6 +1371,7 @@ MODULE ORPC; (*N. Wirth 1.7.97 / 8.3.2020  Oberon compiler for RISC in Oberon-07
     Ln; String("  /b    - translate imports; emit root main() and Module.mk");
     Ln; String("  /a    - enable Astrobe-compatibility");
     Ln; String("  /m0 /m3 /m4 /m7 - Cortex-M target, Arm GNU Toolchain, Astrobe syntax");
+    Ln; String("  /v5   - ARMv5TE Linux host target, ARM mode and soft float");
     Ln; String("  /e    - warning is error");
     Ln; String("  /h    - don't convert type descriptor size for heap allocation");
     Ln; String("  /l    - report position as line:char");

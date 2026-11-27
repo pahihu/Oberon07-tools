@@ -589,6 +589,15 @@ scanner supplied with the underscore change, extended for native numeric literal
 supplied repository. Original author/provenance comments are
 retained in the adapted source files.
 
+### ARMv5TE Linux
+
+Use `ORPC Compile Main.Mod/bv5` to translate the import graph for the
+32-bit ARM Linux host ABI, with 32-bit INTEGER and REAL. The generated
+makefile defaults to `arm-linux-gnueabi-gcc` and uses
+`-march=armv5te -marm -mfloat-abi=soft` for C compilation and linking.
+Override `CC` or `CROSS_COMPILE` for a compatible Linux soft-float toolchain.
+`/v5` can be combined with the uppercase check options.
+
 ### Command-line run-time checks
 
 Append uppercase flags to the regular option suffix, for example
