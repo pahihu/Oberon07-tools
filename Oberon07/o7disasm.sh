@@ -4,21 +4,33 @@ then
   echo "usage: o7disasm.sh <module> [<map>]"
   exit 1
 fi
-MOD=$1
-MAP=$(ls *.map 2>/dev/null)
-if [ ! -z "$2" ];
-then
-  MAP=$2
-fi
-
+###
 opsys=$(uname -o)
 AWK=awk
 if [ "$opsys" = "Darwin" ];
 then
   AWK=gawk
 fi
-
-omake $MOD.lst
+###
+MOD=$1
+if [ ! -z "$2" ];
+then
+  MAP=$2
+else
+  MAP=$(ls *.map 2>/dev/null)
+fi
+### 261128AP remove the need for Makefile
+if [ ! -s $MOD.rsc ];
+then
+  echo "$MOD.rsc not found"
+  exit 1
+fi
+###
+if [ ! -s $MOD.lst ] || [$MOD.rsc -nt $MOD.lst ];
+then
+  ORTool DecObj $MOD.rsc > $MOD.lst
+fi
+###
 if [ -z "$MAP" ];
 then
   c0de=0FFE000
@@ -60,3 +72,4 @@ $AWK -f $O7DIR/Oberon07/o7disasm.awk -v MOD=$MOD -v C0DE=$c0de match.inp
 rm -f match.inp
 rm -f $MOD.lno
 
+# vim:set ts=2 sw=2 et:
