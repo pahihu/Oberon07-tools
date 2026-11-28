@@ -26,7 +26,7 @@ then
   exit 1
 fi
 ###
-if [ ! -s $MOD.lst ] || [$MOD.rsc -nt $MOD.lst ];
+if [ ! -s $MOD.lst ] || [ $MOD.rsc -nt $MOD.lst ];
 then
   ORTool DecObj $MOD.rsc > $MOD.lst
 fi
